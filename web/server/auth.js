@@ -38,10 +38,13 @@ export const auth = betterAuth({
     modelName: 'Profile',
     changeEmail: { enabled: false },
     additionalFields: {
+      // role / tenantId / isActive / mustChangePassword restent `input: false` :
+      // un client ne doit pas pouvoir s'attribuer un role nichoisir son salon.
       role: { type: 'string', required: true, defaultValue: 'client', input: false },
       tenantId: { type: 'string', required: false, input: false },
       isActive: { type: 'boolean', required: false, defaultValue: true, input: false },
       mustChangePassword: { type: 'boolean', required: false, defaultValue: true, input: false },
+      phone: { type: 'string', required: false, input: true },
     },
   },
 

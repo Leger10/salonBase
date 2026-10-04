@@ -1,350 +1,186 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
+import { apiFetch, authApi, fetchMe, toCurrentUser } from "@/lib/api";
 
 const AuthContext = createContext(null);
 
-// Fonction helper pour récupérer l'utilisateur avec son profil
-async function getCurrentUser() {
-  try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) {
-      console.error('Erreur récupération utilisateur:', userError);
-      return null;
-    }
-    
-    if (!user) return null;
-    
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*, tenants(*)')
-      .eq('id', user.id)
-      .maybeSingle();
-    
-    if (profileError) {
-      console.error('Erreur récupération profil:', profileError);
-      return { ...user, profile: null };
-    }
-    
-    return { ...user, profile };
-  } catch (error) {
-    console.error('Erreur dans getCurrentUser:', error);
-    return null;
-  }
-}
-
+/**
+ * L'authentification passe desormais par l'API Node (Better Auth) au lieu de
+ * Supabase. Le contrat expose ici est volontairement identique a celui
+ * d'avant : les 155 composants qui utilisent `useAuth()` n'ont pas a changer.
+ */
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          const userWithProfile = await getCurrentUser();
-          setCurrentUser(userWithProfile);
-          setIsAuthenticated(!!userWithProfile);
-        }
-      } catch (error) {
-        console.error("Erreur d'initialisation auth:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          const userWithProfile = await getCurrentUser();
-          setCurrentUser(userWithProfile);
-          setIsAuthenticated(true);
-          toast.success("Connexion réussie");
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-          toast.success("Déconnecté");
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+  const refresh = useCallback(async () => {
+    try {
+      const me = await fetchMe();
+      const user = toCurrentUser(me);
+      setCurrentUser(user);
+      setIsAuthenticated(Boolean(user));
+      return user;
+    } catch (error) {
+      // 401 = session absente ou expiree, c'est un cas normal au chargement.
+      if (error.status !== 401) console.error("Erreur chargement session:", error);
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+      return null;
+    }
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  useEffect(() => {
+    let cancelled = false;
 
-      if (error) throw error;
-
-      const userWithProfile = await getCurrentUser();
-      
-      if (!userWithProfile?.profile) {
-        // Créer le profil s'il n'existe pas
-        await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || data.user.email,
-            role: 'client',
-            is_active: true,
-          });
-        
-        const refreshedUser = await getCurrentUser();
-        setCurrentUser(refreshedUser);
-        setIsAuthenticated(true);
-        return { user: refreshedUser };
+    (async () => {
+      try {
+        await refresh();
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
+    })();
 
-      setCurrentUser(userWithProfile);
-      setIsAuthenticated(!!userWithProfile);
-      
-      return { user: userWithProfile };
-    } catch (error) {
-      console.error('❌ Erreur de connexion:', error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
+    // La session expire toute seule cote serveur : on rafraichit periodicque.
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible' && isAuthenticated) refresh();
+    }, 60_000);
 
-  // ============================================================
-  // ✅ FONCTION SIGNUP COMPLÈTE AVEC GESTION DU RATE LIMIT
-  // ============================================================
-  const signup = async (userData) => {
-    try {
-      console.log('📝 Inscription pour:', userData.email);
-      
-      // ✅ TOUJOURS CLIENT à l'inscription
-      const role = 'client';
-      const tenantId = userData.tenant_id || null;
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-      // Créer l'utilisateur dans Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            full_name: userData.full_name,
-            phone: userData.phone,
-            role: role,
-            tenant_id: tenantId,
-          },
-          // ✅ Désactiver la confirmation par email pour éviter l'envoi
-          emailRedirectTo: window.location.origin + '/auth/callback',
-        }
-      });
-
-      if (authError) {
-        // ✅ Gestion spécifique du rate limit
-        if (authError.code === 'over_email_send_rate_limit') {
-          toast.error('Trop de tentatives d\'inscription. Veuillez réessayer dans 1 heure.');
-          throw new Error('RATE_LIMIT_EXCEEDED');
-        }
-        
-        // ✅ Gestion des autres erreurs
-        if (authError.code === 'email_provider_disabled') {
-          toast.error('Les inscriptions par email sont désactivées. Contactez l\'administrateur.');
-          throw new Error('EMAIL_PROVIDER_DISABLED');
-        }
-        
-        if (authError.code === 'user_already_exists') {
-          toast.error('Un compte avec cet email existe déjà.');
-          throw new Error('USER_ALREADY_EXISTS');
-        }
-        
-        throw authError;
+  const login = useCallback(
+    async (email, password) => {
+      try {
+        await authApi.signIn(email, password);
+        const user = await refresh();
+        if (!user) throw new Error("Session invalide apres connexion.");
+        toast.success("Connexion réussie");
+        return { user };
+      } catch (error) {
+        const message =
+          error.status === 401 || /invalid|identifiants/i.test(error.message)
+            ? "Email ou mot de passe incorrect."
+            : error.message;
+        toast.error(message);
+        throw new Error(message);
       }
+    },
+    [refresh]
+  );
 
-      console.log('✅ Utilisateur créé dans auth:', authData.user.id);
-
-      // ✅ Vérifier si l'utilisateur a bien été créé
-      if (!authData.user) {
-        throw new Error('Erreur lors de la création du compte');
-      }
-
-      // ✅ Si le profil existe déjà, ne pas le recréer
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', authData.user.id)
-        .maybeSingle();
-
-      if (existingProfile) {
-        console.log('📌 Profil déjà existant');
-        const userWithProfile = await getCurrentUser();
-        setCurrentUser(userWithProfile);
-        setIsAuthenticated(!!userWithProfile);
-        toast.success("Inscription réussie");
-        return { user: userWithProfile };
-      }
-
-      // ✅ Créer le profil avec le rôle client
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
+  // Le role (client) et l'etablissement sont fixes par le serveur :
+  // Better Auth refuse ces champs envoyes par le client (input: false).
+  const signup = useCallback(
+    async (userData) => {
+      try {
+        await authApi.signUp({
           email: userData.email,
-          full_name: userData.full_name,
-          phone: userData.phone || null,
-          role: role, // Toujours client
-          tenant_id: tenantId, // Si invitation, assigné au salon
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          password: userData.password,
+          name: userData.full_name || userData.email,
+          phone: userData.phone || undefined,
         });
 
-      if (profileError) {
-        console.error('❌ Erreur création profil:', profileError);
-        throw new Error('Erreur lors de la création du profil');
-      }
-
-      console.log('✅ Profil client créé');
-      
-      // ✅ Attendre que le profil soit disponible
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const userWithProfile = await getCurrentUser();
-      setCurrentUser(userWithProfile);
-      setIsAuthenticated(!!userWithProfile);
-      toast.success("Inscription réussie");
-      
-      return { user: userWithProfile };
-      
-    } catch (error) {
-      console.error('❌ Erreur d\'inscription:', error);
-      
-      // ✅ Ne pas afficher de toast si l'erreur est déjà gérée
-      if (error.message === 'RATE_LIMIT_EXCEEDED' || 
-          error.message === 'EMAIL_PROVIDER_DISABLED' || 
-          error.message === 'USER_ALREADY_EXISTS') {
-        throw error;
-      }
-      
-      toast.error(error.message || "Erreur lors de l'inscription");
-      throw error;
-    }
-  };
-
-  // ✅ Fonction pour promouvoir un client en Admin (Super Admin uniquement)
-  const promoteToAdmin = async (userId, tenantId) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          role: 'admin',
-          tenant_id: tenantId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
-      toast.success('Utilisateur promu Admin avec succès');
-      return { success: true };
-    } catch (error) {
-      console.error('Erreur promotion admin:', error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
-
-  // ✅ Fonction pour promouvoir un client en Employé (Admin uniquement)
-  const promoteToEmployee = async (userId, tenantId) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          role: 'employee',
-          tenant_id: tenantId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
-      toast.success('Utilisateur promu Employé avec succès');
-      return { success: true };
-    } catch (error) {
-      console.error('Erreur promotion employee:', error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
-
-  // ✅ Fonction pour générer un lien d'invitation pour un salon
-  const generateInviteLink = (tenantId, salonName) => {
-    const baseUrl = window.location.origin;
-    const encodedSalon = encodeURIComponent(salonName);
-    return `${baseUrl}/auth/signup?tenant=${tenantId}&salon=${encodedSalon}`;
-  };
-
-  const forgotPassword = async (email) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
-
-      if (error) {
-        if (error.code === 'over_email_send_rate_limit') {
-          toast.error('Trop de demandes. Veuillez réessayer dans 1 heure.');
-          throw new Error('RATE_LIMIT_EXCEEDED');
+        const user = await refresh();
+        toast.success("Inscription réussie");
+        return { user };
+      } catch (error) {
+        if (error.status === 422 || /already|existe/i.test(error.message)) {
+          const message = "Un compte avec cet email existe déjà.";
+          toast.error(message);
+          throw new Error("USER_ALREADY_EXISTS", { cause: message });
         }
+        toast.error(error.message || "Erreur lors de l'inscription");
         throw error;
       }
-      
-      toast.success("Email de réinitialisation envoyé");
-      return { message: "Email sent" };
-    } catch (error) {
-      if (error.message !== 'RATE_LIMIT_EXCEEDED') {
-        toast.error(error.message);
-      }
-      throw error;
-    }
-  };
+    },
+    [refresh]
+  );
 
-  const resetPassword = async (accessToken, newPassword) => {
+  const logout = useCallback(async () => {
     try {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-      
-      if (sessionError) throw sessionError;
-      
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) throw error;
-      
-      toast.success("Mot de passe réinitialisé avec succès");
-      return { message: "Password reset successfully" };
+      await authApi.signOut();
     } catch (error) {
-      console.error('Reset password error:', error);
-      toast.error(error.message || "Erreur lors de la réinitialisation");
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
+      console.error("Erreur déconnexion:", error);
+    } finally {
       setCurrentUser(null);
       setIsAuthenticated(false);
       navigate("/");
-    } catch (error) {
-      console.error("Erreur déconnexion:", error);
     }
-  };
+  }, [navigate]);
+
+  const changePassword = useCallback(
+    async (currentPassword, newPassword) => {
+      await authApi.changePassword(currentPassword, newPassword);
+      await refresh();
+      toast.success("Mot de passe modifié");
+      return { success: true };
+    },
+    [refresh]
+  );
+
+  const promote = useCallback(
+    async (userId, tenantId, role) => {
+      try {
+        const data = await apiFetch(`/api/profiles/${encodeURIComponent(userId)}`, {
+          method: "PATCH",
+          body: { role, tenant_id: tenantId },
+        });
+        toast.success(
+          role === "admin" ? "Utilisateur promu Admin" : "Utilisateur promu Employé"
+        );
+        return data;
+      } catch (error) {
+        toast.error(error.message);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const promoteToAdmin = useCallback(
+    (userId, tenantId) => promote(userId, tenantId, "admin"),
+    [promote]
+  );
+
+  const promoteToEmployee = useCallback(
+    (userId, tenantId) => promote(userId, tenantId, "employee"),
+    [promote]
+  );
+
+  // Necessite un service d'email configure cote serveur (non actif en dev).
+  const forgotPassword = useCallback(async (email) => {
+    try {
+      await authApi.requestPasswordReset(email, `${window.location.origin}/auth/reset-password`);
+      toast.success("Email de réinitialisation envoyé");
+      return { message: "Email sent" };
+    } catch (error) {
+      toast.error(error.message || "La réinitialisation par email n'est pas disponible.");
+      throw error;
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (token, newPassword) => {
+    try {
+      await authApi.resetPassword(token, newPassword);
+      toast.success("Mot de passe réinitialisé");
+      return { message: "Password reset successfully" };
+    } catch (error) {
+      toast.error(error.message || "Erreur lors de la réinitialisation");
+      throw error;
+    }
+  }, []);
+
+  const generateInviteLink = useCallback((tenantId, salonName) => {
+    const encodedSalon = encodeURIComponent(salonName ?? "");
+    return `${window.location.origin}/auth/signup?tenant=${tenantId}&salon=${encodedSalon}`;
+  }, []);
 
   const value = {
     currentUser,
@@ -352,12 +188,14 @@ export function AuthProvider({ children }) {
     isLoading,
     login,
     signup,
+    logout,
     forgotPassword,
     resetPassword,
-    logout,
+    changePassword,
     promoteToAdmin,
     promoteToEmployee,
     generateInviteLink,
+    refresh,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

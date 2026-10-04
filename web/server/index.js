@@ -15,9 +15,10 @@ const { default: express } = await import('express');
 const { toNodeHandler } = await import('better-auth/node');
 const { auth, authOrigins } = await import('./auth.js');
 const { prisma } = await import('./prisma.js');
-const { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere } = await import(
+const { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } = await import(
   './middleware/auth.js'
 );
+const { profileDto, tenantDto } = await import('./dto.js');
 
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 4000);
@@ -61,20 +62,75 @@ app.get(
 );
 
 // --- Session courante -----------------------------------------------------
+// On renvoie la session ET le profil. Le frontend historique lit
+// `currentUser.profile.tenant_id`, d'ou la forme snake_case.
 app.get(
   '/api/me',
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
+    const profile = await prisma.profile.findUnique({ where: { id: ctx.user.id } });
+    const tenant = ctx.tenantId
+      ? await prisma.tenant.findUnique({ where: { id: ctx.tenantId } })
+      : null;
+    const dto = profileDto(profile, tenant);
+
     res.json({
       id: ctx.user.id,
       email: ctx.user.email,
       name: ctx.user.name,
+      image: ctx.user.image ?? null,
       role: ctx.role,
       tenantId: ctx.tenantId,
+      tenant_id: ctx.tenantId,
+      full_name: dto?.full_name ?? null,
       isActive: ctx.profile.isActive,
       mustChangePassword: ctx.user.mustChangePassword === true,
       emailVerified: ctx.user.emailVerified === true,
+      profile: dto,
     });
+  })
+);
+
+// --- Promotion / changement de role ---------------------------------------
+// Remplace les appels `supabase.from('profiles').update({ role })` de l'ancien
+// frontend. Regles : un admin ne touche que son propre tenant et ne peut pas
+// nommer super_admin ; seul un super_admin attribue ou retire ce role.
+app.patch(
+  '/api/profiles/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+
+    const { role, tenant_id: tenantId = null } = req.body ?? {};
+    if (!role || !Object.hasOwn(ROLES, role)) {
+      throw new HttpError(400, 'INVALID_ROLE', 'Role invalide.');
+    }
+
+    const target = await prisma.profile.findUnique({ where: { id: req.params.id } });
+    if (!target) throw new HttpError(404, 'NOT_FOUND', 'Profil introuvable.');
+
+    const isSuperAdmin = ctx.role === 'super_admin';
+    if (role === 'super_admin' && !isSuperAdmin) {
+      throw new HttpError(403, 'FORBIDDEN', 'Seul un super_admin peut attribuer ce role.');
+    }
+    if (!isSuperAdmin) {
+      if (target.role === 'super_admin' || (ROLES[target.role] ?? 0) > ctx.level) {
+        throw new HttpError(403, 'FORBIDDEN', 'Vous ne pouvez pas modifier un compte superieur.');
+      }
+      if (tenantId !== ctx.tenantId) {
+        throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous ne pouvez assigner que votre etablissement.");
+      }
+    }
+    if (role !== 'super_admin' && tenantId === null) {
+      throw new HttpError(400, 'TENANT_REQUIRED', 'Un role autre que super_admin exige un etablissement.');
+    }
+
+    const updated = await prisma.profile.update({
+      where: { id: target.id },
+      data: { role, tenantId },
+    });
+    const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
+    res.json({ success: true, profile: profileDto(updated, tenant) });
   })
 );
 
