@@ -1,0 +1,603 @@
+/* /src/index.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ============================================
+       THEME CLAIR - COULEUR PRINCIPALE ROSE #ec4899
+       ============================================ */
+    
+    /* Fond - Plus doux et moins éclatant */
+    --background: 220 15% 96%;
+    --foreground: 220 25% 12%;
+    
+    /* Cartes - Légèrement plus contrastées */
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 12%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
+    
+    /* ✅ Primary: Rose #ec4899 */
+    --primary: 330 81% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: Gris clair chaleureux */
+    --secondary: 220 12% 92%;
+    --secondary-foreground: 220 25% 15%;
+    
+    --muted: 220 10% 90%;
+    --muted-foreground: 220 15% 45%;
+    
+    /* Accent: Doré plus soutenu */
+    --accent: 40 80% 48%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 12% 85%;
+    --input: 220 12% 88%;
+    --ring: 330 81% 60%;
+    
+    --radius: 1rem;
+    
+    /* Sidebar */
+    --sidebar-background: 220 15% 94%;
+    --sidebar-foreground: 220 25% 15%;
+    --sidebar-primary: 330 81% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 80% 48%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 12% 85%;
+    --sidebar-ring: 330 81% 60%;
+  }
+
+  /* ============================================
+     THEME SOMBRE - COULEUR PRINCIPALE ROSE #ec4899
+     ============================================ */
+  .dark {
+    --background: 220 25% 10%;
+    --foreground: 220 15% 92%;
+    
+    --card: 220 22% 14%;
+    --card-foreground: 220 15% 92%;
+    
+    --popover: 220 22% 14%;
+    --popover-foreground: 220 15% 92%;
+    
+    /* ✅ Primary: Rose #ec4899 plus lumineux en sombre */
+    --primary: 330 81% 65%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 220 18% 18%;
+    --secondary-foreground: 220 15% 92%;
+    
+    --muted: 220 18% 18%;
+    --muted-foreground: 220 12% 65%;
+    
+    --accent: 40 80% 50%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 18% 22%;
+    --input: 220 18% 22%;
+    --ring: 330 81% 65%;
+    
+    --sidebar-background: 220 22% 12%;
+    --sidebar-foreground: 220 15% 92%;
+    --sidebar-primary: 330 81% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 80% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 18% 22%;
+  }
+
+  /* ============================================
+     STYLES DE BASE AVEC MEILLEURE LISIBILITÉ
+     ============================================ */
+  
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    text-wrap: balance;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: hsl(var(--foreground));
+  }
+
+  /* ✅ Amélioration de la lisibilité des textes */
+  p, li, span, a {
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
+  }
+
+  /* ✅ Texte muted plus contrasté */
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.9;
+  }
+
+  /* ✅ Bordures plus visibles */
+  .border {
+    border-color: hsl(var(--border));
+    border-opacity: 0.8;
+  }
+
+  /* ✅ Liens plus contrastés */
+  a {
+    color: hsl(var(--foreground));
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: hsl(var(--primary));
+  }
+
+  /* ✅ Labels et placeholders plus lisibles */
+  label {
+    color: hsl(var(--foreground));
+    font-weight: 500;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+  }
+
+  /* ✅ Amélioration du contraste des sélecteurs */
+  select,
+  .select-value {
+    color: hsl(var(--foreground));
+  }
+
+  /* ✅ Badges plus contrastés */
+  .badge {
+    font-weight: 500;
+  }
+}
+
+@layer components {
+  /* ============================================
+     COMPOSANTS PREMIUM
+     ============================================ */
+  
+  .glass-panel {
+    background-color: hsl(var(--background) / 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  
+  .bento-card {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .bento-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  .auth-gradient {
+    background: radial-gradient(circle at top right, hsl(var(--primary) / 0.1), transparent 40%),
+                radial-gradient(circle at bottom left, hsl(var(--accent) / 0.08), transparent 40%),
+                hsl(var(--background));
+  }
+
+  /* ============================================
+     BOUTONS - Meilleur contraste
+     ============================================ */
+  
+  .btn-primary {
+    @apply bg-primary text-primary-foreground font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  
+  .btn-primary:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px hsl(var(--primary) / 0.35);
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
+  }
+  
+  .btn-secondary:hover {
+    background-color: hsl(var(--secondary) / 0.8);
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  .btn-accent {
+    @apply bg-accent text-accent-foreground font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+  
+  .btn-accent:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px hsl(var(--accent) / 0.35);
+  }
+
+  /* ============================================
+     INPUTS - Meilleure visibilité
+     ============================================ */
+  
+  .input-premium {
+    @apply w-full px-4 py-3 rounded-xl border transition-all duration-200;
+    background-color: hsl(var(--background));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+  
+  .input-premium:focus {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.15);
+  }
+
+  /* ============================================
+     BADGES - Plus contrastés
+     ============================================ */
+  
+  .badge-premium {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
+  }
+  
+  .badge-primary {
+    background-color: hsl(var(--primary) / 0.15);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.25);
+  }
+  
+  .badge-accent {
+    background-color: hsl(var(--accent) / 0.15);
+    color: hsl(var(--accent));
+    border: 1px solid hsl(var(--accent) / 0.25);
+  }
+  
+  .badge-success {
+    background-color: hsl(142 76% 45% / 0.15);
+    color: hsl(142 76% 40%);
+    border: 1px solid hsl(142 76% 45% / 0.25);
+  }
+  
+  .badge-warning {
+    background-color: hsl(38 92% 50% / 0.15);
+    color: hsl(38 92% 45%);
+    border: 1px solid hsl(38 92% 50% / 0.25);
+  }
+  
+  .badge-error {
+    background-color: hsl(0 72% 51% / 0.15);
+    color: hsl(0 72% 45%);
+    border: 1px solid hsl(0 72% 51% / 0.25);
+  }
+
+  /* ============================================
+     CARTES DASHBOARD
+     ============================================ */
+  
+  .dashboard-card {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+  }
+  
+  .dashboard-card:hover {
+    border-color: hsl(var(--primary) / 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 30px hsl(var(--primary) / 0.2);
+  }
+  
+  .text-glow-accent {
+    text-shadow: 0 0 30px hsl(var(--accent) / 0.2);
+  }
+  
+  .bg-premium-dark {
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--card)) 100%);
+  }
+  
+  .bg-premium-card {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%);
+  }
+  
+  .shadow-premium {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  
+  .shadow-premium-lg {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes coverSlide {
+  0% {
+    transform: scale(1) translateX(0);
+  }
+  25% {
+    transform: scale(1.03) translateX(-2%);
+  }
+  50% {
+    transform: scale(1.05) translateX(-4%);
+  }
+  75% {
+    transform: scale(1.03) translateX(-2%);
+  }
+  100% {
+    transform: scale(1) translateX(0);
+  }
+}
+
+.animate-cover-slide {
+  animation: coverSlide 25s ease-in-out infinite;
+}
+
+.animate-cover-slide:hover {
+  animation-play-state: paused;
+}
+
+@keyframes coverSlideContinuous {
+  0% {
+    transform: scale(1.1) translateX(-5%);
+  }
+  50% {
+    transform: scale(1.1) translateX(5%);
+  }
+  100% {
+    transform: scale(1.1) translateX(-5%);
+  }
+}
+
+.animate-cover-slide-continuous {
+  animation: coverSlideContinuous 30s ease-in-out infinite;
+}
+
+@keyframes coverSlideSlow {
+  0% {
+    transform: scale(1.05) translateX(-3%);
+  }
+  50% {
+    transform: scale(1.05) translateX(3%);
+  }
+  100% {
+    transform: scale(1.05) translateX(-3%);
+  }
+}
+
+.animate-cover-slide-slow {
+  animation: coverSlideSlow 40s ease-in-out infinite;
+}
+
+.step-indicator {
+  @apply w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300;
+}
+
+.step-pending {
+  @apply bg-muted text-muted-foreground;
+}
+
+.step-active {
+  @apply bg-primary text-primary-foreground ring-4 ring-primary/20 ring-offset-2;
+}
+
+.step-completed {
+  @apply bg-green-500 text-white;
+}
+
+.step-connector {
+  @apply flex-1 h-0.5 transition-all duration-300;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.ticket-notification {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
+.ticket-notification-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.notification-glow {
+  position: relative;
+}
+
+.notification-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, 
+    rgba(236, 72, 153, 0.3),
+    rgba(139, 92, 246, 0.3),
+    rgba(236, 72, 153, 0.3)
+  );
+  z-index: -1;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   HERO SECTION - AMÉLIORATION DE LA LISIBILITÉ
+   ============================================ */
+
+/* ✅ Hero Section - Amélioration de la lisibilité */
+.hero-title {
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-subtitle {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ✅ Stats cards */
+.hero-stat {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.dark .hero-stat {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ✅ Badge hero */
+.hero-badge {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.dark .hero-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ✅ Overlay sombre pour le texte */
+.hero-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+.dark .hero-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.3) 50%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+}
+
+/* ✅ Texte avec meilleur contraste */
+.hero-text {
+  color: white;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.hero-text-light {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ✅ Couleur primaire personnalisée - Rose #ec4899 */
+.bg-primary-custom {
+  background-color: #ec4899;
+}
+
+.text-primary-custom {
+  color: #ec4899;
+}
+
+.border-primary-custom {
+  border-color: #ec4899;
+}
+
+.hover\\:bg-primary-custom:hover {
+  background-color: #ec4899;
+}
+
+.hover\\:text-primary-custom:hover {
+  color: #ec4899;
+}
+
+/* ✅ Bouton primaire avec la couleur rose */
+.btn-primary-custom {
+  background-color: #ec4899;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary-custom:hover {
+  background-color: #db2777;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.35);
+}
+
+/* ✅ Focus ring avec la couleur rose */
+.focus-ring-custom:focus {
+  outline: none;
+  ring: 2px solid #ec4899;
+  ring-offset: 2px;
+}

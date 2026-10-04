@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Métadonnées PWA -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BeautyFlow" />
+    
+    <!-- Thème -->
+    <meta name="theme-color" content="#ec4899" />
+    <meta name="msapplication-TileColor" content="#ec4899" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <!-- ✅ SCRIPT POUR LA PWA - AVANT TOUT CHARGEMENT -->
+    <script>
+      (function() {
+        console.log('🚀 Script PWA en cours d\'exécution');
+        
+        // Détecter le mode PWA
+        const isStandalone = window.navigator.standalone || 
+                            window.matchMedia('(display-mode: standalone)').matches ||
+                            window.location.search.includes('source=pwa');
+        
+        // Sauvegarder le mode dans un attribut data
+        if (isStandalone) {
+          document.documentElement.setAttribute('data-pwa', 'true');
+          console.log('📱 Mode PWA détecté');
+          
+          // Sauvegarder l'URL actuelle si c'est un showcase
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/showcase/')) {
+            const slug = currentPath.split('/showcase/')[1]?.split('/')[0];
+            if (slug && slug !== 'null' && slug !== 'undefined') {
+              localStorage.setItem('beautyflow_last_slug', slug);
+              localStorage.setItem('beautyflow_deep_link', currentPath + window.location.search);
+              console.log('💾 Slug sauvegardé depuis script HTML:', slug);
+            }
+          }
+          
+          // Si on est sur la page d'accueil, restaurer le dernier lien
+          if (currentPath === '/' || currentPath === '') {
+            const savedDeepLink = localStorage.getItem('beautyflow_deep_link');
+            const savedSlug = localStorage.getItem('beautyflow_last_slug');
+            
+            console.log('🔍 Vérification des liens sauvegardés...');
+            console.log('  - Deep link:', savedDeepLink);
+            console.log('  - Slug:', savedSlug);
+            
+            if (savedDeepLink && savedDeepLink !== '/' && savedDeepLink !== '' && savedDeepLink !== 'null') {
+              console.log('🔄 Redirection vers le lien profond:', savedDeepLink);
+              window.location.replace(savedDeepLink);
+              return;
+            }
+            
+            if (savedSlug && savedSlug !== 'null' && savedSlug !== 'undefined') {
+              const redirectUrl = `/showcase/${savedSlug}`;
+              console.log('🔄 Redirection vers le showcase:', redirectUrl);
+              window.location.replace(redirectUrl);
+              return;
+            }
+          }
+        } else {
+          console.log('💻 Mode navigateur standard');
+          
+          // Même en mode navigateur, sauvegarder les showcases visités
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/showcase/')) {
+            const slug = currentPath.split('/showcase/')[1]?.split('/')[0];
+            if (slug && slug !== 'null' && slug !== 'undefined') {
+              localStorage.setItem('beautyflow_last_slug', slug);
+              localStorage.setItem('beautyflow_deep_link', currentPath + window.location.search);
+              console.log('💾 Slug sauvegardé (mode navigateur):', slug);
+            }
+          }
+        }
+      })();
+    </script>
+    
+    <!-- Titre -->
+    <title>BeautyFlow - Plateforme de gestion de salons de beauté</title>
+    <meta name="description" content="La plateforme complète pour gérer votre salon de beauté, réserver des rendez-vous et fidéliser vos clients au Burkina Faso et en Afrique." />
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://saloncenter.netlify.app/" />
+    <meta property="og:title" content="BeautyFlow - Plateforme de gestion de salons de beauté" />
+    <meta property="og:description" content="La plateforme complète pour gérer votre salon de beauté." />
+    <meta property="og:image" content="https://saloncenter.netlify.app/og-image.jpg" />
+    <meta property="og:site_name" content="BeautyFlow" />
+    <meta property="og:locale" content="fr_FR" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BeautyFlow - Plateforme de gestion de salons de beauté" />
+    <meta name="twitter:description" content="La plateforme complète pour gérer votre salon de beauté." />
+    <meta name="twitter:image" content="https://saloncenter.netlify.app/twitter-image.jpg" />
+    
+    <!-- Robots -->
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://saloncenter.netlify.app/" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

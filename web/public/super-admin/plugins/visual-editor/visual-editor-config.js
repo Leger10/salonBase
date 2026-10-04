@@ -1,0 +1,1 @@
+window.visualEditorConfig = { enabled: false };

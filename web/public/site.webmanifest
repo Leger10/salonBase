@@ -1,0 +1,35 @@
+{
+  "name": "BeautyFlow - Plateforme de gestion de salons de beauté",
+  "short_name": "BeautyFlow",
+  "description": "La plateforme complète pour gérer votre salon de beauté, réserver des rendez-vous et fidéliser vos clients.",
+  "theme_color": "#ec4899",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "orientation": "portrait",
+  "categories": ["beauty", "salon", "booking", "management"],
+  "lang": "fr-FR",
+  "icons": [
+    {
+      "src": "/favicon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

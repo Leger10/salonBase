@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /services
+Allow: /tenants
+Allow: /booking
+Allow: /contact
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /employee/
+Disallow: /client/
+Disallow: /login
+Disallow: /register
+Sitemap: https://beautyflow.com/sitemap.xml

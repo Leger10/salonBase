@@ -1,0 +1,1978 @@
+[
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18456_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18456_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18456_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "activity_logs_user_id_fkey",
+    "column_name": "user_id",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "activity_logs_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "activity_logs",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "activity_logs_pkey",
+    "column_name": "id",
+    "foreign_table_name": "activity_logs",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_7_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "appointments_rating_check",
+    "column_name": null,
+    "foreign_table_name": "appointments",
+    "foreign_column_name": "rating"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "appointments_status_check",
+    "column_name": null,
+    "foreign_table_name": "appointments",
+    "foreign_column_name": "status"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17697_8_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "appointments_service_id_fkey",
+    "column_name": "service_id",
+    "foreign_table_name": "services",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "appointments_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "appointments_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "appointments_employee_id_fkey",
+    "column_name": "employee_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "appointments_room_id_fkey",
+    "column_name": "room_id",
+    "foreign_table_name": "rooms",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "appointments",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "appointments_pkey",
+    "column_name": "id",
+    "foreign_table_name": "appointments",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "branches",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18475_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "branches",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18475_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "branches",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18475_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "branches",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "branches_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "branches",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "branches_pkey",
+    "column_name": "id",
+    "foreign_table_name": "branches",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "CHECK",
+    "constraint_name": "categories_type_check",
+    "column_name": null,
+    "foreign_table_name": "categories",
+    "foreign_column_name": "type"
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17642_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17642_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17642_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "categories_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "categories",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "categories_pkey",
+    "column_name": "id",
+    "foreign_table_name": "categories",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_7_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_10_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18429_9_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "client_subscriptions_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "client_subscriptions_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "client_subscriptions_service_id_fkey",
+    "column_name": "service_id",
+    "foreign_table_name": "services",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "client_subscriptions",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "client_subscriptions_pkey",
+    "column_name": "id",
+    "foreign_table_name": "client_subscriptions",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17618_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17618_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17618_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "clients_profile_id_fkey",
+    "column_name": "profile_id",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "clients_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "clients_pkey",
+    "column_name": "id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "clients_tenant_id_profile_id_key",
+    "column_name": "profile_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "profile_id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "clients_tenant_id_profile_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "clients_tenant_id_profile_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "profile_id"
+  },
+  {
+    "table_name": "clients",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "clients_tenant_id_profile_id_key",
+    "column_name": "profile_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18096_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18096_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18096_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18096_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18096_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "email_templates_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "email_templates",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "email_templates_pkey",
+    "column_name": "id",
+    "foreign_table_name": "email_templates",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17959_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17959_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17959_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17959_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "employee_absences_employee_id_fkey",
+    "column_name": "employee_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_absences",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "employee_absences_pkey",
+    "column_name": "id",
+    "foreign_table_name": "employee_absences",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_availability",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18391_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_availability",
+    "constraint_type": "CHECK",
+    "constraint_name": "employee_availability_day_of_week_check",
+    "column_name": null,
+    "foreign_table_name": "employee_availability",
+    "foreign_column_name": "day_of_week"
+  },
+  {
+    "table_name": "employee_availability",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18391_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_availability",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "employee_availability_employee_id_fkey",
+    "column_name": "employee_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_availability",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "employee_availability_pkey",
+    "column_name": "id",
+    "foreign_table_name": "employee_availability",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_schedules",
+    "constraint_type": "CHECK",
+    "constraint_name": "employee_schedules_day_of_week_check",
+    "column_name": null,
+    "foreign_table_name": "employee_schedules",
+    "foreign_column_name": "day_of_week"
+  },
+  {
+    "table_name": "employee_schedules",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17945_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_schedules",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17945_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employee_schedules",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "employee_schedules_employee_id_fkey",
+    "column_name": "employee_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employee_schedules",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "employee_schedules_pkey",
+    "column_name": "id",
+    "foreign_table_name": "employee_schedules",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17594_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17594_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17594_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17594_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "employees_profile_id_fkey",
+    "column_name": "profile_id",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "employees_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "employees_pkey",
+    "column_name": "id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "employees_tenant_id_employee_number_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "employees_tenant_id_employee_number_key",
+    "column_name": "employee_number",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "employee_number"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "employees_tenant_id_employee_number_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "employee_number"
+  },
+  {
+    "table_name": "employees",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "employees_tenant_id_employee_number_key",
+    "column_name": "employee_number",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "equipment",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18492_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "equipment",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18492_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "equipment",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18492_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "equipment",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "equipment_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "equipment",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "equipment_pkey",
+    "column_name": "id",
+    "foreign_table_name": "equipment",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18406_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18406_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18406_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18406_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18406_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "gift_cards_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "gift_cards_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "gift_cards_pkey",
+    "column_name": "id",
+    "foreign_table_name": "gift_cards",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "gift_cards",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "gift_cards_code_key",
+    "column_name": "code",
+    "foreign_table_name": "gift_cards",
+    "foreign_column_name": "code"
+  },
+  {
+    "table_name": "home_visits",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17893_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "home_visits",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17893_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "home_visits",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17893_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "home_visits",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "home_visits_appointment_id_fkey",
+    "column_name": "appointment_id",
+    "foreign_table_name": "appointments",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "home_visits",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "home_visits_pkey",
+    "column_name": "id",
+    "foreign_table_name": "home_visits",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "loyalty_settings",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18225_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "loyalty_settings",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18225_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "loyalty_settings",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "loyalty_settings_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "loyalty_settings",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "loyalty_settings_pkey",
+    "column_name": "id",
+    "foreign_table_name": "loyalty_settings",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "loyalty_settings",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "loyalty_settings_tenant_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "loyalty_settings",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17804_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "CHECK",
+    "constraint_name": "marketing_campaigns_type_check",
+    "column_name": null,
+    "foreign_table_name": "marketing_campaigns",
+    "foreign_column_name": "type"
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17804_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17804_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "marketing_campaigns_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "marketing_campaigns",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "marketing_campaigns_pkey",
+    "column_name": "id",
+    "foreign_table_name": "marketing_campaigns",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "CHECK",
+    "constraint_name": "medical_notes_severity_check",
+    "column_name": null,
+    "foreign_table_name": "medical_notes",
+    "foreign_column_name": "severity"
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17925_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17925_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "medical_notes_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "medical_notes_created_by_fkey",
+    "column_name": "created_by",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "medical_notes",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "medical_notes_pkey",
+    "column_name": "id",
+    "foreign_table_name": "medical_notes",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18209_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18209_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18209_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18209_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "news_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "news",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "news_pkey",
+    "column_name": "id",
+    "foreign_table_name": "news",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18166_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18166_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18166_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18166_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "notifications_user_id_fkey",
+    "column_name": "user_id",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "notifications",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "notifications_pkey",
+    "column_name": "id",
+    "foreign_table_name": "notifications",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17848_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17848_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17848_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17848_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "packages_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "packages",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "packages_pkey",
+    "column_name": "id",
+    "foreign_table_name": "packages",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "platform_settings",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18315_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "platform_settings",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "platform_settings_pkey",
+    "column_name": "id",
+    "foreign_table_name": "platform_settings",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17675_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17675_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17675_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "products_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "products_category_id_fkey",
+    "column_name": "category_id",
+    "foreign_table_name": "categories",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "products",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "products_pkey",
+    "column_name": "id",
+    "foreign_table_name": "products",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17573_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "CHECK",
+    "constraint_name": "profiles_role_check",
+    "column_name": null,
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "role"
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17573_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17573_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "profiles_id_fkey",
+    "column_name": "id",
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "profiles_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "profiles",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "profiles_pkey",
+    "column_name": "id",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_12_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "promotions_type_check",
+    "column_name": null,
+    "foreign_table_name": "promotions",
+    "foreign_column_name": "type"
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18186_7_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "promotions_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "promotions_pkey",
+    "column_name": "id",
+    "foreign_table_name": "promotions",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "promotions",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "promotions_code_key",
+    "column_name": "code",
+    "foreign_table_name": "promotions",
+    "foreign_column_name": "code"
+  },
+  {
+    "table_name": "rooms",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17862_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "rooms",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17862_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "rooms",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17862_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "rooms",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "rooms_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "rooms",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "rooms_pkey",
+    "column_name": "id",
+    "foreign_table_name": "rooms",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17907_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17907_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17907_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "service_products_product_id_fkey",
+    "column_name": "product_id",
+    "foreign_table_name": "products",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "service_products_service_id_fkey",
+    "column_name": "service_id",
+    "foreign_table_name": "services",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "service_products",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "service_products_pkey",
+    "column_name": "id",
+    "foreign_table_name": "service_products",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "service_zones",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17880_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_zones",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17880_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_zones",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17880_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "service_zones",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "service_zones_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "service_zones",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "service_zones_pkey",
+    "column_name": "id",
+    "foreign_table_name": "service_zones",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17655_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17655_7_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17655_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17655_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17655_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "services_category_id_fkey",
+    "column_name": "category_id",
+    "foreign_table_name": "categories",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "services_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "services",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "services_pkey",
+    "column_name": "id",
+    "foreign_table_name": "services",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18077_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18077_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18077_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18077_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "sms_templates_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "sms_templates",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "sms_templates_pkey",
+    "column_name": "id",
+    "foreign_table_name": "sms_templates",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "specialty_types",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17819_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "specialty_types",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17819_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "specialty_types",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "specialty_types_pkey",
+    "column_name": "id",
+    "foreign_table_name": "specialty_types",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_9_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_8_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_5_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_4_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17786_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "subscriptions_validated_by_fkey",
+    "column_name": "validated_by",
+    "foreign_table_name": "profiles",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "subscriptions_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "subscriptions",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "subscriptions_pkey",
+    "column_name": "id",
+    "foreign_table_name": "subscriptions",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_settings",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18332_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenant_settings",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_18332_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenant_settings",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tenant_settings_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_settings",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "tenant_settings_pkey",
+    "column_name": "id",
+    "foreign_table_name": "tenant_settings",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_settings",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenant_settings_tenant_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenant_settings",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17828_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17828_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17828_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tenant_specialties_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tenant_specialties_specialty_id_fkey",
+    "column_name": "specialty_id",
+    "foreign_table_name": "specialty_types",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "tenant_specialties_pkey",
+    "column_name": "id",
+    "foreign_table_name": "tenant_specialties",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenant_specialties_tenant_id_specialty_id_key",
+    "column_name": "specialty_id",
+    "foreign_table_name": "tenant_specialties",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenant_specialties_tenant_id_specialty_id_key",
+    "column_name": "specialty_id",
+    "foreign_table_name": "tenant_specialties",
+    "foreign_column_name": "specialty_id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenant_specialties_tenant_id_specialty_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenant_specialties",
+    "foreign_column_name": "tenant_id"
+  },
+  {
+    "table_name": "tenant_specialties",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenant_specialties_tenant_id_specialty_id_key",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenant_specialties",
+    "foreign_column_name": "specialty_id"
+  },
+  {
+    "table_name": "tenants",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17558_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenants",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17558_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenants",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17558_3_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tenants",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "tenants_pkey",
+    "column_name": "id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tenants",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "tenants_slug_key",
+    "column_name": "slug",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "slug"
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "CHECK",
+    "constraint_name": "tickets_status_check",
+    "column_name": null,
+    "foreign_table_name": "tickets",
+    "foreign_column_name": "status"
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17731_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17731_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17731_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tickets_assigned_employee_id_fkey",
+    "column_name": "assigned_employee_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tickets_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "tickets_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "tickets",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "tickets_pkey",
+    "column_name": "id",
+    "foreign_table_name": "tickets",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "CHECK",
+    "constraint_name": "transactions_payment_method_check",
+    "column_name": null,
+    "foreign_table_name": "transactions",
+    "foreign_column_name": "payment_method"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17755_2_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17755_1_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "CHECK",
+    "constraint_name": "2200_17755_6_not_null",
+    "column_name": null,
+    "foreign_table_name": null,
+    "foreign_column_name": null
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "transactions_appointment_id_fkey",
+    "column_name": "appointment_id",
+    "foreign_table_name": "appointments",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "transactions_cashier_id_fkey",
+    "column_name": "cashier_id",
+    "foreign_table_name": "employees",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "transactions_client_id_fkey",
+    "column_name": "client_id",
+    "foreign_table_name": "clients",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "FOREIGN KEY",
+    "constraint_name": "transactions_tenant_id_fkey",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "PRIMARY KEY",
+    "constraint_name": "transactions_pkey",
+    "column_name": "id",
+    "foreign_table_name": "transactions",
+    "foreign_column_name": "id"
+  },
+  {
+    "table_name": "transactions",
+    "constraint_type": "UNIQUE",
+    "constraint_name": "transactions_receipt_number_key",
+    "column_name": "receipt_number",
+    "foreign_table_name": "transactions",
+    "foreign_column_name": "receipt_number"
+  }
+]

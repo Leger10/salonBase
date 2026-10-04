@@ -1,0 +1,30 @@
+# Dependances
+node_modules/
+.vite/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Donnees exportees depuis Supabase (contiennent des donnees personnelles)
+*.ndjson
+
+# Fichiers de test temporaires
+_test-*.cjs
+_test-*.mjs
+_check-*.cjs
+_check-*.mjs
+_reset-*.cjs
+_inspect-*.cjs
+_diag-*.cjs
+
+# OS / editor
+.DS_Store
+Thumbs.db

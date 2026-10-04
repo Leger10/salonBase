@@ -1,0 +1,1239 @@
+// GENERE AUTOMATIQUEMENT - ne pas editer a la main.
+// Source : base Supabase (schema public) via information_schema / pg_catalog.
+// Regenerer : node gen-schema.mjs
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ActivityLog {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @map("tenant_id") @db.Char(36)
+  userId     String?   @map("user_id") @db.Char(36)
+  action     String    @db.VarChar(255)
+  entityType String?   @map("entity_type") @db.VarChar(50)
+  entityId   String?   @map("entity_id") @db.Char(36)
+  metadata   Json?
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant     Tenant    @relation("activity_logs_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+  user       Profile?  @relation("activity_logs_user_id_fkey", fields: [userId], references: [id])
+
+  @@index([createdAt], map: "idx_activity_logs_created_at")
+  @@index([tenantId], map: "idx_activity_logs_tenant")
+  @@map("activity_logs")
+}
+
+model Appointment {
+  id              String    @id @default(uuid()) @db.Char(36)
+  tenantId        String    @map("tenant_id") @db.Char(36)
+  clientId        String?   @map("client_id") @db.Char(36)
+  employeeId      String?   @map("employee_id") @db.Char(36)
+  serviceId       String    @map("service_id") @db.Char(36)
+  appointmentDate DateTime  @map("appointment_date") @db.Date
+  startTime       String    @map("start_time") @db.VarChar(8)
+  endTime         String    @map("end_time") @db.VarChar(8)
+  status          String?   @default("pending") @db.VarChar(50)
+  totalPrice      Decimal?  @map("total_price") @db.Decimal(10, 2)
+  prepaidAmount   Decimal?  @default(0) @map("prepaid_amount") @db.Decimal(10, 2)
+  paymentStatus   String?   @default("unpaid") @map("payment_status") @db.VarChar(50)
+  notes           String?   @db.Text
+  rating          Int?
+  review          String?   @db.Text
+  createdAt       DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  roomId          String?   @map("room_id") @db.Char(36)
+  clientName      String?   @map("client_name") @db.Text
+  clientEmail     String?   @map("client_email") @db.Text
+  clientPhone     String?   @map("client_phone") @db.Text
+  bookingNumber   String?   @map("booking_number") @db.Text
+  client          Client?   @relation("appointments_client_id_fkey", fields: [clientId], references: [id])
+  employee        Employee? @relation("appointments_employee_id_fkey", fields: [employeeId], references: [id])
+  room            Room?     @relation("appointments_room_id_fkey", fields: [roomId], references: [id])
+  service         Service   @relation("appointments_service_id_fkey", fields: [serviceId], references: [id])
+  tenant          Tenant    @relation("appointments_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  homeVisits   HomeVisit[]   @relation("home_visits_appointment_id_fkey")
+  transactions Transaction[] @relation("transactions_appointment_id_fkey")
+
+  @@index([bookingNumber(length: 191)], map: "idx_appointments_booking_number")
+  @@index([clientId], map: "idx_appointments_client")
+  @@index([clientEmail(length: 191)], map: "idx_appointments_client_email")
+  @@index([employeeId], map: "idx_appointments_employee")
+  @@index([roomId], map: "idx_appointments_room")
+  @@index([status], map: "idx_appointments_status")
+  @@index([tenantId, clientEmail(length: 191)], map: "idx_appointments_tenant_client_email")
+  @@index([tenantId, appointmentDate], map: "idx_appointments_tenant_date")
+  @@map("appointments")
+}
+
+model BookingSequence {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @map("tenant_id") @db.Char(36)
+  date       DateTime  @db.Date
+  lastNumber Int?      @default(0) @map("last_number")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant     Tenant    @relation("booking_sequences_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date], map: "idx_booking_sequences_tenant_date")
+  @@map("booking_sequences")
+}
+
+model Branch {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  name      String    @db.VarChar(255)
+  address   String?   @db.Text
+  phone     String?   @db.VarChar(50)
+  email     String?   @db.VarChar(255)
+  isMain    Boolean?  @default(false) @map("is_main")
+  isActive  Boolean?  @default(true) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant    @relation("branches_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_branches_tenant")
+  @@map("branches")
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  name      String    @db.VarChar(100)
+  type      String?   @db.VarChar(20)
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant    Tenant    @relation("categories_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  products Product[] @relation("products_category_id_fkey")
+  services Service[] @relation("services_category_id_fkey")
+
+  @@map("categories")
+}
+
+model CategoryTemplate {
+  id           String    @id @default(uuid()) @db.Char(36)
+  name         String    @db.VarChar(500)
+  type         String?   @default("service") @db.Text
+  iconEmoji    String?   @map("icon_emoji") @db.Text
+  displayOrder Int?      @default(0) @map("display_order")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@unique([name])
+  @@map("category_templates")
+}
+
+model ClientSubscription {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  clientId      String    @map("client_id") @db.Char(36)
+  serviceId     String?   @map("service_id") @db.Char(36)
+  name          String    @db.VarChar(255)
+  description   String?   @db.Text
+  totalSessions Int       @map("total_sessions")
+  usedSessions  Int?      @default(0) @map("used_sessions")
+  price         Decimal   @db.Decimal(10, 2)
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  status        String?   @default("active") @db.VarChar(50)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  client        Client    @relation("client_subscriptions_client_id_fkey", fields: [clientId], references: [id])
+  service       Service?  @relation("client_subscriptions_service_id_fkey", fields: [serviceId], references: [id])
+  tenant        Tenant    @relation("client_subscriptions_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([clientId], map: "idx_client_subscriptions_client")
+  @@index([tenantId], map: "idx_client_subscriptions_tenant")
+  @@map("client_subscriptions")
+}
+
+model Client {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  profileId     String?   @map("profile_id") @db.Char(36)
+  loyaltyPoints Int?      @default(0) @map("loyalty_points")
+  totalVisits   Int?      @default(0) @map("total_visits")
+  totalSpent    Decimal?  @default(0) @map("total_spent") @db.Decimal(10, 2)
+  birthday      DateTime? @db.Date
+  allergies     String?   @db.Text
+  notes         String?   @db.Text
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  email         String?   @db.Text
+  name          String    @db.Text
+  phone         String?   @db.Text
+  lastVisit     DateTime? @map("last_visit") @db.DateTime(3)
+  profile       Profile?  @relation("clients_profile_id_fkey", fields: [profileId], references: [id], onDelete: Cascade)
+  tenant        Tenant    @relation("clients_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  appointments         Appointment[]        @relation("appointments_client_id_fkey")
+  clientSubscriptions  ClientSubscription[] @relation("client_subscriptions_client_id_fkey")
+  medicalNotes         MedicalNote[]        @relation("medical_notes_client_id_fkey")
+  reviews              Review[]             @relation("reviews_client_id_fkey")
+  tickets              Ticket[]             @relation("tickets_client_id_fkey")
+  transactionsClient   Transaction[]        @relation("transactions_client_id_fkey")
+  transactionsCustomer Transaction[]        @relation("transactions_customer_id_fkey")
+
+  @@unique([tenantId, profileId])
+  @@index([profileId], map: "idx_clients_profile")
+  @@index([tenantId], map: "idx_clients_tenant")
+  @@map("clients")
+}
+
+model ContactMessage {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String?   @map("tenant_id") @db.Char(36)
+  name      String    @db.Text
+  email     String    @db.Text
+  phone     String?   @db.Text
+  message   String    @db.Text
+  subject   String?   @db.Text
+  isRead    Boolean?  @default(false) @map("is_read")
+  replied   Boolean?  @default(false)
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  reply     String?   @db.Text
+  replyDate DateTime? @map("reply_date") @db.DateTime(3)
+  tenant    Tenant?   @relation("contact_messages_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt], map: "idx_contact_messages_created_at")
+  @@index([isRead], map: "idx_contact_messages_is_read")
+  @@index([tenantId], map: "idx_contact_messages_tenant_id")
+  @@map("contact_messages")
+}
+
+model EmailTemplate {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  name      String    @db.VarChar(100)
+  subject   String    @db.VarChar(255)
+  body      String    @db.Text
+  variables Json?     @default("[]")
+  isActive  Boolean?  @default(true) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant    @relation("email_templates_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("email_templates")
+}
+
+model EmployeeAbsence {
+  id         String    @id @default(uuid()) @db.Char(36)
+  employeeId String    @map("employee_id") @db.Char(36)
+  startDate  DateTime  @map("start_date") @db.Date
+  endDate    DateTime  @map("end_date") @db.Date
+  reason     String?   @db.VarChar(255)
+  isPaid     Boolean?  @default(true) @map("is_paid")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  employee   Employee  @relation("employee_absences_employee_id_fkey", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_absences_employee")
+  @@map("employee_absences")
+}
+
+model EmployeeAvailability {
+  id          String    @id @default(uuid()) @db.Char(36)
+  employeeId  String    @map("employee_id") @db.Char(36)
+  dayOfWeek   Int?      @map("day_of_week")
+  startTime   String?   @map("start_time") @db.VarChar(8)
+  endTime     String?   @map("end_time") @db.VarChar(8)
+  isAvailable Boolean?  @default(true) @map("is_available")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  employee    Employee  @relation("employee_availability_employee_id_fkey", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_availability_employee")
+  @@map("employee_availability")
+}
+
+model EmployeeSchedule {
+  id         String    @id @default(uuid()) @db.Char(36)
+  employeeId String    @map("employee_id") @db.Char(36)
+  dayOfWeek  Int?      @map("day_of_week")
+  startTime  String?   @map("start_time") @db.VarChar(8)
+  endTime    String?   @map("end_time") @db.VarChar(8)
+  isDayOff   Boolean?  @default(false) @map("is_day_off")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  employee   Employee  @relation("employee_schedules_employee_id_fkey", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_schedules_employee")
+  @@map("employee_schedules")
+}
+
+model Employee {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  tenantId           String    @map("tenant_id") @db.Char(36)
+  profileId          String    @map("profile_id") @db.Char(36)
+  employeeNumber     Int       @map("employee_number")
+  position           String?   @db.VarChar(100)
+  commissionRate     Decimal?  @default(0) @map("commission_rate") @db.Decimal(5, 2)
+  isCashier          Boolean?  @default(false) @map("is_cashier")
+  averageRating      Decimal?  @default(0) @map("average_rating") @db.Decimal(3, 2)
+  totalClientsServed Int?      @default(0) @map("total_clients_served")
+  isAvailable        Boolean?  @default(true) @map("is_available")
+  createdAt          DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  isActive           Boolean?  @default(true) @map("is_active")
+  profile            Profile   @relation("employees_profile_id_fkey", fields: [profileId], references: [id], onDelete: Cascade)
+  tenant             Tenant    @relation("employees_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  appointments         Appointment[]          @relation("appointments_employee_id_fkey")
+  employeeAbsences     EmployeeAbsence[]      @relation("employee_absences_employee_id_fkey")
+  employeeAvailability EmployeeAvailability[] @relation("employee_availability_employee_id_fkey")
+  employeeSchedules    EmployeeSchedule[]     @relation("employee_schedules_employee_id_fkey")
+  medicalNotes         MedicalNote[]          @relation("medical_notes_created_by_fkey")
+  reviews              Review[]               @relation("reviews_employee_id_fkey")
+  tickets              Ticket[]               @relation("tickets_assigned_employee_id_fkey")
+  transactionsCashier  Transaction[]          @relation("transactions_cashier_id_fkey")
+  transactionsEmployee Transaction[]          @relation("transactions_employee_id_fkey")
+
+  @@unique([tenantId, employeeNumber])
+  @@index([tenantId, employeeNumber], map: "idx_employees_number")
+  @@index([tenantId], map: "idx_employees_tenant")
+  @@map("employees")
+}
+
+model Equipment {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  name          String    @db.VarChar(255)
+  reference     String?   @db.VarChar(100)
+  description   String?   @db.Text
+  purchaseDate  DateTime? @map("purchase_date") @db.Date
+  purchasePrice Decimal?  @map("purchase_price") @db.Decimal(10, 2)
+  warrantyEnd   DateTime? @map("warranty_end") @db.Date
+  supplier      String?   @db.VarChar(255)
+  status        String?   @default("active") @db.VarChar(50)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant        Tenant    @relation("equipment_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("equipment")
+}
+
+model Gallery {
+  id           String    @id @default(uuid()) @db.Char(36)
+  tenantId     String    @map("tenant_id") @db.Char(36)
+  imageUrl     String    @map("image_url") @db.Text
+  title        String?   @db.VarChar(255)
+  description  String?   @db.Text
+  category     String?   @db.VarChar(100)
+  isApproved   Boolean?  @default(true) @map("is_approved")
+  displayOrder Int?      @default(0) @map("display_order")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant       Tenant    @relation("gallery_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([isApproved], map: "idx_gallery_is_approved")
+  @@index([tenantId], map: "idx_gallery_tenant_id")
+  @@map("gallery")
+}
+
+model GiftCardOrder {
+  id             String    @id @default(uuid()) @db.Char(36)
+  tenantId       String?   @map("tenant_id") @db.Char(36)
+  code           String    @db.VarChar(50)
+  amount         Decimal   @db.Decimal(10, 2)
+  recipientName  String?   @map("recipient_name") @db.VarChar(255)
+  recipientEmail String?   @map("recipient_email") @db.VarChar(255)
+  message        String?   @db.Text
+  purpose        String?   @db.VarChar(100)
+  deliveryMethod String?   @default("presentielle") @map("delivery_method") @db.VarChar(50)
+  status         String?   @default("pending") @db.VarChar(50)
+  paymentStatus  String?   @default("pending") @map("payment_status") @db.VarChar(50)
+  createdAt      DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  validatedAt    DateTime? @map("validated_at") @db.DateTime(3)
+  deliveredAt    DateTime? @map("delivered_at") @db.DateTime(3)
+  cancelledAt    DateTime? @map("cancelled_at") @db.DateTime(3)
+  tenant         Tenant?   @relation("gift_card_orders_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status], map: "idx_gift_card_orders_status")
+  @@index([tenantId], map: "idx_gift_card_orders_tenant_id")
+  @@map("gift_card_orders")
+}
+
+model GiftCard {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  tenantId           String    @map("tenant_id") @db.Char(36)
+  code               String    @db.VarChar(50)
+  amount             Decimal   @db.Decimal(10, 2)
+  recipientName      String    @map("recipient_name") @db.VarChar(255)
+  message            String?   @db.Text
+  createdAt          DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  recipientPhone     String    @map("recipient_phone") @db.Text
+  tenantName         String?   @map("tenant_name") @db.Text
+  tenantLogo         String?   @map("tenant_logo") @db.Text
+  tenantPrimaryColor String?   @default("#ec4899") @map("tenant_primary_color") @db.Text
+  senderName         String    @map("sender_name") @db.Text
+  occasion           String?   @default("other") @db.Text
+  deliveryMethod     String?   @default("whatsapp") @map("delivery_method") @db.Text
+  paymentMethod      String?   @map("payment_method") @db.Text
+  status             String?   @default("pending") @db.Text
+  paidAt             DateTime? @map("paid_at") @db.DateTime(3)
+  validatedAt        DateTime? @map("validated_at") @db.DateTime(3)
+  usedAt             DateTime? @map("used_at") @db.DateTime(3)
+  sentAt             DateTime? @map("sent_at") @db.DateTime(3)
+  updatedAt          DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  paymentStatus      String?   @default("payé") @map("payment_status") @db.VarChar(50)
+  balance            Decimal?  @default(0) @db.Decimal(10, 2)
+  expiryDate         DateTime? @map("expiry_date") @db.Date
+  purchaseDate       DateTime? @map("purchase_date") @db.Date
+  recipientEmail     String?   @map("recipient_email") @db.VarChar(255)
+  isActive           Boolean?  @default(true) @map("is_active")
+  senderPhone        String?   @map("sender_phone") @db.VarChar(50)
+  tenant             Tenant    @relation("gift_cards_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[] @relation("transactions_gift_card_id_fkey")
+
+  @@unique([code])
+  @@index([code], map: "idx_gift_cards_code")
+  @@index([createdAt], map: "idx_gift_cards_created_at")
+  @@index([status(length: 191)], map: "idx_gift_cards_status")
+  @@index([tenantId], map: "idx_gift_cards_tenant")
+  @@index([tenantId], map: "idx_gift_cards_tenant_id")
+  @@map("gift_cards")
+}
+
+model HomeVisit {
+  id                String      @id @default(uuid()) @db.Char(36)
+  appointmentId     String      @map("appointment_id") @db.Char(36)
+  address           String      @db.Text
+  latitude          Decimal?    @db.Decimal(10, 8)
+  longitude         Decimal?    @db.Decimal(11, 8)
+  travelFee         Decimal?    @map("travel_fee") @db.Decimal(10, 2)
+  travelTimeMinutes Int?        @map("travel_time_minutes")
+  createdAt         DateTime?   @default(now()) @map("created_at") @db.DateTime(3)
+  appointment       Appointment @relation("home_visits_appointment_id_fkey", fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId], map: "idx_home_visits_appointment")
+  @@map("home_visits")
+}
+
+model LoyaltySetting {
+  id              String    @id @default(uuid()) @db.Char(36)
+  tenantId        String    @map("tenant_id") @db.Char(36)
+  pointsPerAmount Int?      @default(1) @map("points_per_amount")
+  amountPerPoint  Int?      @default(100) @map("amount_per_point")
+  createdAt       DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant          Tenant    @relation("loyalty_settings_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+  @@map("loyalty_settings")
+}
+
+model MarketingCampaign {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  name      String    @db.VarChar(255)
+  type      String?   @db.VarChar(50)
+  content   String?   @db.Text
+  sentAt    DateTime? @map("sent_at") @db.DateTime(3)
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant    Tenant    @relation("marketing_campaigns_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("marketing_campaigns")
+}
+
+model MedicalNote {
+  id            String    @id @default(uuid()) @db.Char(36)
+  clientId      String    @map("client_id") @db.Char(36)
+  conditionType String?   @map("condition_type") @db.VarChar(100)
+  description   String?   @db.Text
+  severity      String?   @db.VarChar(20)
+  createdBy     String?   @map("created_by") @db.Char(36)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  client        Client    @relation("medical_notes_client_id_fkey", fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy2    Employee? @relation("medical_notes_created_by_fkey", fields: [createdBy], references: [id])
+
+  @@index([clientId], map: "idx_medical_notes_client")
+  @@map("medical_notes")
+}
+
+model News {
+  id                   String    @id @default(uuid()) @db.Char(36)
+  tenantId             String    @map("tenant_id") @db.Char(36)
+  title                String    @db.VarChar(255)
+  excerpt              String?   @db.Text
+  content              String    @db.Text
+  category             String?   @db.VarChar(50)
+  status               String?   @default("Draft") @db.VarChar(20)
+  imageUrl             String?   @map("image_url") @db.Text
+  scheduledPublishDate DateTime? @map("scheduled_publish_date") @db.DateTime(3)
+  publishedAt          DateTime? @map("published_at") @db.DateTime(3)
+  createdAt            DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant               Tenant    @relation("news_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("news")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String?   @map("user_id") @db.Char(36)
+  tenantId  String?   @map("tenant_id") @db.Char(36)
+  type      String    @db.Text
+  title     String    @db.Text
+  message   String?   @db.Text
+  isRead    Boolean?  @default(false) @map("is_read")
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant?   @relation("notifications_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt], map: "idx_notifications_created_at")
+  @@index([isRead], map: "idx_notifications_is_read")
+  @@index([tenantId], map: "idx_notifications_tenant_id")
+  @@index([userId], map: "idx_notifications_user_id")
+  @@map("notifications")
+}
+
+model Package {
+  id              String    @id @default(uuid()) @db.Char(36)
+  tenantId        String    @map("tenant_id") @db.Char(36)
+  name            String    @db.VarChar(255)
+  description     String?   @db.Text
+  durationMinutes Int?      @map("duration_minutes")
+  price           Decimal   @db.Decimal(10, 2)
+  services        Json?
+  validDays       Int?      @map("valid_days")
+  createdAt       DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant          Tenant    @relation("packages_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("packages")
+}
+
+model PlatformSetting {
+  id            Int       @id @default(1)
+  general       Json?     @default("{\"contact_email\": \"contact@beautyflow.com\", \"contact_phone\": \"+225 07 07 07 07 07\", \"platform_name\": \"BeautyFlow\", \"support_email\": \"support@beautyflow.com\", \"platform_description\": \"Plateforme de gestion de salons de beauté\"}")
+  security      Json?     @default("{\"two_factor_auth\": false, \"max_login_attempts\": 5, \"password_min_length\": 8, \"session_timeout_minutes\": 60, \"password_require_numbers\": true, \"password_require_uppercase\": true, \"require_email_verification\": true, \"require_phone_verification\": false}")
+  notifications Json?     @default("{\"admin_new_user\": true, \"admin_new_tenant\": true, \"sms_notifications\": false, \"email_notifications\": true, \"admin_payment_received\": true}")
+  payments      Json?     @default("{\"wave_enabled\": true, \"stripe_enabled\": false, \"default_currency\": \"XOF\", \"stripe_public_key\": \"\", \"stripe_secret_key\": \"\", \"moov_money_enabled\": true, \"platform_fee_fixed\": 0, \"orange_money_enabled\": true, \"platform_fee_percentage\": 5}")
+  subscriptions Json?     @default("{\"pro_price\": 99000, \"trial_days\": 14, \"pro_features\": \"Clients illimités, Gestion avancée, Notifications SMS et email, Programme de fidélité\", \"premium_price\": 199000, \"starter_price\": 29000, \"premium_features\": \"Tout inclus du plan Pro, Employés illimités, API personnalisée, Support dédié 24/7\", \"starter_features\": \"Jusqu'à 50 clients, Gestion des rendez-vous, Notifications SMS basiques\", \"enable_annual_billing\": true, \"annual_discount_percentage\": 20}")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  app           Json?     @default("{\"max_tenants\": -1, \"cache_enabled\": true, \"cache_duration\": 3600, \"enable_logging\": true, \"enable_analytics\": true, \"maintenance_mode\": false, \"allow_registration\": true, \"log_retention_days\": 30, \"maintenance_message\": \"La plateforme est en maintenance. Nous revenons bientôt !\", \"max_users_per_tenant\": -1, \"require_tenant_approval\": true, \"allow_tenant_registration\": true}")
+  seo           Json?     @default("{\"og_image\": \"\", \"og_title\": \"BeautyFlow\", \"meta_title\": \"BeautyFlow - Plateforme de gestion de salons de beauté\", \"robots_txt\": \"User-agent: *\\nAllow: /\", \"twitter_card\": \"summary_large_image\", \"meta_keywords\": \"beauté, salon, gestion, rendez-vous, fidélité, bien-être\", \"twitter_image\": \"\", \"twitter_title\": \"BeautyFlow\", \"og_description\": \"Plateforme de gestion de salons de beauté\", \"sitemap_enabled\": true, \"meta_description\": \"La plateforme complète pour gérer votre salon de beauté, réserver des rendez-vous et fidéliser vos clients.\", \"twitter_description\": \"Plateforme de gestion de salons de beauté\"}")
+  social        Json?     @default("{\"tiktok\": \"https://tiktok.com/@beautyflow\", \"discord\": \"https://discord.gg/beautyflow\", \"twitter\": \"https://twitter.com/beautyflow\", \"youtube\": \"https://youtube.com/beautyflow\", \"facebook\": \"https://facebook.com/beautyflow\", \"linkedin\": \"https://linkedin.com/company/beautyflow\", \"telegram\": \"https://t.me/beautyflow\", \"whatsapp\": \"+225 07 07 07 07 07\", \"instagram\": \"https://instagram.com/beautyflow\", \"pinterest\": \"https://pinterest.com/beautyflow\"}")
+  branding      Json?     @default("{\"logo_url\": \"\", \"hero_image\": \"\", \"cover_image\": \"\", \"favicon_url\": \"\", \"accent_color\": \"#8b5cf6\", \"primary_color\": \"#ec4899\", \"secondary_color\": \"#06b6d4\"}")
+  hero          Json?     @default("{\"title\": \"Prenez soin de vous avec BeautyFlow\", \"cta_link\": \"/auth/signup\", \"cta_text\": \"Commencer gratuitement\", \"subtitle\": \"La plateforme complète pour réserver vos soins beauté, gérer vos rendez-vous et découvrir de nouveaux talents près de chez vous.\", \"badge_text\": \"✨ Nouveau : Programme de fidélité amélioré\", \"show_stats\": true, \"background_type\": \"gradient\", \"overlay_opacity\": 70, \"background_color\": \"#ec4899\", \"background_image\": \"\", \"secondary_cta_link\": \"/auth/login\", \"secondary_cta_text\": \"Se connecter\"}")
+  cta           Json?     @default("{\"show\": true, \"title\": \"Prêt à sublimer votre beauté ?\", \"subtitle\": \"Rejoignez des milliers de clients satisfaits et prenez rendez-vous dès aujourd'hui.\", \"button_link\": \"/auth/signup\", \"button_text\": \"Créer un compte gratuit\", \"background_type\": \"gradient\", \"background_color\": \"#ec4899\", \"background_image\": \"\"}")
+
+  @@map("platform_settings")
+}
+
+model Product {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  categoryId    String?   @map("category_id") @db.Char(36)
+  name          String    @db.VarChar(255)
+  description   String?   @db.Text
+  reference     String?   @db.VarChar(100)
+  purchasePrice Decimal?  @map("purchase_price") @db.Decimal(10, 2)
+  sellingPrice  Decimal?  @map("selling_price") @db.Decimal(10, 2)
+  stockQuantity Int?      @default(0) @map("stock_quantity")
+  minStockAlert Int?      @default(5) @map("min_stock_alert")
+  unit          String?   @default("piece") @db.VarChar(50)
+  supplier      String?   @db.VarChar(255)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  isActive      Boolean?  @default(true) @map("is_active")
+  mediaType     String?   @default("image") @map("media_type") @db.Text
+  category      String?   @db.Text
+  imageUrl      String?   @map("image_url") @db.Text
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  category2     Category? @relation("products_category_id_fkey", fields: [categoryId], references: [id])
+  tenant        Tenant    @relation("products_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  serviceProducts  ServiceProduct[]  @relation("service_products_product_id_fkey")
+  transactionLines TransactionLine[] @relation("transaction_lines_product_id_fkey")
+
+  @@index([tenantId], map: "idx_products_tenant")
+  @@map("products")
+}
+
+model Profile {
+  id        String    @id @db.Char(36)
+  tenantId  String?   @map("tenant_id") @db.Char(36)
+  email     String    @db.VarChar(255)
+  name      String    @map("full_name") @db.VarChar(255)
+  phone     String?   @db.VarChar(50)
+  role      String    @db.VarChar(50)
+  image     String?   @map("avatar") @db.Text
+  isActive  Boolean?  @default(true) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant?   @relation("profiles_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  activityLogs             ActivityLog[]   @relation("activity_logs_user_id_fkey")
+  clients                  Client[]        @relation("clients_profile_id_fkey")
+  employees                Employee[]      @relation("employees_profile_id_fkey")
+  subscriptions            Subscription[]  @relation("subscriptions_validated_by_fkey")
+  supportTicketsAssignedTo SupportTicket[] @relation("support_tickets_assigned_to_fkey")
+  supportTicketsUser       SupportTicket[] @relation("support_tickets_user_id_fkey")
+
+  emailVerified      Boolean   @default(false) @map("email_verified")
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  sessions           Session[]
+  accounts           Account[]
+
+  @@unique([email])
+  @@index([role], map: "idx_profiles_role")
+  @@index([tenantId], map: "idx_profiles_tenant")
+  @@map("profiles")
+}
+
+model Promotion {
+  id                String    @id @default(uuid()) @db.Char(36)
+  tenantId          String    @map("tenant_id") @db.Char(36)
+  code              String    @db.VarChar(50)
+  name              String    @db.VarChar(255)
+  description       String?   @db.Text
+  type              String?   @db.VarChar(50)
+  value             Decimal   @db.Decimal(10, 2)
+  minPurchase       Decimal?  @default(0) @map("min_purchase") @db.Decimal(10, 2)
+  maxUses           Int?      @default(0) @map("max_uses")
+  usedCount         Int?      @default(0) @map("used_count")
+  startDate         DateTime? @map("start_date") @db.Date
+  endDate           DateTime  @map("end_date") @db.Date
+  applicableClients String?   @default("all") @map("applicable_clients") @db.VarChar(50)
+  isActive          Boolean?  @default(true) @map("is_active")
+  createdAt         DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant            Tenant    @relation("promotions_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([code])
+  @@map("promotions")
+}
+
+model Publication {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  title         String    @db.Text
+  description   String?   @db.Text
+  content       String?   @db.Text
+  type          String    @db.Text
+  status        String    @default("draft") @db.Text
+  imageUrl      String?   @map("image_url") @db.Text
+  linkUrl       String?   @map("link_url") @db.Text
+  startDate     DateTime? @map("start_date") @db.DateTime(3)
+  endDate       DateTime? @map("end_date") @db.DateTime(3)
+  isHighlighted Boolean?  @default(false) @map("is_highlighted")
+  displayOrder  Int?      @default(0) @map("display_order")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  videoUrl      String?   @map("video_url") @db.Text
+  tenant        Tenant    @relation("publications_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([displayOrder], map: "idx_publications_display_order")
+  @@index([status(length: 191)], map: "idx_publications_status")
+  @@index([tenantId], map: "idx_publications_tenant_id")
+  @@index([tenantId, status(length: 191)], map: "idx_publications_tenant_status")
+  @@index([type(length: 191)], map: "idx_publications_type")
+  @@map("publications")
+}
+
+model Review {
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @map("tenant_id") @db.Char(36)
+  clientId      String    @map("client_id") @db.Char(36)
+  employeeId    String?   @map("employee_id") @db.Char(36)
+  serviceId     String?   @map("service_id") @db.Char(36)
+  rating        Int
+  comment       String?   @db.Text
+  isApproved    Boolean?  @default(false) @map("is_approved")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  appointmentId String?   @map("appointment_id") @db.Char(36)
+  client        Client    @relation("reviews_client_id_fkey", fields: [clientId], references: [id], onDelete: Cascade)
+  employee      Employee? @relation("reviews_employee_id_fkey", fields: [employeeId], references: [id], onDelete: SetNull)
+  service       Service?  @relation("reviews_service_id_fkey", fields: [serviceId], references: [id], onDelete: SetNull)
+  tenant        Tenant    @relation("reviews_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([clientId], map: "idx_reviews_client_id")
+  @@index([employeeId], map: "idx_reviews_employee_id")
+  @@index([isApproved], map: "idx_reviews_is_approved")
+  @@index([tenantId], map: "idx_reviews_tenant_id")
+  @@map("reviews")
+}
+
+model Room {
+  id          String    @id @default(uuid()) @db.Char(36)
+  tenantId    String    @map("tenant_id") @db.Char(36)
+  name        String    @db.VarChar(100)
+  type        String?   @db.VarChar(50)
+  isAvailable Boolean?  @default(true) @map("is_available")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant      Tenant    @relation("rooms_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  appointments Appointment[] @relation("appointments_room_id_fkey")
+
+  @@map("rooms")
+}
+
+model ServiceProduct {
+  id           String    @id @default(uuid()) @db.Char(36)
+  serviceId    String    @map("service_id") @db.Char(36)
+  productId    String    @map("product_id") @db.Char(36)
+  quantityUsed Decimal?  @default(1) @map("quantity_used") @db.Decimal(10, 2)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  product      Product   @relation("service_products_product_id_fkey", fields: [productId], references: [id])
+  service      Service   @relation("service_products_service_id_fkey", fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("service_products")
+}
+
+model ServiceTemplate {
+  id           String    @id @default(uuid()) @db.Char(36)
+  name         String    @db.VarChar(500)
+  description  String?   @db.Text
+  categoryName String?   @map("category_name") @db.Text
+  duration     Int?      @default(30)
+  price        Int?      @default(5000)
+  iconEmoji    String?   @default("✂️") @map("icon_emoji") @db.Text
+  salonType    String?   @map("salon_type") @db.Text
+  isActive     Boolean?  @default(true) @map("is_active")
+  displayOrder Int?      @default(0) @map("display_order")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@unique([name])
+  @@map("service_templates")
+}
+
+model ServiceZone {
+  id           String    @id @default(uuid()) @db.Char(36)
+  tenantId     String    @map("tenant_id") @db.Char(36)
+  city         String    @db.VarChar(100)
+  neighborhood String?   @db.VarChar(100)
+  travelFee    Decimal?  @default(0) @map("travel_fee") @db.Decimal(10, 2)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant       Tenant    @relation("service_zones_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("service_zones")
+}
+
+model Service {
+  id           String    @id @default(uuid()) @db.Char(36)
+  tenantId     String    @map("tenant_id") @db.Char(36)
+  categoryId   String?   @map("category_id") @db.Char(36)
+  name         String    @db.VarChar(255)
+  description  String?   @db.Text
+  duration     Int
+  price        Decimal   @db.Decimal(10, 2)
+  isActive     Boolean?  @default(true) @map("is_active")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  category     String?   @db.VarChar(100)
+  salonType    String?   @map("salon_type") @db.VarChar(100)
+  iconEmoji    String?   @default("✂️") @map("icon_emoji") @db.VarChar(10)
+  displayOrder Int?      @default(0) @map("display_order")
+  imageUrl     String?   @map("image_url") @db.Text
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  coverImage   String?   @map("cover_image") @db.Text
+  category2    Category? @relation("services_category_id_fkey", fields: [categoryId], references: [id])
+  tenant       Tenant    @relation("services_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  appointments        Appointment[]        @relation("appointments_service_id_fkey")
+  clientSubscriptions ClientSubscription[] @relation("client_subscriptions_service_id_fkey")
+  reviews             Review[]             @relation("reviews_service_id_fkey")
+  serviceProducts     ServiceProduct[]     @relation("service_products_service_id_fkey")
+  tickets             Ticket[]             @relation("tickets_service_id_fkey")
+
+  @@index([tenantId], map: "idx_services_tenant")
+  @@map("services")
+}
+
+model SmsTemplate {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  name      String    @db.VarChar(100)
+  body      String    @db.Text
+  variables Json?     @default("[]")
+  isActive  Boolean?  @default(true) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant    @relation("sms_templates_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("sms_templates")
+}
+
+model SpecialtyType {
+  id        String    @id @default(uuid()) @db.Char(36)
+  name      String    @db.VarChar(100)
+  icon      String?   @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  tenantSpecialties TenantSpecialty[] @relation("tenant_specialties_specialty_id_fkey")
+
+  @@map("specialty_types")
+}
+
+model SubscriptionPlan {
+  id             String    @id @default(uuid()) @db.Char(36)
+  name           String    @db.VarChar(100)
+  description    String?   @db.Text
+  price          Decimal   @default(0) @db.Decimal(10, 2)
+  currency       String?   @default("FCFA") @db.VarChar(10)
+  durationMonths Int       @default(1) @map("duration_months")
+  maxEmployees   Int?      @default(5) @map("max_employees")
+  maxServices    Int?      @default(20) @map("max_services")
+  maxProducts    Int?      @default(50) @map("max_products")
+  features       Json?     @default("{}")
+  isActive       Boolean?  @default(true) @map("is_active")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@index([isActive], map: "idx_subscription_plans_is_active")
+  @@index([name], map: "idx_subscription_plans_name")
+  @@index([price], map: "idx_subscription_plans_price")
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id               String    @id @default(uuid()) @db.Char(36)
+  tenantId         String    @map("tenant_id") @db.Char(36)
+  plan             String    @db.VarChar(50)
+  duration         String    @db.VarChar(20)
+  amount           Decimal   @db.Decimal(10, 2)
+  paymentMethod    String?   @map("payment_method") @db.VarChar(50)
+  paymentReference String?   @map("payment_reference") @db.VarChar(255)
+  startDate        DateTime  @map("start_date") @db.Date
+  endDate          DateTime  @map("end_date") @db.Date
+  status           String?   @default("pending") @db.VarChar(50)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  validatedBy      String?   @map("validated_by") @db.Char(36)
+  autoRenew        Boolean?  @default(false) @map("auto_renew")
+  maxEmployees     Int?      @default(5) @map("max_employees")
+  maxServices      Int?      @default(20) @map("max_services")
+  maxProducts      Int?      @default(50) @map("max_products")
+  features         Json?     @default("{}")
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  validatedAt      DateTime? @map("validated_at") @db.DateTime(3)
+  rejectedAt       DateTime? @map("rejected_at") @db.DateTime(3)
+  tenant           Tenant    @relation("subscriptions_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+  validatedBy2     Profile?  @relation("subscriptions_validated_by_fkey", fields: [validatedBy], references: [id])
+
+  @@index([status], map: "idx_subscriptions_status")
+  @@index([tenantId], map: "idx_subscriptions_tenant_id")
+  @@index([validatedAt], map: "idx_subscriptions_validated_at")
+  @@index([validatedBy], map: "idx_subscriptions_validated_by")
+  @@map("subscriptions")
+}
+
+model SupportTicket {
+  id          String    @id @default(uuid()) @db.Char(36)
+  tenantId    String?   @map("tenant_id") @db.Char(36)
+  userId      String?   @map("user_id") @db.Char(36)
+  subject     String    @db.VarChar(255)
+  message     String    @db.Text
+  status      String?   @default("open") @db.VarChar(50)
+  priority    String?   @default("medium") @db.VarChar(20)
+  category    String?   @db.VarChar(100)
+  assignedTo  String?   @map("assigned_to") @db.Char(36)
+  resolvedAt  DateTime? @map("resolved_at") @db.DateTime(3)
+  createdAt   DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  assignedTo2 Profile?  @relation("support_tickets_assigned_to_fkey", fields: [assignedTo], references: [id], onDelete: SetNull)
+  tenant      Tenant?   @relation("support_tickets_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+  user        Profile?  @relation("support_tickets_user_id_fkey", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt], map: "idx_support_tickets_created_at")
+  @@index([status], map: "idx_support_tickets_status")
+  @@index([tenantId], map: "idx_support_tickets_tenant_id")
+  @@map("support_tickets")
+}
+
+model TenantHomeSetting {
+  id                    String    @id @default(uuid()) @db.Char(36)
+  tenantId              String    @map("tenant_id") @db.Char(36)
+  heroTitle             String?   @map("hero_title") @db.Text
+  heroSubtitle          String?   @map("hero_subtitle") @db.Text
+  heroCtaText           String?   @default("Commencer gratuitement") @map("hero_cta_text") @db.Text
+  heroCtaLink           String?   @default("/auth/signup") @map("hero_cta_link") @db.Text
+  heroSecondaryCtaText  String?   @default("Se connecter") @map("hero_secondary_cta_text") @db.Text
+  heroSecondaryCtaLink  String?   @default("/auth/login") @map("hero_secondary_cta_link") @db.Text
+  heroBadgeText         String?   @default("✨ Nouveau : Programme de fidélité amélioré") @map("hero_badge_text") @db.Text
+  heroShowStats         Boolean?  @default(true) @map("hero_show_stats")
+  heroBackgroundType    String?   @default("gradient") @map("hero_background_type") @db.Text
+  heroBackgroundImage   String?   @map("hero_background_image") @db.Text
+  heroBackgroundColor   String?   @default("#2563eb") @map("hero_background_color") @db.Text
+  heroOverlayOpacity    Int?      @default(70) @map("hero_overlay_opacity")
+  statsTitle            String?   @default("Nos chiffres") @map("stats_title") @db.Text
+  statsShow             Boolean?  @default(true) @map("stats_show")
+  stat1Number           String?   @default("500+") @map("stat_1_number") @db.Text
+  stat1Label            String?   @default("Salons partenaires") @map("stat_1_label") @db.Text
+  stat2Number           String?   @default("10k+") @map("stat_2_number") @db.Text
+  stat2Label            String?   @default("Clients satisfaits") @map("stat_2_label") @db.Text
+  stat3Number           String?   @default("50k+") @map("stat_3_number") @db.Text
+  stat3Label            String?   @default("Rendez-vous réservés") @map("stat_3_label") @db.Text
+  partnersTitle         String?   @default("Nos salons partenaires") @map("partners_title") @db.Text
+  partnersSubtitle      String?   @default("Cliquez sur un salon pour découvrir sa vitrine") @map("partners_subtitle") @db.Text
+  partnersShow          Boolean?  @default(true) @map("partners_show")
+  partnersShowButton    Boolean?  @default(true) @map("partners_show_button")
+  partnersButtonText    String?   @default("Voir tous les salons") @map("partners_button_text") @db.Text
+  featuresTitle         String?   @default("Pourquoi choisir BeautyFlow ?") @map("features_title") @db.Text
+  featuresSubtitle      String?   @default("Une expérience unique pour prendre soin de vous") @map("features_subtitle") @db.Text
+  featuresShow          Boolean?  @default(true) @map("features_show")
+  feature1Title         String?   @default("Réservation Facile") @map("feature_1_title") @db.Text
+  feature1Description   String?   @default("Trouvez un créneau disponible 24/7 en quelques clics") @map("feature_1_description") @db.Text
+  feature1Icon          String?   @default("Calendar") @map("feature_1_icon") @db.Text
+  feature2Title         String?   @default("Programme Fidélité") @map("feature_2_title") @db.Text
+  feature2Description   String?   @default("Cumulez des points à chaque visite et profitez de réductions") @map("feature_2_description") @db.Text
+  feature2Icon          String?   @default("Star") @map("feature_2_icon") @db.Text
+  feature3Title         String?   @default("Les Meilleurs Pros") @map("feature_3_title") @db.Text
+  feature3Description   String?   @default("Consultez les avis certifiés pour choisir le professionnel") @map("feature_3_description") @db.Text
+  feature3Icon          String?   @default("Users") @map("feature_3_icon") @db.Text
+  productsTitle         String?   @default("Nos produits populaires") @map("products_title") @db.Text
+  productsSubtitle      String?   @default("Découvrez les produits préférés de nos clients") @map("products_subtitle") @db.Text
+  productsShow          Boolean?  @default(true) @map("products_show")
+  productsLimit         Int?      @default(8) @map("products_limit")
+  ctaTitle              String?   @default("Prêt à sublimer votre beauté ?") @map("cta_title") @db.Text
+  ctaSubtitle           String?   @default("Rejoignez des milliers de clients satisfaits") @map("cta_subtitle") @db.Text
+  ctaButtonText         String?   @default("Créer un compte gratuit") @map("cta_button_text") @db.Text
+  ctaButtonLink         String?   @default("/auth/signup") @map("cta_button_link") @db.Text
+  ctaShow               Boolean?  @default(true) @map("cta_show")
+  ctaBackgroundType     String?   @default("gradient") @map("cta_background_type") @db.Text
+  ctaBackgroundImage    String?   @map("cta_background_image") @db.Text
+  ctaBackgroundColor    String?   @default("#2563eb") @map("cta_background_color") @db.Text
+  footerShowSocial      Boolean?  @default(true) @map("footer_show_social")
+  footerCopyright       String?   @default("BeautyFlow") @map("footer_copyright") @db.Text
+  seoTitle              String?   @map("seo_title") @db.Text
+  seoDescription        String?   @map("seo_description") @db.Text
+  seoKeywords           String?   @map("seo_keywords") @db.Text
+  createdAt             DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  footerAddress         String?   @map("footer_address") @db.Text
+  footerPhone           String?   @map("footer_phone") @db.VarChar(255)
+  footerEmail           String?   @map("footer_email") @db.VarChar(255)
+  footerDescription     String?   @map("footer_description") @db.Text
+  footerSocialFacebook  String?   @map("footer_social_facebook") @db.VarChar(500)
+  footerSocialInstagram String?   @map("footer_social_instagram") @db.VarChar(500)
+  footerSocialTwitter   String?   @map("footer_social_twitter") @db.VarChar(500)
+  footerSocialLinkedin  String?   @map("footer_social_linkedin") @db.VarChar(500)
+  footerSocialYoutube   String?   @map("footer_social_youtube") @db.VarChar(500)
+  footerHoursMonday     String?   @default("09:00 - 19:00") @map("footer_hours_monday") @db.VarChar(100)
+  footerHoursTuesday    String?   @default("09:00 - 19:00") @map("footer_hours_tuesday") @db.VarChar(100)
+  footerHoursWednesday  String?   @default("09:00 - 19:00") @map("footer_hours_wednesday") @db.VarChar(100)
+  footerHoursThursday   String?   @default("09:00 - 19:00") @map("footer_hours_thursday") @db.VarChar(100)
+  footerHoursFriday     String?   @default("09:00 - 19:00") @map("footer_hours_friday") @db.VarChar(100)
+  footerHoursSaturday   String?   @default("09:00 - 17:00") @map("footer_hours_saturday") @db.VarChar(100)
+  footerHoursSunday     String?   @default("Fermé") @map("footer_hours_sunday") @db.VarChar(100)
+  footerSocialTiktok    String?   @map("footer_social_tiktok") @db.Text
+  tenant                Tenant    @relation("tenant_home_settings_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+  @@map("tenant_home_settings")
+}
+
+model TenantSetting {
+  id                       String    @id @default(uuid()) @db.Char(36)
+  tenantId                 String    @map("tenant_id") @db.Char(36)
+  salonName                String?   @map("salon_name") @db.VarChar(255)
+  salonDescription         String?   @map("salon_description") @db.Text
+  salonLogo                String?   @map("salon_logo") @db.Text
+  primaryColor             String?   @default("#ec4899") @map("primary_color") @db.VarChar(7)
+  secondaryColor           String?   @default("#06b6d4") @map("secondary_color") @db.VarChar(7)
+  contactEmail             String?   @map("contact_email") @db.VarChar(255)
+  contactPhone             String?   @map("contact_phone") @db.VarChar(50)
+  contactAddress           String?   @map("contact_address") @db.Text
+  openingHours             Json?     @default("{\"friday\": {\"open\": \"09:00\", \"close\": \"18:00\", \"closed\": false}, \"monday\": {\"open\": \"09:00\", \"close\": \"18:00\", \"closed\": false}, \"sunday\": {\"open\": \"00:00\", \"close\": \"00:00\", \"closed\": true}, \"tuesday\": {\"open\": \"09:00\", \"close\": \"18:00\", \"closed\": false}, \"saturday\": {\"open\": \"09:00\", \"close\": \"17:00\", \"closed\": false}, \"thursday\": {\"open\": \"09:00\", \"close\": \"18:00\", \"closed\": false}, \"wednesday\": {\"open\": \"09:00\", \"close\": \"18:00\", \"closed\": false}}") @map("opening_hours")
+  pagesServicesEnabled     Boolean?  @default(true) @map("pages_services_enabled")
+  pagesGalleryEnabled      Boolean?  @default(true) @map("pages_gallery_enabled")
+  pagesTeamEnabled         Boolean?  @default(true) @map("pages_team_enabled")
+  pagesPricingEnabled      Boolean?  @default(true) @map("pages_pricing_enabled")
+  pagesReviewsEnabled      Boolean?  @default(true) @map("pages_reviews_enabled")
+  bookingBufferMinutes     Int?      @default(15) @map("booking_buffer_minutes")
+  bookingAdvanceDays       Int?      @default(30) @map("booking_advance_days")
+  onlinePaymentRequired    Boolean?  @default(false) @map("online_payment_required")
+  socialMedia              Json?     @default("{\"tiktok\": \"\", \"twitter\": \"\", \"facebook\": \"\", \"linkedin\": \"\", \"instagram\": \"\"}") @map("social_media")
+  cancellationPolicy       String?   @map("cancellation_policy") @db.Text
+  refundPolicy             String?   @map("refund_policy") @db.Text
+  notificationEmailEnabled Boolean?  @default(true) @map("notification_email_enabled")
+  notificationSmsEnabled   Boolean?  @default(false) @map("notification_sms_enabled")
+  createdAt                DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  facebookUrl              String?   @map("facebook_url") @db.Text
+  instagramUrl             String?   @map("instagram_url") @db.Text
+  tiktokUrl                String?   @map("tiktok_url") @db.Text
+  linkedinUrl              String?   @map("linkedin_url") @db.Text
+  logoUrl                  String?   @map("logo_url") @db.Text
+  coverImage               String?   @map("cover_image") @db.Text
+  showOnHome               Boolean?  @default(true) @map("show_on_home")
+  tenant                   Tenant    @relation("tenant_settings_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+  @@map("tenant_settings")
+}
+
+model TenantSpecialty {
+  id          String        @id @default(uuid()) @db.Char(36)
+  tenantId    String        @map("tenant_id") @db.Char(36)
+  specialtyId String        @map("specialty_id") @db.Char(36)
+  isPrimary   Boolean?      @default(false) @map("is_primary")
+  createdAt   DateTime?     @default(now()) @map("created_at") @db.DateTime(3)
+  specialty   SpecialtyType @relation("tenant_specialties_specialty_id_fkey", fields: [specialtyId], references: [id])
+  tenant      Tenant        @relation("tenant_specialties_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, specialtyId])
+  @@map("tenant_specialties")
+}
+
+model Tenant {
+  id                    String    @id @default(uuid()) @db.Char(36)
+  name                  String    @db.VarChar(255)
+  slug                  String    @db.VarChar(100)
+  logo                  String?   @db.Text
+  primaryColor          String?   @default("#ec4899") @map("primary_color") @db.VarChar(7)
+  phone                 String?   @db.VarChar(50)
+  email                 String?   @db.VarChar(255)
+  address               String?   @db.Text
+  subscriptionPlan      String?   @default("starter") @map("subscription_plan") @db.VarChar(50)
+  subscriptionStatus    String?   @default("inactive") @map("subscription_status") @db.VarChar(20)
+  subscriptionStart     DateTime? @map("subscription_start") @db.Date
+  subscriptionEnd       DateTime? @map("subscription_end") @db.Date
+  createdAt             DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  description           String?   @db.Text
+  isActive              Boolean?  @default(true) @map("is_active")
+  subscriptionMode      String?   @default("subscription") @map("subscription_mode") @db.VarChar(20)
+  externalPaymentRef    String?   @map("external_payment_ref") @db.VarChar(255)
+  externalPaymentDate   DateTime? @map("external_payment_date") @db.DateTime(3)
+  externalPaymentExpiry DateTime? @map("external_payment_expiry") @db.DateTime(3)
+  logoUrl               String?   @map("logo_url") @db.Text
+  coverImage            String?   @map("cover_image") @db.Text
+  secondaryColor        String?   @default("#06b6d4") @map("secondary_color") @db.VarChar(20)
+  showOnHome            Boolean?  @default(true) @map("show_on_home")
+  city                  String?   @db.VarChar(100)
+  rating                Decimal?  @default(0) @db.Decimal(3, 2)
+
+  activityLogs        ActivityLog[]        @relation("activity_logs_tenant_id_fkey")
+  appointments        Appointment[]        @relation("appointments_tenant_id_fkey")
+  bookingSequences    BookingSequence[]    @relation("booking_sequences_tenant_id_fkey")
+  branches            Branch[]             @relation("branches_tenant_id_fkey")
+  categories          Category[]           @relation("categories_tenant_id_fkey")
+  clientSubscriptions ClientSubscription[] @relation("client_subscriptions_tenant_id_fkey")
+  clients             Client[]             @relation("clients_tenant_id_fkey")
+  contactMessages     ContactMessage[]     @relation("contact_messages_tenant_id_fkey")
+  emailTemplates      EmailTemplate[]      @relation("email_templates_tenant_id_fkey")
+  employees           Employee[]           @relation("employees_tenant_id_fkey")
+  equipment           Equipment[]          @relation("equipment_tenant_id_fkey")
+  gallery             Gallery[]            @relation("gallery_tenant_id_fkey")
+  giftCardOrders      GiftCardOrder[]      @relation("gift_card_orders_tenant_id_fkey")
+  giftCards           GiftCard[]           @relation("gift_cards_tenant_id_fkey")
+  loyaltySettings     LoyaltySetting[]     @relation("loyalty_settings_tenant_id_fkey")
+  marketingCampaigns  MarketingCampaign[]  @relation("marketing_campaigns_tenant_id_fkey")
+  news                News[]               @relation("news_tenant_id_fkey")
+  notifications       Notification[]       @relation("notifications_tenant_id_fkey")
+  packages            Package[]            @relation("packages_tenant_id_fkey")
+  products            Product[]            @relation("products_tenant_id_fkey")
+  profiles            Profile[]            @relation("profiles_tenant_id_fkey")
+  promotions          Promotion[]          @relation("promotions_tenant_id_fkey")
+  publications        Publication[]        @relation("publications_tenant_id_fkey")
+  reviews             Review[]             @relation("reviews_tenant_id_fkey")
+  rooms               Room[]               @relation("rooms_tenant_id_fkey")
+  serviceZones        ServiceZone[]        @relation("service_zones_tenant_id_fkey")
+  services            Service[]            @relation("services_tenant_id_fkey")
+  smsTemplates        SmsTemplate[]        @relation("sms_templates_tenant_id_fkey")
+  subscriptions       Subscription[]       @relation("subscriptions_tenant_id_fkey")
+  supportTickets      SupportTicket[]      @relation("support_tickets_tenant_id_fkey")
+  tenantHomeSettings  TenantHomeSetting[]  @relation("tenant_home_settings_tenant_id_fkey")
+  tenantSettings      TenantSetting[]      @relation("tenant_settings_tenant_id_fkey")
+  tenantSpecialties   TenantSpecialty[]    @relation("tenant_specialties_tenant_id_fkey")
+  tickets             Ticket[]             @relation("tickets_tenant_id_fkey")
+  transactions        Transaction[]        @relation("transactions_tenant_id_fkey")
+  userTenants         UserTenant[]         @relation("user_tenants_tenant_id_fkey")
+  users               User[]               @relation("users_tenant_id_fkey")
+
+  @@unique([slug])
+  @@map("tenants")
+}
+
+model Ticket {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  tenantId           String    @map("tenant_id") @db.Char(36)
+  clientId           String?   @map("client_id") @db.Char(36)
+  clientName         String?   @map("client_name") @db.VarChar(255)
+  clientPhone        String?   @map("client_phone") @db.VarChar(50)
+  ticketNumber       Int       @map("ticket_number")
+  assignedEmployeeId String?   @map("assigned_employee_id") @db.Char(36)
+  serviceType        String?   @map("service_type") @db.VarChar(100)
+  status             String?   @default("waiting") @db.VarChar(50)
+  calledAt           DateTime? @map("called_at") @db.DateTime(3)
+  startedAt          DateTime? @map("started_at") @db.DateTime(3)
+  completedAt        DateTime? @map("completed_at") @db.DateTime(3)
+  createdAt          DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  date               DateTime? @default(now()) @db.Date
+  createdBy          String?   @map("created_by") @db.Text
+  estimatedDuration  Int?      @map("estimated_duration")
+  clientSector       String?   @map("client_sector") @db.Text
+  serviceId          String?   @map("service_id") @db.Char(36)
+  clientEmail        String?   @map("client_email") @db.Text
+  servicePrice       Decimal?  @default(0) @map("service_price") @db.Decimal(12, 2)
+  archived           Boolean?  @default(false)
+  archivedAt         DateTime? @map("archived_at") @db.DateTime(3)
+  transactionId      String?   @map("transaction_id") @db.Char(36)
+  paymentStatus      String?   @default("pending") @map("payment_status") @db.Text
+  assignedEmployee   Employee? @relation("tickets_assigned_employee_id_fkey", fields: [assignedEmployeeId], references: [id])
+  client             Client?   @relation("tickets_client_id_fkey", fields: [clientId], references: [id])
+  service            Service?  @relation("tickets_service_id_fkey", fields: [serviceId], references: [id])
+  tenant             Tenant    @relation("tickets_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[] @relation("transactions_ticket_id_fkey")
+
+  @@index([date], map: "idx_tickets_date")
+  @@index([tenantId, ticketNumber], map: "idx_tickets_number")
+  @@index([serviceId], map: "idx_tickets_service_id")
+  @@index([servicePrice], map: "idx_tickets_service_price")
+  @@index([status], map: "idx_tickets_status")
+  @@index([tenantId, date], map: "idx_tickets_tenant_date")
+  @@index([tenantId, status], map: "idx_tickets_tenant_status")
+  @@map("tickets")
+}
+
+model TransactionLine {
+  id            String       @id @default(uuid()) @db.Char(36)
+  transactionId String?      @map("transaction_id") @db.Char(36)
+  productId     String?      @map("product_id") @db.Char(36)
+  quantity      Int
+  unitPrice     Int          @map("unit_price")
+  totalPrice    Int          @map("total_price")
+  createdAt     DateTime?    @default(now()) @map("created_at") @db.DateTime(3)
+  product       Product?     @relation("transaction_lines_product_id_fkey", fields: [productId], references: [id])
+  transaction   Transaction? @relation("transaction_lines_transaction_id_fkey", fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("transaction_lines")
+}
+
+model Transaction {
+  id                 String       @id @default(uuid()) @db.Char(36)
+  tenantId           String       @map("tenant_id") @db.Char(36)
+  appointmentId      String?      @map("appointment_id") @db.Char(36)
+  clientId           String?      @map("client_id") @db.Char(36)
+  cashierId          String?      @map("cashier_id") @db.Char(36)
+  amount             Decimal      @db.Decimal(10, 2)
+  paymentMethod      String?      @map("payment_method") @db.VarChar(50)
+  transactionDate    DateTime?    @default(now()) @map("transaction_date") @db.DateTime(3)
+  receiptNumber      String?      @map("receipt_number") @db.VarChar(100)
+  status             String?      @default("completed") @db.VarChar(50)
+  employeeId         String?      @map("employee_id") @db.Char(36)
+  createdAt          DateTime?    @default(now()) @map("created_at") @db.DateTime(3)
+  transactionType    String?      @default("appointment") @map("transaction_type") @db.Text
+  customerName       String?      @map("customer_name") @db.Text
+  customerPhone      String?      @map("customer_phone") @db.Text
+  source             String?      @default("gallery_order") @db.Text
+  notes              String?      @db.Text
+  customerId         String?      @map("customer_id") @db.Char(36)
+  description        String?      @db.Text
+  giftCardId         String?      @map("gift_card_id") @db.Char(36)
+  ticketId           String?      @map("ticket_id") @db.Char(36)
+  discountAmount     Decimal?     @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  totalAfterDiscount Decimal?     @default(0) @map("total_after_discount") @db.Decimal(10, 2)
+  discountCode       String?      @map("discount_code") @db.VarChar(50)
+  promosApplied      Json?        @default("[]") @map("promos_applied")
+  appointment        Appointment? @relation("transactions_appointment_id_fkey", fields: [appointmentId], references: [id])
+  cashier            Employee?    @relation("transactions_cashier_id_fkey", fields: [cashierId], references: [id])
+  client             Client?      @relation("transactions_client_id_fkey", fields: [clientId], references: [id])
+  customer           Client?      @relation("transactions_customer_id_fkey", fields: [customerId], references: [id])
+  employee           Employee?    @relation("transactions_employee_id_fkey", fields: [employeeId], references: [id])
+  giftCard           GiftCard?    @relation("transactions_gift_card_id_fkey", fields: [giftCardId], references: [id], onDelete: SetNull)
+  tenant             Tenant       @relation("transactions_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket             Ticket?      @relation("transactions_ticket_id_fkey", fields: [ticketId], references: [id])
+
+  transactionLines TransactionLine[] @relation("transaction_lines_transaction_id_fkey")
+
+  @@unique([receiptNumber])
+  @@index([customerName(length: 191)], map: "idx_transactions_customer_name")
+  @@index([customerPhone(length: 191)], map: "idx_transactions_customer_phone")
+  @@index([source(length: 191)], map: "idx_transactions_source")
+  @@index([status], map: "idx_transactions_status")
+  @@index([tenantId, transactionDate], map: "idx_transactions_tenant_date")
+  @@map("transactions")
+}
+
+model UserTenant {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String?   @map("user_id") @db.Char(36)
+  tenantId  String?   @map("tenant_id") @db.Char(36)
+  role      String?   @default("admin") @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  tenant    Tenant?   @relation("user_tenants_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId], map: "idx_user_tenants_tenant_id")
+  @@index([userId], map: "idx_user_tenants_user_id")
+  @@map("user_tenants")
+}
+
+model User {
+  id        String    @db.Char(36)
+  tenantId  String    @map("tenant_id") @db.Char(36)
+  email     String?   @db.Text
+  role      String?   @default("user") @db.Text
+  firstName String?   @map("first_name") @db.Text
+  lastName  String?   @map("last_name") @db.Text
+  phone     String?   @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant    Tenant    @relation("users_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([id, tenantId])
+  @@index([email(length: 191)], map: "idx_users_email")
+  @@index([role(length: 191)], map: "idx_users_role")
+  @@index([tenantId], map: "idx_users_tenant_id")
+  @@map("users")
+}
+
+// Fragment Better Auth - NON genere par gen-schema.mjs (modeles d'auth).
+// A coller apres le schema genere. Voir gen-schema.mjs (il concatene ce fichier).
+//
+// profiles sert de table "user" pour Better Auth :
+//   user: { modelName: "Profile" }
+// Les 4 FK supabase vers auth.users (profiles_id_fkey, notifications_user_id_fkey,
+// user_tenants_user_id_fkey, users_id_fkey) sont remplacees par ces relations.
+
+model Session {
+  id        String   @id @db.VarChar(36)
+  expiresAt DateTime @map("expires_at") @db.DateTime(3)
+  token     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  ipAddress String?  @map("ip_address") @db.Text
+  userAgent String?  @map("user_agent") @db.Text
+  userId    String   @map("user_id") @db.Char(36)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @db.VarChar(36)
+  accountId             String    @map("account_id") @db.Text
+  providerId            String    @map("provider_id") @db.Text
+  userId                String    @map("user_id") @db.Char(36)
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.DateTime(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.DateTime(3)
+  scope                 String?   @db.Text
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
+  user                  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @db.VarChar(36)
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at") @db.DateTime(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@index([identifier])
+  @@map("verification")
+}

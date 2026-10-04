@@ -1,0 +1,258 @@
+{
+  "generatedFrom": "supabase/public",
+  "tableCount": 50,
+  "modelNames": {
+    "activity_logs": "ActivityLog",
+    "appointments": "Appointment",
+    "booking_sequences": "BookingSequence",
+    "branches": "Branch",
+    "categories": "Category",
+    "category_templates": "CategoryTemplate",
+    "client_subscriptions": "ClientSubscription",
+    "clients": "Client",
+    "contact_messages": "ContactMessage",
+    "email_templates": "EmailTemplate",
+    "employee_absences": "EmployeeAbsence",
+    "employee_availability": "EmployeeAvailability",
+    "employee_schedules": "EmployeeSchedule",
+    "employees": "Employee",
+    "equipment": "Equipment",
+    "gallery": "Gallery",
+    "gift_card_orders": "GiftCardOrder",
+    "gift_cards": "GiftCard",
+    "home_visits": "HomeVisit",
+    "loyalty_settings": "LoyaltySetting",
+    "marketing_campaigns": "MarketingCampaign",
+    "medical_notes": "MedicalNote",
+    "news": "News",
+    "notifications": "Notification",
+    "packages": "Package",
+    "platform_settings": "PlatformSetting",
+    "products": "Product",
+    "profiles": "Profile",
+    "promotions": "Promotion",
+    "publications": "Publication",
+    "reviews": "Review",
+    "rooms": "Room",
+    "service_products": "ServiceProduct",
+    "service_templates": "ServiceTemplate",
+    "service_zones": "ServiceZone",
+    "services": "Service",
+    "sms_templates": "SmsTemplate",
+    "specialty_types": "SpecialtyType",
+    "subscription_plans": "SubscriptionPlan",
+    "subscriptions": "Subscription",
+    "support_tickets": "SupportTicket",
+    "tenant_home_settings": "TenantHomeSetting",
+    "tenant_settings": "TenantSetting",
+    "tenant_specialties": "TenantSpecialty",
+    "tenants": "Tenant",
+    "tickets": "Ticket",
+    "transaction_lines": "TransactionLine",
+    "transactions": "Transaction",
+    "user_tenants": "UserTenant",
+    "users": "User"
+  },
+  "betterAuth": {
+    "userModel": "Profile",
+    "userTable": "profiles",
+    "adjustments": [
+      "profiles.full_name: NULLABLE -> NOT NULL (Better Auth exige name)",
+      "email: @@unique([email]) ajoute (requis par Better Auth)",
+      "profiles: full_name -> name, avatar -> image, +email_verified, +must_change_password, +sessions, +accounts"
+    ],
+    "authModels": [
+      "Session",
+      "Account",
+      "Verification"
+    ],
+    "idGeneration": "advanced.database.generateId = \"uuid\" (colonne char(36)alignee sur profiles.id)"
+  },
+  "omittedForeignKeys": [
+    "notifications_user_id_fkey: notifications.user_id -> auth.users.id (relation Auth, à porter par Better Auth)",
+    "profiles_id_fkey: profiles.id -> auth.users.id (relation Auth, à porter par Better Auth)",
+    "user_tenants_user_id_fkey: user_tenants.user_id -> auth.users.id (relation Auth, à porter par Better Auth)",
+    "users_id_fkey: users.id -> auth.users.id (relation Auth, à porter par Better Auth)"
+  ],
+  "omittedDefaults": [],
+  "checkConstraints": [
+    {
+      "table_name": "appointments",
+      "constraint_name": "appointments_rating_check",
+      "definition": "CHECK (((rating >= 1) AND (rating <= 5)))"
+    },
+    {
+      "table_name": "appointments",
+      "constraint_name": "appointments_status_check",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'confirmed'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'no_show'::character varying, 'archived'::character varying])::text[])))"
+    },
+    {
+      "table_name": "categories",
+      "constraint_name": "categories_type_check",
+      "definition": "CHECK (((type)::text = ANY ((ARRAY['service'::character varying, 'product'::character varying])::text[])))"
+    },
+    {
+      "table_name": "employee_availability",
+      "constraint_name": "employee_availability_day_of_week_check",
+      "definition": "CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))"
+    },
+    {
+      "table_name": "employee_schedules",
+      "constraint_name": "employee_schedules_day_of_week_check",
+      "definition": "CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))"
+    },
+    {
+      "table_name": "marketing_campaigns",
+      "constraint_name": "marketing_campaigns_type_check",
+      "definition": "CHECK (((type)::text = ANY ((ARRAY['sms'::character varying, 'email'::character varying, 'whatsapp'::character varying])::text[])))"
+    },
+    {
+      "table_name": "medical_notes",
+      "constraint_name": "medical_notes_severity_check",
+      "definition": "CHECK (((severity)::text = ANY ((ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying])::text[])))"
+    },
+    {
+      "table_name": "profiles",
+      "constraint_name": "profiles_role_check",
+      "definition": "CHECK (((role)::text = ANY ((ARRAY['super_admin'::character varying, 'admin'::character varying, 'employee'::character varying, 'client'::character varying])::text[])))"
+    },
+    {
+      "table_name": "promotions",
+      "constraint_name": "promotions_type_check",
+      "definition": "CHECK (((type)::text = ANY ((ARRAY['percentage'::character varying, 'fixed'::character varying, 'free_service'::character varying, 'bogo'::character varying, 'loyalty_bonus'::character varying])::text[])))"
+    },
+    {
+      "table_name": "publications",
+      "constraint_name": "check_dates",
+      "definition": "CHECK (((start_date IS NULL) OR (end_date IS NULL) OR (start_date <= end_date)))"
+    },
+    {
+      "table_name": "publications",
+      "constraint_name": "publications_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'scheduled'::text, 'archived'::text])))"
+    },
+    {
+      "table_name": "publications",
+      "constraint_name": "publications_type_check",
+      "definition": "CHECK ((type = ANY (ARRAY['announcement'::text, 'promotion'::text, 'ad'::text, 'training'::text, 'event'::text])))"
+    },
+    {
+      "table_name": "reviews",
+      "constraint_name": "reviews_rating_check",
+      "definition": "CHECK (((rating >= 1) AND (rating <= 5)))"
+    },
+    {
+      "table_name": "support_tickets",
+      "constraint_name": "support_tickets_priority_check",
+      "definition": "CHECK (((priority)::text = ANY ((ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'urgent'::character varying])::text[])))"
+    },
+    {
+      "table_name": "support_tickets",
+      "constraint_name": "support_tickets_status_check",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::text[])))"
+    },
+    {
+      "table_name": "tenants",
+      "constraint_name": "tenants_subscription_mode_check",
+      "definition": "CHECK (((subscription_mode)::text = ANY ((ARRAY['subscription'::character varying, 'external'::character varying, 'free'::character varying])::text[])))"
+    },
+    {
+      "table_name": "tickets",
+      "constraint_name": "tickets_status_check",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['waiting'::character varying, 'called'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'archived'::character varying])::text[])))"
+    }
+  ],
+  "triggers": [
+    {
+      "table_name": "appointments",
+      "trigger_name": "trigger_update_client_stats",
+      "definition": "CREATE TRIGGER trigger_update_client_stats AFTER UPDATE OF status ON public.appointments FOR EACH ROW WHEN ((((new.status)::text = 'completed'::text) AND ((old.status)::text IS DISTINCT FROM 'completed'::text))) EXECUTE FUNCTION update_client_stats()"
+    },
+    {
+      "table_name": "appointments",
+      "trigger_name": "trigger_update_employee_rating",
+      "definition": "CREATE TRIGGER trigger_update_employee_rating AFTER UPDATE OF rating ON public.appointments FOR EACH ROW WHEN ((new.rating IS NOT NULL)) EXECUTE FUNCTION update_employee_rating()"
+    },
+    {
+      "table_name": "employees",
+      "trigger_name": "trigger_assign_employee_number",
+      "definition": "CREATE TRIGGER trigger_assign_employee_number BEFORE INSERT ON public.employees FOR EACH ROW EXECUTE FUNCTION assign_employee_number()"
+    },
+    {
+      "table_name": "gift_cards",
+      "trigger_name": "update_gift_cards_updated_at",
+      "definition": "CREATE TRIGGER update_gift_cards_updated_at BEFORE UPDATE ON public.gift_cards FOR EACH ROW EXECUTE FUNCTION update_gift_cards_updated_at()"
+    },
+    {
+      "table_name": "profiles",
+      "trigger_name": "trigger_update_profiles_updated_at",
+      "definition": "CREATE TRIGGER trigger_update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+    },
+    {
+      "table_name": "profiles",
+      "trigger_name": "update_profiles_updated_at",
+      "definition": "CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+    },
+    {
+      "table_name": "publications",
+      "trigger_name": "trigger_update_publications_updated_at",
+      "definition": "CREATE TRIGGER trigger_update_publications_updated_at BEFORE UPDATE ON public.publications FOR EACH ROW EXECUTE FUNCTION update_publications_updated_at()"
+    },
+    {
+      "table_name": "tenant_home_settings",
+      "trigger_name": "update_tenant_home_settings_updated_at",
+      "definition": "CREATE TRIGGER update_tenant_home_settings_updated_at BEFORE UPDATE ON public.tenant_home_settings FOR EACH ROW EXECUTE FUNCTION update_tenant_home_settings_updated_at()"
+    },
+    {
+      "table_name": "tenants",
+      "trigger_name": "trigger_create_default_categories_and_services",
+      "definition": "CREATE TRIGGER trigger_create_default_categories_and_services AFTER INSERT ON public.tenants FOR EACH ROW EXECUTE FUNCTION create_default_categories_and_services()"
+    },
+    {
+      "table_name": "tenants",
+      "trigger_name": "trigger_update_tenants_updated_at",
+      "definition": "CREATE TRIGGER trigger_update_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+    },
+    {
+      "table_name": "tenants",
+      "trigger_name": "update_tenants_updated_at",
+      "definition": "CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+    },
+    {
+      "table_name": "tickets",
+      "trigger_name": "trigger_auto_archive_completed",
+      "definition": "CREATE TRIGGER trigger_auto_archive_completed BEFORE UPDATE OF status ON public.tickets FOR EACH ROW EXECUTE FUNCTION auto_archive_completed_tickets()"
+    }
+  ],
+  "textColumnsPromotedForUnique": [
+    "category_templates.name TEXT -> VarChar(500)",
+    "service_templates.name TEXT -> VarChar(500)"
+  ],
+  "timeColumnsAsString": [
+    "appointments.start_time time -> VarChar(8)",
+    "appointments.end_time time -> VarChar(8)",
+    "employee_availability.start_time time -> VarChar(8)",
+    "employee_availability.end_time time -> VarChar(8)",
+    "employee_schedules.start_time time -> VarChar(8)",
+    "employee_schedules.end_time time -> VarChar(8)"
+  ],
+  "collationNotes": [],
+  "intentionalDeviations": [
+    "profiles.full_name : NULLABLE -> NOT NULL (Better Auth exige `name` ; les 16 profils sont renseignes)",
+    "profiles.avatar : colonne conservee, champ Prisma renomme `image` (nom impose par Better Auth)",
+    "profiles.email : ajout de @@unique([email]) (unicite globale exigee par Better Auth)",
+    "profiles : + colonnes email_verified et must_change_password (Better Auth / regle metier)",
+    "tables supplementaires : session, account, verification (Better Auth, minuscules car lower_case_table_names=1)"
+  ],
+  "notEnforcedByMysql": {
+    "checkConstraints": "17 CHECK PostgreSQL ne sont PAS appliques : MariaDB 10.4 les analyse mais ne les fait pas respecter. A porter dans la logique API.",
+    "triggers": "12 triggers PostgreSQL a recreer (TRIGGER MariaDB ou code applicatif).",
+    "rls": "Les politiques RLS Supabase ne sont pas transposables : l'autorisation doit etre appliquee par l'API Node (role + tenant_id).",
+    "functions": "Les fonctions/RPC PostgreSQL doivent etre reimplementees cote API."
+  },
+  "encoding": {
+    "extraction": "PGCLIENTENCODING=UTF8 obligatoire sous Windows (sinon double conversion CP437 -> UTF-8).",
+    "target": "MariaDB 10.4.32, utf8mb4 / utf8mb4_unicode_ci, lower_case_table_names=1.",
+    "verified": "Accents et emoji verifies en lecture/ecriture (scripts de compatibilite supprimes apres passage)."
+  }
+}

@@ -1,0 +1,54 @@
+// Fragment Better Auth - NON genere par gen-schema.mjs (modeles d'auth).
+// A coller apres le schema genere. Voir gen-schema.mjs (il concatene ce fichier).
+//
+// profiles sert de table "user" pour Better Auth :
+//   user: { modelName: "Profile" }
+// Les 4 FK supabase vers auth.users (profiles_id_fkey, notifications_user_id_fkey,
+// user_tenants_user_id_fkey, users_id_fkey) sont remplacees par ces relations.
+
+model Session {
+  id        String   @id @db.VarChar(36)
+  expiresAt DateTime @map("expires_at") @db.DateTime(3)
+  token     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  ipAddress String?  @map("ip_address") @db.Text
+  userAgent String?  @map("user_agent") @db.Text
+  userId    String   @map("user_id") @db.Char(36)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @db.VarChar(36)
+  accountId             String    @map("account_id") @db.Text
+  providerId            String    @map("provider_id") @db.Text
+  userId                String    @map("user_id") @db.Char(36)
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.DateTime(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.DateTime(3)
+  scope                 String?   @db.Text
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
+  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @db.VarChar(36)
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at") @db.DateTime(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@index([identifier])
+  @@map("verification")
+}
