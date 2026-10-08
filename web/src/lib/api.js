@@ -4,7 +4,9 @@
 // En production (front Netlify + API Hostinger), renseigner VITE_API_URL avec
 // l'URL publique de l'API.
 
-const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+// `?.` car ce module est aussi importe par les scripts de test Node, ou
+// `import.meta.env` n'existe pas.
+const BASE = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
 
 /** Appel JSON vers l'API, avec transmission du cookie de session. */
 export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}) {

@@ -19,6 +19,8 @@ const { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES }
   './middleware/auth.js'
 );
 const { profileDto, tenantDto } = await import('./dto.js');
+const { runQuery } = await import('./data.js');
+const { getEmployeeClientStats } = await import('./employee-stats.js');
 
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 4000);
@@ -179,6 +181,50 @@ app.get(
     res.json({ next_number: `T-${String(Number(n) + 1).padStart(4, '0')}` });
   })
 );
+
+// --- Requetes de donnees generiques ---------------------------------------
+// Remplace PostgREST (`supabase.from(...).select(...)`) pour les ~110 fichiers
+// du frontend qui utilisent encore le client Supabase. Le contrat de reponse
+// reste `{ data, error }`, donc la couche de compatibilite peut transparente.
+//
+// Securite : la table et les colonnes sont validees contre le schema, et le
+// perimetre tenant est impose par la session (voir server/data.js).
+app.post(
+  '/api/data/query',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    // Seul un super_admin peut restreindre la requete a un tenant donne ; pour
+    // tout autre role le tenant vient de la session et rien d'autre.
+    ctx.queryTenantId = req.body?.scopeTenantId ?? null;
+    if (ctx.queryTenantId && ctx.role !== 'super_admin') {
+      throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous n'accedez qu'a votre etablissement.");
+    }
+    res.json(await runQuery(ctx, req.body ?? {}));
+  })
+);
+
+// --- Front statique (production : meme domaine que l'API) ------------------
+// En dev, Vite sert le front sur :3000 et proxifie /api vers :4000. En prod sur
+// Hostinger, salonafrique.net pointe sur ce serveur : il doit donc exposer le
+// build Vite (dist/) sous le meme origine que l'API, cookies de session compris.
+const DIST = path.join(ROOT, 'dist');
+const hasDist = existsSync(path.join(DIST, 'index.html'));
+
+if (hasDist) {
+  // Fichiers haches : Vite genere des noms avec hash, on peut tout mettre en cache.
+  app.use(
+    '/assets',
+    express.static(path.join(DIST, 'assets'), { immutable: true, maxAge: '365d' })
+  );
+  app.use(express.static(DIST, { index: false, maxAge: '1h' }));
+}
+
+// Repli SPA : toute requete GET hors /api renvoie index.html (routage React).
+// Sans cela, un rafraichissement sur /admin/... renverrait 404.
+app.get('{*splat}', (req, res, next) => {
+  if (!hasDist || req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(DIST, 'index.html'));
+});
 
 // --- Middleware d'erreur --------------------------------------------------
 // Doit imperativement etre enregistre APRES toutes les routes : Express ne

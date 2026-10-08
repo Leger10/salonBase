@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Sauvegardes de base de donnees : contiennent des donnees clients et financieres
+backup/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Supabase : plus utilise (bascule MySQL/MariaDB + API Node)
+supabase/
