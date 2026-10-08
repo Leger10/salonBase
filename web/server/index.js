@@ -23,7 +23,9 @@ const { runQuery } = await import('./data.js');
 const { getEmployeeClientStats } = await import('./employee-stats.js');
 
 const app = express();
-const PORT = Number(process.env.API_PORT ?? 4000);
+// En local : API_PORT (ou 4000). Sur un herbergeur Node (Hostinger/Passenger,
+// CloudLinux...) la plateforme injecte `PORT` : il doit primer.
+const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
