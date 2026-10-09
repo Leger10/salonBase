@@ -1,26 +1,24 @@
 // API Node SalonStore : Better Auth + lecture des donnees MySQL.
-// Charge le .env avant tout import (Node ne le fait pas tout seul, contrairement
-// au CLI Prisma). Indispensable en dev comme sur Hostinger, ou les variables
-// peuvent provenir du panneau d'hebergement plutot que d'un fichier.
+// `./env.js` est importe EN PREMIER pour charger le .env avant que ./auth.js ne
+// lise process.env (indispensable en dev comme sur Hostinger, ou les variables
+// peuvent venir du panneau d'hebergement plutot que d'un fichier).
+// Imports statiques uniquement (PAS de top-level await) : le chargeur Node de
+// LiteSpeed/Passenger fait un require() du point d'entree, qui refuse l'ESM avec
+// top-level await (ERR_REQUIRE_ASYNC_MODULE).
+import './env.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import express from 'express';
+import { toNodeHandler } from 'better-auth/node';
+import { auth, authOrigins } from './auth.js';
+import { prisma } from './prisma.js';
+import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
+import { profileDto, tenantDto } from './dto.js';
+import { runQuery } from './data.js';
+import { getEmployeeClientStats } from './employee-stats.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url)) + '/..';
-const ENV_FILE = process.env.ENV_FILE ?? path.join(ROOT, '.env');
-
-if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
-
-const { default: express } = await import('express');
-const { toNodeHandler } = await import('better-auth/node');
-const { auth, authOrigins } = await import('./auth.js');
-const { prisma } = await import('./prisma.js');
-const { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } = await import(
-  './middleware/auth.js'
-);
-const { profileDto, tenantDto } = await import('./dto.js');
-const { runQuery } = await import('./data.js');
-const { getEmployeeClientStats } = await import('./employee-stats.js');
 
 const app = express();
 // En local : API_PORT (ou 4000). Sur un herbergeur Node (Hostinger/Passenger,
