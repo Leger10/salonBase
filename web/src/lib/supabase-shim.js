@@ -10,8 +10,10 @@
 // depuis le navigateur.
 //
 // Non couvert (renvoie une erreur explicite pour les attraper au lieu d'echouer
-// silencieusement) : jointures imbriquees `select('*, tenants(*)')`, rpc(),
-// storage, realtime et functions.invoke.
+// silencieusement) : rpc(), storage et functions.invoke. Le temps reel
+// (`channel().on().subscribe()`) n'est pas migre non plus, mais il renvoie un
+// abonnement inerte : un throw dans un useEffect ferait planter tout l'arbre
+// React, alors que les donnees se chargent deja par les fetch normaux.
 import { apiFetch } from './api.js';
 
 const ENDPOINT = '/api/data/query';
@@ -264,6 +266,52 @@ class Query {
 }
 
 /**
+ * Canal Realtime inerte. Le temps reel Postgres n'est pas migre, mais les
+ * composants montent leurs canaux dans des `useEffect` : lever une erreur ici
+ * faisait echouer le rendu de tout le tableau de bord. On expose donc l'API
+ * chainable attendue par supabase-js, sans jamais emettre d'evenement.
+ */
+class RealtimeChannel {
+  constructor(name) {
+    this.name = name;
+    this.state = 'closed';
+  }
+
+  on() {
+    return this;
+  }
+
+  subscribe(callback) {
+    this.state = 'joined';
+    if (typeof callback === 'function') {
+      Promise.resolve().then(() => callback('SUBSCRIBED'));
+    }
+    return this;
+  }
+
+  unsubscribe() {
+    this.state = 'closed';
+    return Promise.resolve('ok');
+  }
+
+  send() {
+    return Promise.resolve('ok');
+  }
+
+  track() {
+    return Promise.resolve('ok');
+  }
+
+  untrack() {
+    return Promise.resolve('ok');
+  }
+
+  presenceState() {
+    return {};
+  }
+}
+
+/**
  * Face cliente compatible avec `createClient()` de supabase-js, pour les seuls
  * appels de donnees. `.auth` n'expose que `getUser()` : l'authentification
  * passe par Better Auth (voir AuthContext), et `supabaseAdmin` n'a plus
@@ -324,10 +372,15 @@ export function createDataClient() {
       invoke: () => Promise.resolve(postgrestError('FUNCTIONS_NOT_SUPPORTED', 'Fctions non migrees.')),
     },
 
-    channel: () => {
-      throw new Error(
-        'Realtime non migre : utilisez un rafraichissement manuel ou un SSE cote API.'
-      );
+    channel: (name) => new RealtimeChannel(name),
+
+    removeChannel: (channel) => {
+      channel?.unsubscribe?.();
+      return Promise.resolve('ok');
     },
+
+    removeAllChannels: () => Promise.resolve('ok'),
+
+    getChannels: () => [],
   };
 }
