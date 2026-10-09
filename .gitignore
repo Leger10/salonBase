@@ -14,3 +14,6 @@ backup/
 
 # Supabase : plus utilise (bascule MySQL/MariaDB + API Node)
 supabase/
+
+# Ancien depot git de web/ (snapshot local) : ne pas versionner
+.git_backup/
