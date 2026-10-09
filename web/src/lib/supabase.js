@@ -7,19 +7,55 @@
 //
 // Deux consequences importantes :
 //  - plus aucune cle Supabase n'est necessaire dans le navigateur ;
-//  - `supabaseAdmin` a disparu. Il exposait la cle service_role a tout
-//    visiteur et n'etait utilise nulle part.
+//  - `supabaseAdmin` n'est plus un client Supabase : il n'expose plus la cle
+//    service_role, mais un petit adaptateur vers les routes /api/admin/users,
+//    qui verifient le role de la session cote serveur.
 import { createDataClient } from './supabase-shim.js';
 import { apiFetch } from './api.js';
 
 export const supabase = createDataClient();
 
 /**
- * Utiliser `supabaseAdmin` est une faille : ce client disposait de la cle
- * service_role, qui contourne toute securite. Les operations d'administration
- * passent desormais par l'API, qui verifie le role de la session.
+ * Adaptateur de compatibilite pour les pages SuperAdmin qui appelaient
+ * `supabaseAdmin.auth.admin.*`. Aucune cle privilegiee ne vit ici : chaque
+ * methode appelle l'API, qui applique les regles de role.
  */
-export const supabaseAdmin = null;
+export const supabaseAdmin = {
+  auth: {
+    admin: {
+      createUser: async ({ email, password, user_metadata }) => {
+        try {
+          const data = await apiFetch('/api/admin/users', {
+            method: 'POST',
+            body: {
+              email,
+              password,
+              full_name: user_metadata?.full_name ?? '',
+              phone: user_metadata?.phone ?? null,
+              role: user_metadata?.role ?? 'client',
+              tenant_id: user_metadata?.tenant_id ?? null,
+            },
+          });
+          return { data: { user: data?.user ?? null }, error: null };
+        } catch (error) {
+          return { data: { user: null }, error };
+        }
+      },
+      // Les roles/statuts sont portes par la table `profiles` ; les pages les
+      // ecrivent deja directement. Cette synchronisation de metadonnees n'a
+      // donc plus de cible : on renvoie un succes sans appel reseau.
+      updateUserById: async () => ({ data: { user: null }, error: null }),
+      deleteUser: async (id) => {
+        try {
+          await apiFetch(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          return { data: null, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+    },
+  },
+};
 
 // ✅ Helper functions
 

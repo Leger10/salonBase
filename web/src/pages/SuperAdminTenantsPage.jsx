@@ -1,6 +1,6 @@
 // /src/pages/SuperAdminTenants.jsx
 import React, { useState, useEffect } from "react";
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { Card, CardContent } from "@/components/ui/card.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Input } from "@/components/ui/input.jsx";
@@ -232,32 +232,21 @@ export default function SuperAdminTenants() {
       if (tenantError) throw tenantError;
 
       if (createWithAdmin && tenant) {
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        // L'API cree le profil ET le compte credential en une fois ; elle
+        // rattache directement l'admin au salon qui vient d'etre cree.
+        const { error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: adminData.email,
           password: adminData.password,
           email_confirm: true,
           user_metadata: {
             full_name: adminData.full_name,
-            role: 'admin'
+            phone: adminData.phone || null,
+            role: 'admin',
+            tenant_id: tenant.id
           }
         });
 
         if (authError) throw new Error(`Auth error: ${authError.message}`);
-
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: adminData.email,
-            full_name: adminData.full_name,
-            phone: adminData.phone || null,
-            role: 'admin',
-            tenant_id: tenant.id,
-            is_active: true,
-            created_at: new Date().toISOString()
-          });
-
-        if (profileError) throw new Error(`Profile error: ${profileError.message}`);
 
         toast.success(`Salon "${formData.name}" créé avec l'administrateur ${adminData.full_name}`);
       } else {

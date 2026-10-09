@@ -7,10 +7,12 @@
 // top-level await (ERR_REQUIRE_ASYNC_MODULE).
 import './env.js';
 import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
+import { hashPassword } from 'better-auth/crypto';
 import { auth, authOrigins } from './auth.js';
 import { prisma } from './prisma.js';
 import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
@@ -133,6 +135,121 @@ app.patch(
     });
     const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
     res.json({ success: true, profile: profileDto(updated, tenant) });
+  })
+);
+
+// --- Creation d'un utilisateur --------------------------------------------
+// Remplace `supabaseAdmin.auth.admin.createUser` de l'ancien frontend. La table
+// `profiles` EST la table user de Better Auth : on cree le profil ET le compte
+// credential (hash Better Auth) dans une transaction, au lieu de passer par
+// /sign-up/email (pas de session ni d'email de verification a gerer ici).
+app.post(
+  '/api/admin/users',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+
+    const body = req.body ?? {};
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const password = String(body.password ?? '');
+    const name = body.full_name ?? body.fullName ?? body.name ?? '';
+    const phone = body.phone ?? null;
+    const role = body.role ?? 'client';
+    const tenantId = body.tenant_id ?? body.tenantId ?? null;
+
+    if (!email || !password) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Email et mot de passe requis.');
+    }
+    if (password.length < 8) {
+      throw new HttpError(400, 'WEAK_PASSWORD', 'Le mot de passe doit contenir au moins 8 caracteres.');
+    }
+    if (!Object.hasOwn(ROLES, role)) {
+      throw new HttpError(400, 'INVALID_ROLE', 'Role invalide.');
+    }
+
+    const isSuperAdmin = ctx.role === 'super_admin';
+    if (!isSuperAdmin) {
+      if (role !== 'client' && role !== 'employee') {
+        throw new HttpError(403, 'FORBIDDEN', 'Vous ne pouvez creer que des clients ou des employes.');
+      }
+      if (tenantId !== ctx.tenantId) {
+        throw new HttpError(403, 'TENANT_FORBIDDEN', 'Vous ne pouvez creer que dans votre etablissement.');
+      }
+    }
+    if (role !== 'super_admin' && !tenantId) {
+      throw new HttpError(400, 'TENANT_REQUIRED', 'Un role autre que super_admin exige un etablissement.');
+    }
+
+    const existing = await prisma.profile.findUnique({ where: { email } });
+    if (existing) throw new HttpError(409, 'EMAIL_TAKEN', 'Cet email est deja utilise.');
+
+    const hashed = await hashPassword(password);
+    const created = await prisma.$transaction(async (tx) => {
+      const profile = await tx.profile.create({
+        data: {
+          id: randomUUID(),
+          email,
+          name: name || email,
+          phone,
+          role,
+          tenantId,
+          isActive: true,
+          emailVerified: true,
+          mustChangePassword: false,
+        },
+      });
+      await tx.account.create({
+        data: {
+          id: randomUUID(),
+          accountId: profile.id,
+          providerId: 'credential',
+          userId: profile.id,
+          password: hashed,
+        },
+      });
+      return profile;
+    });
+
+    const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
+    res.status(201).json({
+      user: { id: created.id, email: created.email },
+      profile: profileDto(created, tenant),
+    });
+  })
+);
+
+// --- Suppression d'un utilisateur -----------------------------------------
+// Remplace `supabaseAdmin.auth.admin.deleteUser`. Les fiches clients/employes
+// liees au profil ont des FK ON DELETE CASCADE : supprimer le profil suffit.
+// Idempotent, car les pages suppriment d'abord le profil via /api/data/query.
+app.delete(
+  '/api/admin/users/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+
+    const target = await prisma.profile.findUnique({ where: { id: req.params.id } });
+    if (!target) return res.json({ success: true, deleted: 0 });
+
+    if (target.id === ctx.user.id) {
+      throw new HttpError(400, 'SELF_DELETE', 'Impossible de supprimer votre propre compte.');
+    }
+    const isSuperAdmin = ctx.role === 'super_admin';
+    if (!isSuperAdmin) {
+      if (target.role === 'super_admin' || (ROLES[target.role] ?? 0) > ctx.level) {
+        throw new HttpError(403, 'FORBIDDEN', 'Vous ne pouvez pas supprimer un compte superieur.');
+      }
+      if (target.tenantId !== ctx.tenantId) {
+        throw new HttpError(403, 'TENANT_FORBIDDEN', 'Hors de votre etablissement.');
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.session.deleteMany({ where: { userId: target.id } }),
+      prisma.account.deleteMany({ where: { userId: target.id } }),
+      prisma.profile.delete({ where: { id: target.id } }),
+    ]);
+    res.json({ success: true, deleted: 1 });
   })
 );
 

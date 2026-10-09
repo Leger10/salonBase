@@ -477,6 +477,10 @@ function toSnakeRows(table, rows) {
 /** Verifie qu'aucune colonne protegee n'est ecrite. */
 function assertWritable(table, data, ctx) {
   if (table.model !== 'Profile') return;
+  // Le super_admin est le seul role qui administre les comptes : les pages de
+  // gestion (roles, statut, rattachement) ecrivent directement ces colonnes.
+  // Les autres roles passent obligatoirement par les routes dediees.
+  if (ctx.role === 'super_admin') return;
   for (const key of Object.keys(data)) {
     if (PROTECTED_PROFILE_COLUMNS.has(key.toLowerCase())) {
       throw new HttpError(
@@ -486,7 +490,6 @@ function assertWritable(table, data, ctx) {
       );
     }
   }
-  void ctx;
 }
 
 /** Convertit une charge utile snake_case en donnees Prisma. */

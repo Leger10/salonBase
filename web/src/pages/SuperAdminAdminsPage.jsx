@@ -122,38 +122,23 @@ export default function SuperAdminAdmins() {
 
     setFormLoading(true);
     try {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      // L'API cree le profil ET le compte credential dans une seule operation :
+      // plus de second insert (qui entrait en conflit avec la table profiles).
+      const { error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
         email_confirm: true,
         user_metadata: {
           full_name: formData.full_name,
-          role: 'admin'
+          phone: formData.phone || null,
+          role: 'admin',
+          tenant_id: formData.tenant_id
         }
       });
 
       if (authError) {
         console.error('Auth error:', authError);
         throw new Error(`Erreur d'authentification: ${authError.message}`);
-      }
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          role: 'admin',
-          tenant_id: formData.tenant_id,
-          is_active: true,
-          created_at: new Date().toISOString()
-        });
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        throw new Error(`Erreur de création du profil: ${profileError.message}`);
       }
 
       toast.success(`Administrateur "${formData.full_name}" créé avec succès`);
