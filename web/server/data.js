@@ -64,6 +64,7 @@ const GLOBAL_TABLES = new Set([
 ]);
 
 let REGISTRY = null;
+let MODEL_TO_TABLE = null;
 
 /**
  * Chemins de portee tenant vers une table qui porte `tenant_id`.
@@ -137,14 +138,36 @@ function buildRegistry() {
         required: field.isRequired === true,
       });
     }
+    // Relations exposables pour les jointures imbriquees de PostgREST
+    // (`select('*, profile:profile_id(full_name)')`). byFromField relie la
+    // colonne FK (`profile_id`) au champ de relation Prisma (`profile`).
+    const relations = { byName: new Map(), byFromField: new Map() };
+    for (const field of model.fields) {
+      if (field.kind !== 'object') continue;
+      const meta = {
+        field: field.name,
+        relatedModel: field.type,
+        isList: field.isList === true,
+        isRequired: field.isRequired === true,
+        fromFields: field.relationFromFields ?? [],
+      };
+      relations.byName.set(field.name, meta);
+      for (const scalar of meta.fromFields) relations.byFromField.set(scalar, meta);
+    }
+
     tables.set(table, {
       model: model.name,
+      table,
       columns,
+      relations,
       hasTenant: columns.has('tenant_id'),
       scope: computeScope(model, byName),
       primaryKey: model.primaryKey ?? null,
     });
   }
+
+  MODEL_TO_TABLE = new Map();
+  for (const entry of tables.values()) MODEL_TO_TABLE.set(entry.model, entry);
 
   REGISTRY = tables;
   return REGISTRY;
@@ -277,27 +300,161 @@ function buildWhere(table, body, ctx) {
   return { AND: clauses };
 }
 
-/** Colonnes demandees -> select Prisma. '*' ou une liste de noms SQL. */
-function buildSelect(table, columns) {
-  if (!columns || columns === '*' || (Array.isArray(columns) && columns.length === 0)) {
-    return undefined;
-  }
-  if (typeof columns === 'string') {
-    if (columns.includes('(')) {
-      throw new HttpError(
-        501,
-        'EMBED_NOT_SUPPORTED',
-        `Les jointures imbriquees ne sont pas encore gerees : ${columns.slice(0, 80)}`
-      );
+/** Decoupe une expression `a, b(x, y), c` au niveau 0, guillemets compris. */
+function splitTopLevel(input) {
+  const parts = [];
+  let depth = 0;
+  let quote = null;
+  let current = '';
+
+  for (const char of input) {
+    if (quote) {
+      current += char;
+      if (char === quote) quote = null;
+      continue;
     }
-    columns = columns.split(',').map((c) => c.trim()).filter(Boolean);
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === '(') depth++;
+    if (char === ')') depth--;
+    if (char === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
   }
+  if (current.trim()) parts.push(current);
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/** Analyse une chaine `select` PostgREST en colonnes + jointures imbriquees. */
+function parseSelectTokens(raw) {
+  const result = { star: false, cols: [], embeds: [] };
+
+  for (const token of splitTopLevel(raw)) {
+    if (token === '*') {
+      result.star = true;
+      continue;
+    }
+    const match = token.match(/^([\w!:\s]+?)\((.*)\)$/s);
+    if (match) {
+      let left = match[1].trim();
+      const inner = match[2].trim();
+      let alias = null;
+      const colon = left.indexOf(':');
+      if (colon !== -1) {
+        alias = left.slice(0, colon).trim();
+        left = left.slice(colon + 1).trim();
+      }
+      let hint = null;
+      const bang = left.indexOf('!');
+      if (bang !== -1) {
+        hint = left.slice(bang + 1).trim();
+        left = left.slice(0, bang).trim();
+      }
+      result.embeds.push({ alias, target: left, hint, inner });
+      continue;
+    }
+    result.cols.push(token);
+  }
+
+  return result;
+}
+
+/**
+ * Resout une cible d'imbrication (`profile_id`, `tenant`, `tenants`,
+ * `tenants!profiles_tenant_id_fkey`) vers le champ de relation Prisma.
+ */
+function resolveRelation(table, target) {
+  const name = String(target).toLowerCase();
+  if (table.relations.byName.has(target)) return table.relations.byName.get(target);
+
+  const column = table.columns.get(name);
+  if (column && table.relations.byFromField.has(column.prisma)) {
+    return table.relations.byFromField.get(column.prisma);
+  }
+
+  for (const meta of table.relations.byName.values()) {
+    const related = MODEL_TO_TABLE.get(meta.relatedModel);
+    const names = new Set([meta.field.toLowerCase(), meta.relatedModel.toLowerCase()]);
+    if (related) names.add(related.table.toLowerCase());
+    if (names.has(name)) return meta;
+  }
+
+  return null;
+}
+
+/**
+ * Traduit les colonnes demandees en `select` Prisma (`*` compris) et decrit les
+ * jointures a reconstruire cote sortie. Le perimetre tenant est aussi applique
+ * aux relations listees (to-many), sinon une jointure ouvrirait un trou dans
+ * l'isolation. Renvoie aussi les relations `!inner` a exiger non nulles.
+ */
+function compileSelect(table, columns, ctx) {
+  const raw =
+    columns === undefined || columns === null
+      ? '*'
+      : Array.isArray(columns)
+        ? columns.join(',')
+        : String(columns);
+  const parsed = parseSelectTokens(raw);
   const select = {};
-  for (const raw of columns) {
-    const column = columnOf(table, raw);
-    select[column.prisma] = true;
+
+  if (parsed.star || parsed.cols.length === 0) {
+    for (const meta of table.columns.values()) select[meta.prisma] = true;
+  } else {
+    for (const name of parsed.cols) select[columnOf(table, name).prisma] = true;
   }
-  return select;
+
+  const embeds = [];
+  const inner = [];
+  for (const embed of parsed.embeds) {
+    const relation = resolveRelation(table, embed.target);
+    if (!relation) {
+      throw new HttpError(400, 'UNKNOWN_RELATION', `Relation inconnue : ${embed.target}`);
+    }
+    const related = MODEL_TO_TABLE.get(relation.relatedModel);
+    if (!related) {
+      throw new HttpError(400, 'UNKNOWN_RELATION', `Relation non exposable : ${embed.target}`);
+    }
+    const sub = compileSelect(related, embed.inner, ctx);
+    const node = { select: sub.select };
+    if (relation.isList) {
+      const scope = buildScope(related, ctx);
+      if (scope) node.where = scope;
+    }
+    if (!relation.isList && embed.hint === 'inner') inner.push(relation.field);
+    select[relation.field] = node;
+    embeds.push({
+      key: embed.alias ?? embed.target,
+      field: relation.field,
+      related,
+      isList: relation.isList,
+      embeds: sub.embeds,
+    });
+  }
+
+  return { select, embeds, inner };
+}
+
+/** Reconstruit une ligne : colonnes snake_case + jointures sous leur alias. */
+function projectRow(table, row, embeds) {
+  const out = toSnake(table, row);
+  for (const embed of embeds) {
+    const value = row[embed.field];
+    if (embed.isList) {
+      out[embed.key] = Array.isArray(value)
+        ? value.map((child) => projectRow(embed.related, child, embed.embeds))
+        : [];
+    } else {
+      out[embed.key] = value ? projectRow(embed.related, value, embed.embeds) : null;
+    }
+  }
+  return out;
 }
 
 /** Ligne Prisma -> objet JSON en snake_case. */
@@ -360,17 +517,26 @@ export async function runQuery(ctx, body) {
   }
 
   if (op === 'select') {
-    const where = buildWhere(table, body, ctx);
-    const select = buildSelect(table, body.columns);
-    const orderBy = {};
-    for (const o of body.order ?? []) {
-      orderBy[columnOf(table, o.col).prisma] = o.dir === 'asc' ? 'asc' : 'desc';
+    let where = buildWhere(table, body, ctx);
+    const plan = compileSelect(table, body.columns, ctx);
+
+    // `!inner` de PostgREST : exclut les lignes dont la relation est nulle.
+    if (plan.inner.length) {
+      const innerClauses = plan.inner.map((field) => ({ [field]: { isNot: null } }));
+      const parts = Object.keys(where).length ? [where, ...innerClauses] : innerClauses;
+      where = parts.length === 1 ? parts[0] : { AND: parts };
     }
 
-    let query = {
+    // Prisma refuse un objet `orderBy` a plusieurs cles selon la version : un
+    // tableau d'objets a une seule cle est accepte partout.
+    const orderBy = (body.order ?? []).map((o) => ({
+      [columnOf(table, o.col).prisma]: o.dir === 'asc' ? 'asc' : 'desc',
+    }));
+
+    const query = {
       where,
-      ...(select ? { select } : {}),
-      ...(Object.keys(orderBy).length ? { orderBy } : {}),
+      select: plan.select,
+      ...(orderBy.length ? { orderBy } : {}),
       ...(body.limit ? { take: Math.min(Number(body.limit), 1000) } : {}),
       ...(body.offset ? { skip: Number(body.offset) } : {}),
     };
@@ -381,7 +547,7 @@ export async function runQuery(ctx, body) {
     ]);
 
     return {
-      data: toSnakeRows(table, rows),
+      data: rows.map((row) => projectRow(table, row, plan.embeds)),
       error: null,
       ...(body.count ? { count } : {}),
     };
