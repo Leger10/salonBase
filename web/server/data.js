@@ -111,7 +111,7 @@ const PUBLIC_GLOBAL_TABLES = new Set([
 // La reponse publique ne doit jamais divulguer ces colonnes (secrets, sante,
 // coordonnees). On les retire apres la lecture, quel que soit le `select`.
 const PUBLIC_HIDDEN_COLUMNS = {
-  platform_settings: new Set(['payments', 'security', 'app', 'subscriptions']),
+  platform_settings: new Set(['payments', 'security', 'app', 'subscriptions', 'notifications']),
   appointments: new Set(['client_email', 'client_phone', 'notes']),
   tickets: new Set(['client_email', 'client_phone']),
   clients: new Set(['email', 'phone', 'birthday', 'allergies', 'notes', 'profile_id']),
