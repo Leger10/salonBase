@@ -154,9 +154,7 @@ class AudioService {
           });
         };
 
-        // ✅ Annonce 2 fois avec pause de 1.2s entre les deux
-        await speakNaturally(message);
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        // ✅ Annonce unique : dès la fin du son, la voix appelle immédiatement
         await speakNaturally(message);
       }
     } catch (error) {
