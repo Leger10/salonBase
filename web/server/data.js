@@ -214,7 +214,7 @@ function buildFilter(table, filter) {
 
   if (op === 'in') {
     const values = Array.isArray(filter.value) ? filter.value : [];
-    return { [column.prisma]: { in: values } };
+    return { [column.prisma]: { in: values.map((value) => coerceValue(column, value)) } };
   }
   if (op === 'is') {
     // PostgREST : is.null / is.not_null
@@ -223,18 +223,38 @@ function buildFilter(table, filter) {
       : { [column.prisma]: null };
   }
   if (op === 'not') {
-    return { [column.prisma]: { not: filter.value } };
+    return { [column.prisma]: { not: coerceValue(column, filter.value) } };
   }
   const handler = OPERATORS[op];
   if (!handler) throw new HttpError(400, 'UNKNOWN_OPERATOR', `Operateur inconnu : ${op}`);
 
-  let value = filter.value;
+  let value = coerceValue(column, filter.value);
   // MySQL est insensible a la casse pour les egalites de chaines ; on respecte
   // la casse demandee par le client.
   if (op === 'like' || op === 'ilike') {
     value = { contains: value };
   }
   return { [column.prisma]: handler(value) };
+}
+
+/**
+ * PostgREST acceptait `date=eq.2026-10-10` (date sans heure). Prisma, lui,
+ * refuse une chaine non ISO-8601 complete sur une colonne DateTime et leve une
+ * erreur de validation (=> 500). On normalise donc toute valeur de date en objet
+ * Date, y compris pour les ecritures (`date: '2026-10-10'` a l'insertion d'un
+ * ticket ou d'un rendez-vous).
+ */
+function coerceValue(column, value) {
+  if (column.type !== 'DateTime' || value === null || value === undefined) return value;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new HttpError(400, 'INVALID_DATE', `Date invalide pour ${column.prisma} : ${value}`);
+    }
+    return date;
+  }
+  return value;
 }
 
 /**
@@ -457,6 +477,27 @@ function projectRow(table, row, embeds) {
   return out;
 }
 
+/**
+ * Valeur Prisma -> valeur JSON. Les colonnes `Decimal` sortent sous forme
+ * d'objet decimal.js que JSON.stringify transforme en chaine : le frontend
+ * ferait alors `0 + "12.50"` (concatenation) et afficherait des nombres
+ * absurdes ou `NaN`. PostgREST renvoyait deja des nombres, on restaure ce
+ * comportement. Les BigInt sont convertis de meme.
+ */
+function toJsonValue(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'bigint') return Number(value);
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof value.toFixed === 'function' &&
+    typeof value.toNumber === 'function'
+  ) {
+    return Number(value);
+  }
+  return value;
+}
+
 /** Ligne Prisma -> objet JSON en snake_case. */
 function toSnake(table, row) {
   if (row === null || row === undefined) return row;
@@ -465,7 +506,7 @@ function toSnake(table, row) {
   for (const [column, meta] of table.columns) {
     const value = row[meta.prisma];
     if (value === undefined) continue;
-    out[column] = value instanceof Date ? value.toISOString() : value;
+    out[column] = toJsonValue(value);
   }
   return out;
 }
@@ -497,7 +538,7 @@ function toPrismaData(table, payload) {
   const data = {};
   for (const [key, value] of Object.entries(payload ?? {})) {
     const column = columnOf(table, key);
-    data[column.prisma] = value;
+    data[column.prisma] = coerceValue(column, value);
   }
   return data;
 }
