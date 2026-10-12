@@ -306,19 +306,39 @@ app.get(
 //
 // Securite : la table et les colonnes sont validees contre le schema, et le
 // perimetre tenant est impose par la session (voir server/data.js).
+//
+// Un visiteur SANS session accede malgre tout a un perimetre public restreint
+// (vitrine du salon, file d'attente, reservation). data.js n'autorise alors
+// qu'une liste blanche de lectures et la creation de tickets / rendez-vous /
+// clients / avis, toujours limites a un etablissement actif. Les autres 401
+// (compte desactive, banni, profil manquant) ne sont pas convertis en acces
+// public.
 app.post(
   '/api/data/query',
   wrap(async (req, res) => {
-    const ctx = await requireAuth(req);
+    let ctx;
+    try {
+      ctx = await requireAuth(req);
+    } catch (error) {
+      if (!(error instanceof HttpError) || error.status !== 401) throw error;
+      ctx = { role: 'public', tenantId: null, level: 0, user: null, profile: null };
+    }
     // Seul un super_admin peut restreindre la requete a un tenant donne ; pour
-    // tout autre role le tenant vient de la session et rien d'autre.
-    ctx.queryTenantId = req.body?.scopeTenantId ?? null;
-    if (ctx.queryTenantId && ctx.role !== 'super_admin') {
-      throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous n'accedez qu'a votre etablissement.");
+    // tout autre role le tenant vient de la session et rien d'autre. Le
+    // visiteur public, lui, n'a pas de tenant : le perimetre est construit
+    // dans runQuery (etablissements actifs uniquement).
+    if (ctx.role === 'public') {
+      ctx.queryTenantId = null;
+    } else {
+      ctx.queryTenantId = req.body?.scopeTenantId ?? null;
+      if (ctx.queryTenantId && ctx.role !== 'super_admin') {
+        throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous n'accedez qu'a votre etablissement.");
+      }
     }
     res.json(await runQuery(ctx, req.body ?? {}));
   })
 );
+
 
 // --- Front statique (production : meme domaine que l'API) ------------------
 // En dev, Vite sert le front sur :3000 et proxifie /api vers :4000. En prod sur

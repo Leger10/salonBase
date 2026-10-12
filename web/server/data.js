@@ -63,6 +63,36 @@ const GLOBAL_TABLES = new Set([
   'specialty_types',
 ]);
 
+// --- Acces public (visiteur sans session) ---------------------------------
+// La vitrine d'un salon, la file d'attente et la reservation doivent marcher
+// sans compte. On expose donc un sous-ensemble de tables en lecture (contenu
+// vitrine + disponibilites), et la creation de tickets / rendez-vous / clients
+// / avis. Tout est borne a un etablissement actif (voir buildScope /
+// assertPublicTenant) ; aucune modification ni suppression n'est permise.
+const PUBLIC_READ_TABLES = new Set([
+  'tenants',
+  'tenant_home_settings',
+  'services',
+  'employees',
+  'reviews',
+  'publications',
+  'gallery',
+  'products',
+  'categories',
+  'branches',
+  'news',
+  'tickets',
+  'appointments',
+  'tenant_specialties',
+  'specialty_types',
+  'service_templates',
+  'category_templates',
+]);
+const PUBLIC_WRITE_TABLES = new Set(['tickets', 'appointments', 'clients', 'reviews']);
+// Tables de reference partagees, lisibles publiquement sans filtre tenant.
+const PUBLIC_GLOBAL_TABLES = new Set(['specialty_types', 'service_templates', 'category_templates']);
+
+
 let REGISTRY = null;
 let MODEL_TO_TABLE = null;
 
@@ -263,6 +293,16 @@ function coerceValue(column, value) {
  * requete a un tenant precis via ctx.queryTenantId, sinon il voit tout.
  */
 function buildScope(table, ctx) {
+  if (ctx.role === 'public') {
+    // Visiteur sans session : uniquement du contenu rattache a un
+    // etablissement actif, plus quelques tables de reference partagees.
+    if (PUBLIC_GLOBAL_TABLES.has(table.table)) return null;
+    if (table.scope === 'global') return { id: { in: [] } };
+    if (table.scope === 'self') return { isActive: true };
+    if (table.scope === 'direct') return { tenant: { isActive: true } };
+    return { id: { in: [] } };
+  }
+
   if (table.scope === 'global') return null;
 
   // Un membre sans etablissement ne doit voir aucune ligne scopee.
@@ -441,6 +481,12 @@ function compileSelect(table, columns, ctx) {
     if (!related) {
       throw new HttpError(400, 'UNKNOWN_RELATION', `Relation non exposable : ${embed.target}`);
     }
+    // Public : on autorise les jointures to-one utiles a la vitrine (profil d'un
+    // employe, auteur d'un avis) mais pas les listes vers des tables non
+    // publiques, qui permettraient de dumper des profils en masse.
+    if (ctx.role === 'public' && relation.isList && !PUBLIC_READ_TABLES.has(related.table)) {
+      throw new HttpError(403, 'PUBLIC_FORBIDDEN', `Relation non accessible publiquement : ${embed.target}`);
+    }
     const sub = compileSelect(related, embed.inner, ctx);
     const node = { select: sub.select };
     if (relation.isList) {
@@ -533,6 +579,17 @@ function assertWritable(table, data, ctx) {
   }
 }
 
+/** Verifie qu'un etablissement accepte les operations publiques (compte actif). */
+async function assertPublicTenant(tenantId) {
+  const tenant = await prisma.tenant.findFirst({
+    where: { id: String(tenantId), isActive: true },
+    select: { id: true },
+  });
+  if (!tenant) {
+    throw new HttpError(403, 'TENANT_FORBIDDEN', 'Etablissement inconnu ou inactif.');
+  }
+}
+
 /** Convertit une charge utile snake_case en donnees Prisma. */
 function toPrismaData(table, payload) {
   const data = {};
@@ -551,10 +608,28 @@ export async function runQuery(ctx, body) {
   const op = String(body.op ?? 'select').toLowerCase();
   const table = resolveTable(body.table);
   const client = table.model.charAt(0).toLowerCase() + table.model.slice(1);
+  const isPublic = ctx.role === 'public';
+
+  // Perimetre public : liste blanche stricte + creation uniquement. On verifie
+  // ici, avant toute requete, pour ne jamais laisser un visiteur atteindre une
+  // table ou une operation non prevue.
+  if (isPublic) {
+    if (op === 'select') {
+      if (!PUBLIC_READ_TABLES.has(table.table)) {
+        throw new HttpError(403, 'PUBLIC_FORBIDDEN', `Table non accessible publiquement : ${body.table}.`);
+      }
+    } else if (op === 'insert') {
+      if (!PUBLIC_WRITE_TABLES.has(table.table)) {
+        throw new HttpError(403, 'PUBLIC_FORBIDDEN', `Creation publique non autorisee sur ${body.table}.`);
+      }
+    } else {
+      throw new HttpError(403, 'PUBLIC_FORBIDDEN', `Operation non autorisee sans session : ${op}.`);
+    }
+  }
 
   const levels = { super_admin: 4, admin: 3, employee: 2, client: 1 };
   const needed = levels[requiredLevel(body.table, op)];
-  if (op !== 'select') {
+  if (op !== 'select' && !isPublic) {
     if ((levels[ctx.role] ?? 0) < needed) {
       throw new HttpError(403, 'FORBIDDEN', `Droits insuffisants pour ${op} sur ${body.table}.`);
     }
@@ -605,10 +680,20 @@ export async function runQuery(ctx, body) {
       // Le tenant est IMPOSE, jamais repris du client. Ne pas ecranger une
       // valeur fournie autoriserait un employe a injecter une fiche dans un
       // autre etablissement. Seul un super_admin, qui n'appartient a aucun
-      // tenant, peut ecrire sans tenant ou en choisir un.
-      if (table.hasTenant && ctx.role !== 'super_admin') data.tenantId = ctx.tenantId;
+      // tenant, peut ecrire sans tenant ou en choisir un. Pour le public, le
+      // tenant fourni est conserve puis valide par assertPublicTenant.
+      if (table.hasTenant && !isPublic && ctx.role !== 'super_admin') data.tenantId = ctx.tenantId;
       return data;
     });
+
+    // Le visiteur doit viser un etablissement actif ; on ne peut pas se fier au
+    // tenant_id de la requete sans ce controle.
+    if (isPublic) {
+      for (const data of rows) {
+        if (!data.tenantId) throw new HttpError(400, 'TENANT_REQUIRED', 'tenant_id requis.');
+        await assertPublicTenant(data.tenantId);
+      }
+    }
 
     // create() et non createMany() : 4 tables n'ont pas d'id par defaut, et le
     // frontend attend les lignes reelles (id, created_at...) via .insert().select().
