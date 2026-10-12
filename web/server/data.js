@@ -81,16 +81,58 @@ const PUBLIC_READ_TABLES = new Set([
   'categories',
   'branches',
   'news',
+  'promotions',
+  'gift_cards',
   'tickets',
   'appointments',
+  'clients',
+  'platform_settings',
   'tenant_specialties',
   'specialty_types',
   'service_templates',
   'category_templates',
 ]);
-const PUBLIC_WRITE_TABLES = new Set(['tickets', 'appointments', 'clients', 'reviews']);
+const PUBLIC_WRITE_TABLES = new Set([
+  'tickets',
+  'appointments',
+  'clients',
+  'reviews',
+  'contact_messages',
+  'notifications',
+  'gift_cards',
+]);
 // Tables de reference partagees, lisibles publiquement sans filtre tenant.
-const PUBLIC_GLOBAL_TABLES = new Set(['specialty_types', 'service_templates', 'category_templates']);
+const PUBLIC_GLOBAL_TABLES = new Set([
+  'specialty_types',
+  'service_templates',
+  'category_templates',
+  'platform_settings',
+]);
+// La reponse publique ne doit jamais divulguer ces colonnes (secrets, sante,
+// coordonnees). On les retire apres la lecture, quel que soit le `select`.
+const PUBLIC_HIDDEN_COLUMNS = {
+  platform_settings: new Set(['payments', 'security', 'app', 'subscriptions']),
+  appointments: new Set(['client_email', 'client_phone', 'notes']),
+  tickets: new Set(['client_email', 'client_phone']),
+  clients: new Set(['email', 'phone', 'birthday', 'allergies', 'notes', 'profile_id']),
+};
+// Certaines tables publiques n'exposent qu'une projection minimale.
+const PUBLIC_ALLOWED_COLUMNS = {
+  clients: new Set([
+    'id',
+    'tenant_id',
+    'name',
+    'profile',
+    'loyalty_points',
+    'total_visits',
+    'total_spent',
+    'created_at',
+    'last_visit',
+  ]),
+};
+// Un message de contact general (page /contact) n'a pas toujours d'etablissement.
+const PUBLIC_TENANT_OPTIONAL = new Set(['contact_messages']);
+
 
 
 let REGISTRY = null;
@@ -507,20 +549,35 @@ function compileSelect(table, columns, ctx) {
   return { select, embeds, inner };
 }
 
+/** Supprime les colonnes interdites au public (secrets, sante, coordonnees). */
+function censorPublic(table, row) {
+  const allowed = PUBLIC_ALLOWED_COLUMNS[table.table];
+  if (allowed) {
+    for (const key of Object.keys(row)) {
+      if (!allowed.has(key)) delete row[key];
+    }
+  }
+  const hidden = PUBLIC_HIDDEN_COLUMNS[table.table];
+  if (hidden) {
+    for (const key of hidden) delete row[key];
+  }
+  return row;
+}
+
 /** Reconstruit une ligne : colonnes snake_case + jointures sous leur alias. */
-function projectRow(table, row, embeds) {
+function projectRow(table, row, embeds, isPublic = false) {
   const out = toSnake(table, row);
   for (const embed of embeds) {
     const value = row[embed.field];
     if (embed.isList) {
       out[embed.key] = Array.isArray(value)
-        ? value.map((child) => projectRow(embed.related, child, embed.embeds))
+        ? value.map((child) => projectRow(embed.related, child, embed.embeds, isPublic))
         : [];
     } else {
-      out[embed.key] = value ? projectRow(embed.related, value, embed.embeds) : null;
+      out[embed.key] = value ? projectRow(embed.related, value, embed.embeds, isPublic) : null;
     }
   }
-  return out;
+  return isPublic ? censorPublic(table, out) : out;
 }
 
 /**
@@ -666,7 +723,7 @@ export async function runQuery(ctx, body) {
     ]);
 
     return {
-      data: rows.map((row) => projectRow(table, row, plan.embeds)),
+      data: rows.map((row) => projectRow(table, row, plan.embeds, isPublic)),
       error: null,
       ...(body.count ? { count } : {}),
     };
@@ -690,7 +747,10 @@ export async function runQuery(ctx, body) {
     // tenant_id de la requete sans ce controle.
     if (isPublic) {
       for (const data of rows) {
-        if (!data.tenantId) throw new HttpError(400, 'TENANT_REQUIRED', 'tenant_id requis.');
+        if (!data.tenantId) {
+          if (PUBLIC_TENANT_OPTIONAL.has(table.table)) continue;
+          throw new HttpError(400, 'TENANT_REQUIRED', 'tenant_id requis.');
+        }
         await assertPublicTenant(data.tenantId);
       }
     }
