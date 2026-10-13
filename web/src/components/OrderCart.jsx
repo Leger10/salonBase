@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { resolveClientId } from '@/lib/clientActivity';
 
 export const OrderCart = ({ 
   isOpen, 
@@ -235,10 +236,17 @@ export const OrderCart = ({
       }
       const receiptNumber = `RCP-${String(lastNumber + 1).padStart(4, '0')}`;
 
+      // Rattacher la commande à la fiche client (créée au besoin) pour que
+      // l'admin retrouve l'activité dans /admin/clients.
+      const clientId = await resolveClientId(tenantId, {
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+      });
+
       // ✅ Préparer les données de la transaction avec la réduction
       const transactionData = {
         tenant_id: tenantId,
-        client_id: null,
+        client_id: clientId,
         amount: subTotal,
         total_after_discount: total,
         discount_amount: discountAmountValue,

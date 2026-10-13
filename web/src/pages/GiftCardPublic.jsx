@@ -678,17 +678,22 @@ export default function GiftCardPublic() {
       setShowSuccess(true);
       toast.success("🎉 Carte cadeau créée ! En attente de validation par l'admin.");
 
-      // Notification pour l'admin
-      await supabase
-        .from("notifications")
-        .insert({
-          tenant_id: tenant.id,
-          type: "gift_card_pending",
-          title: "🆕 Nouvelle carte cadeau en attente",
-          message: `Une nouvelle carte cadeau de ${formData.amount.toLocaleString()} FCFA a été créée par ${formData.sender_name} pour ${formData.recipient_name}. Code: ${code}`,
-          read: false,
-          created_at: new Date().toISOString()
-        });
+      // Notification pour l'admin (best-effort : ne doit jamais faire echouer
+      // la creation de la carte cote visiteur).
+      try {
+        await supabase
+          .from("notifications")
+          .insert({
+            tenant_id: tenant.id,
+            type: "gift_card_pending",
+            title: "🆕 Nouvelle carte cadeau en attente",
+            message: `Une nouvelle carte cadeau de ${formData.amount.toLocaleString()} FCFA a été créée par ${formData.sender_name} pour ${formData.recipient_name}. Code: ${code}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+      } catch (notifyError) {
+        console.warn("Notification admin non envoyée:", notifyError);
+      }
 
     } catch (error) {
       console.error(error);

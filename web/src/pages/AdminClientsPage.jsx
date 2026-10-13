@@ -68,9 +68,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover.jsx";
 import { cn } from "@/lib/utils";
+import { aggregateClientActivity, activityForClient } from "@/lib/clientActivity";
 
 export default function AdminClientsPage() {
   const { currentUser } = useAuth();
+  // Les employes consultent la fiche client mais ne creent pas de compte :
+  // le bouton "Nouveau client" leur est masque.
+  const canManageClients = currentUser?.profile?.role !== "employee";
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +104,14 @@ export default function AdminClientsPage() {
   const [clientAppointments, setClientAppointments] = useState([]);
   const [clientTickets, setClientTickets] = useState([]);
   const [clientTransactions, setClientTransactions] = useState([]);
+  const [clientGiftCards, setClientGiftCards] = useState([]);
+  // Activité brute du tenant, réutilisée pour le détail d'un client.
+  const [activityRaw, setActivityRaw] = useState({
+    appointments: [],
+    tickets: [],
+    transactions: [],
+    giftCards: [],
+  });
 
   // État pour le chargement des activités
   const [loadingActivities, setLoadingActivities] = useState(false);
@@ -121,11 +133,15 @@ export default function AdminClientsPage() {
         return;
       }
 
-      // Récupérer tous les clients du tenant
-      const { data: clientsData, error: clientsError } = await supabase
-        .from("clients")
-        .select(
-          `
+      // Une requête par table (au lieu de 3 par client) puis regroupement local :
+      // l'activité publique n'a pas toujours de client_id, on rattache donc par
+      // téléphone / email en plus de l'id.
+      const [clientsRes, appointmentsRes, ticketsRes, transactionsRes, giftCardsRes] =
+        await Promise.all([
+          supabase
+            .from("clients")
+            .select(
+              `
           *,
           profile:profile_id (
             id,
@@ -135,96 +151,79 @@ export default function AdminClientsPage() {
             avatar
           )
         `
-        )
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
-
-      if (clientsError) throw clientsError;
-
-      // Pour chaque client, récupérer ses statistiques
-      const clientsWithStats = await Promise.all(
-        (clientsData || []).map(async (client) => {
-          // Récupérer les rendez-vous
-          const { data: appointments } = await supabase
+            )
+            .eq("tenant_id", tenantId)
+            .order("created_at", { ascending: false }),
+          supabase
             .from("appointments")
-            .select("id, status, total_price, created_at, appointment_date")
-            .eq("client_id", client.id);
-
-          // Récupérer les tickets
-          const { data: tickets } = await supabase
+            .select(
+              "id, client_id, client_name, client_email, client_phone, status, total_price, created_at, appointment_date"
+            )
+            .eq("tenant_id", tenantId),
+          supabase
             .from("tickets")
-            .select("id, status, service_price, created_at, date")
-            .eq("client_id", client.id);
-
-          // Récupérer les transactions (achats)
-          const { data: transactions } = await supabase
+            .select(
+              "id, client_id, client_name, client_email, client_phone, status, service_price, created_at, date"
+            )
+            .eq("tenant_id", tenantId),
+          supabase
             .from("transactions")
-            .select("id, amount, status, created_at, transaction_date")
-            .eq("client_id", client.id);
+            .select(
+              "id, client_id, customer_id, customer_name, customer_phone, amount, status, created_at, transaction_date"
+            )
+            .eq("tenant_id", tenantId),
+          supabase
+            .from("gift_cards")
+            .select(
+              "id, code, sender_name, sender_phone, recipient_name, recipient_phone, recipient_email, amount, status, created_at"
+            )
+            .eq("tenant_id", tenantId),
+        ]);
 
-          const totalAppointments = appointments?.length || 0;
-          const completedAppointments =
-            appointments?.filter((a) => a.status === "completed").length || 0;
-          const totalTickets = tickets?.length || 0;
-          const completedTickets =
-            tickets?.filter(
-              (t) => t.status === "served" || t.status === "completed"
-            ).length || 0;
-          const totalTransactions = transactions?.length || 0;
+      if (clientsRes.error) throw clientsRes.error;
 
-          const totalRevenue =
-            (appointments || [])
-              .filter((a) => a.status === "completed")
-              .reduce((sum, a) => sum + (a.total_price || 0), 0) +
-            (tickets || [])
-              .filter((t) => t.status === "served" || t.status === "completed")
-              .reduce((sum, t) => sum + (t.service_price || 0), 0) +
-            (transactions || [])
-              .filter((t) => t.status === "completed")
-              .reduce((sum, t) => sum + (t.amount || 0), 0);
+      const clientsData = clientsRes.data || [];
+      const rawActivity = {
+        appointments: appointmentsRes.data || [],
+        tickets: ticketsRes.data || [],
+        transactions: transactionsRes.data || [],
+        giftCards: giftCardsRes.data || [],
+      };
+      setActivityRaw(rawActivity);
+      const activity = aggregateClientActivity(clientsData, rawActivity);
 
-          // Récupérer toutes les dates d'activité
-          const activityDates = [
-            ...(appointments || []).map((a) => ({
-              date: a.appointment_date || a.created_at,
-              type: "appointment",
-            })),
-            ...(tickets || []).map((t) => ({
-              date: t.date || t.created_at,
-              type: "ticket",
-            })),
-            ...(transactions || []).map((t) => ({
-              date: t.transaction_date || t.created_at,
-              type: "transaction",
-            })),
-          ];
+      const emptyStats = {
+        appointments: 0,
+        completedAppointments: 0,
+        tickets: 0,
+        completedTickets: 0,
+        transactions: 0,
+        giftCards: 0,
+        revenue: 0,
+        lastVisit: null,
+        activityDates: [],
+      };
 
-          // Trier par date
-          activityDates.sort(
-            (a, b) => new Date(b.date) - new Date(a.date)
-          );
-
-          const lastVisit = activityDates.length > 0 ? activityDates[0].date : null;
-          const totalVisits = totalAppointments + totalTickets;
-
-          return {
-            ...client,
-            full_name: client.profile?.full_name || client.name || "Client",
-            email: client.profile?.email || client.email || "",
-            phone: client.profile?.phone || client.phone || "",
-            totalAppointments,
-            completedAppointments,
-            totalTickets,
-            completedTickets,
-            totalTransactions,
-            totalRevenue,
-            totalVisits,
-            lastVisit,
-            loyalty_points: client.loyalty_points || 0,
-            activityDates, // Ajout des dates d'activité
-          };
-        })
-      );
+      const clientsWithStats = clientsData.map((client) => {
+        const s = activity.get(client.id) || emptyStats;
+        return {
+          ...client,
+          full_name: client.profile?.full_name || client.name || "Client",
+          email: client.profile?.email || client.email || "",
+          phone: client.profile?.phone || client.phone || "",
+          totalAppointments: s.appointments,
+          completedAppointments: s.completedAppointments,
+          totalTickets: s.tickets,
+          completedTickets: s.completedTickets,
+          totalTransactions: s.transactions,
+          totalGiftCards: s.giftCards,
+          totalRevenue: s.revenue,
+          totalVisits: s.appointments + s.tickets,
+          lastVisit: s.lastVisit,
+          loyalty_points: client.loyalty_points || 0,
+          activityDates: s.activityDates,
+        };
+      });
 
       setClients(clientsWithStats);
       setFilteredClients(clientsWithStats);
@@ -344,56 +343,21 @@ export default function AdminClientsPage() {
     return { total, active, new: newClients, loyal, totalRevenue, totalVisits };
   }, [filteredClients]);
 
-  // Récupérer les détails d'un client
-  const fetchClientDetails = async (clientId) => {
-    try {
-      // Rendez-vous du client
-      const { data: appointments } = await supabase
-        .from("appointments")
-        .select(
-          `
-          *,
-          service:service_id (
-            id, name, price
-          ),
-          employee:employee_id (
-            id,
-            profile:profile_id (
-              full_name
-            )
-          )
-        `
-        )
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
-
-      // Tickets du client
-      const { data: tickets } = await supabase
-        .from("tickets")
-        .select("*")
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
-
-      // Transactions du client
-      const { data: transactions } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
-
-      setClientAppointments(appointments || []);
-      setClientTickets(tickets || []);
-      setClientTransactions(transactions || []);
-    } catch (error) {
-      console.error("Error fetching client details:", error);
-      toast.error("Erreur lors du chargement des détails");
-    }
+  // Récupérer les détails d'un client à partir de l'activité déjà chargée.
+  const fetchClientDetails = (client) => {
+    const details = activityForClient(client, activityRaw);
+    const byDateDesc = (a, b) =>
+      new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0);
+    setClientAppointments([...details.appointments].sort(byDateDesc));
+    setClientTickets([...details.tickets].sort(byDateDesc));
+    setClientTransactions([...details.transactions].sort(byDateDesc));
+    setClientGiftCards([...details.giftCards].sort(byDateDesc));
   };
 
-  const openClientDetails = async (client) => {
+  const openClientDetails = (client) => {
     setSelectedClient(client);
     setIsDetailsOpen(true);
-    await fetchClientDetails(client.id);
+    fetchClientDetails(client);
   };
 
   const getStatusBadge = (status) => {
@@ -466,6 +430,7 @@ export default function AdminClientsPage() {
         Tickets: c.totalTickets || 0,
         "Tickets servis": c.completedTickets || 0,
         Achats: c.totalTransactions || 0,
+        "Cartes cadeaux": c.totalGiftCards || 0,
         "Revenu total": c.totalRevenue || 0,
         "Visites totales": c.totalVisits || 0,
         "Points fidélité": c.loyalty_points || 0,
@@ -486,6 +451,7 @@ export default function AdminClientsPage() {
         { wch: 25 },
         { wch: 30 },
         { wch: 20 },
+        { wch: 15 },
         { wch: 15 },
         { wch: 15 },
         { wch: 15 },
@@ -559,7 +525,7 @@ export default function AdminClientsPage() {
 
           <div className="space-y-6 py-4">
             {/* Statistiques client */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <Card className="bg-gray-900 border-gray-700">
                 <CardContent className="p-3 text-center">
                   <p className="text-xs text-gray-400">Rendez-vous</p>
@@ -578,9 +544,17 @@ export default function AdminClientsPage() {
               </Card>
               <Card className="bg-gray-900 border-gray-700">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Achats</p>
+                  <p className="text-xs text-gray-400">Achats produit</p>
                   <p className="text-xl font-bold text-green-400">
                     {clientTransactions.length}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-700">
+                <CardContent className="p-3 text-center">
+                  <p className="text-xs text-gray-400">Cartes cadeaux</p>
+                  <p className="text-xl font-bold text-pink-400">
+                    {clientGiftCards.length}
                   </p>
                 </CardContent>
               </Card>
@@ -717,9 +691,49 @@ export default function AdminClientsPage() {
               </div>
             )}
 
+            {/* Cartes cadeaux du client */}
+            {clientGiftCards.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                  <Award className="h-4 w-4" /> Cartes cadeaux (
+                  {clientGiftCards.length})
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {clientGiftCards.slice(0, 5).map((card) => (
+                    <div
+                      key={card.id}
+                      className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {card.recipient_name || "Bénéficiaire"} -{" "}
+                          {card.amount?.toLocaleString() || 0} FCFA
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Code {card.code || "—"} •{" "}
+                          {card.created_at
+                            ? format(new Date(card.created_at), "dd/MM/yyyy")
+                            : ""}
+                        </p>
+                      </div>
+                      <Badge className={getStatusBadge(card.status).className}>
+                        {getStatusBadge(card.status).label}
+                      </Badge>
+                    </div>
+                  ))}
+                  {clientGiftCards.length > 5 && (
+                    <p className="text-xs text-gray-500 text-center">
+                      + {clientGiftCards.length - 5} autres
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {clientAppointments.length === 0 &&
               clientTickets.length === 0 &&
-              clientTransactions.length === 0 && (
+              clientTransactions.length === 0 &&
+              clientGiftCards.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <p>Aucune activité pour ce client</p>
                 </div>
@@ -813,12 +827,14 @@ export default function AdminClientsPage() {
             <RefreshCw className="h-4 w-4" />
             Actualiser
           </Button>
-          <Button size="sm" className="gap-2" asChild>
-            <Link to="/admin/clients/new">
-              <UserPlus className="h-4 w-4" />
-              Nouveau client
-            </Link>
-          </Button>
+          {canManageClients && (
+            <Button size="sm" className="gap-2" asChild>
+              <Link to="/admin/clients/new">
+                <UserPlus className="h-4 w-4" />
+                Nouveau client
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1103,6 +1119,11 @@ export default function AdminClientsPage() {
                             {client.totalTransactions > 0 && (
                               <Badge variant="outline" className="text-[10px]">
                                 🛍️ {client.totalTransactions}
+                              </Badge>
+                            )}
+                            {client.totalGiftCards > 0 && (
+                              <Badge variant="outline" className="text-[10px]">
+                                🎁 {client.totalGiftCards}
                               </Badge>
                             )}
                           </div>

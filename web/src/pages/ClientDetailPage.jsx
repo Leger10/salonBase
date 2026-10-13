@@ -38,16 +38,24 @@ import {
   History,
   DollarSign,
   Store,
+  Ticket,
+  ShoppingBag,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { activityForClient } from "@/lib/clientActivity";
 
 export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  // Les employes consultent le profil mais ne le modifient pas.
+  const canManage = currentUser?.profile?.role !== "employee";
   const [client, setClient] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [clientTickets, setClientTickets] = useState([]);
+  const [clientTransactions, setClientTransactions] = useState([]);
+  const [clientGiftCards, setClientGiftCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tenantInfo, setTenantInfo] = useState(null);
   const [stats, setStats] = useState({
@@ -108,12 +116,15 @@ export default function ClientDetailPage() {
       setClient(client);
       setTenantInfo(client.tenants);
 
-      // 2. Récupérer les rendez-vous du client
-      const { data: appointmentsData, error: appointmentsError } =
-        await supabase
-          .from("appointments")
-          .select(
-            `
+      // 2. Récupérer l'activité de l'établissement puis la rattacher au client
+      // (id direct, sinon téléphone / email — l'activité publique n'a pas
+      // toujours de client_id).
+      const [appointmentsRes, ticketsRes, transactionsRes, giftCardsRes] =
+        await Promise.all([
+          supabase
+            .from("appointments")
+            .select(
+              `
           *,
           service:service_id (
             id,
@@ -128,17 +139,57 @@ export default function ClientDetailPage() {
               full_name
             )
           )
-        `,
-          )
-          .eq("client_id", id)
-          .order("appointment_date", { ascending: false })
-          .order("start_time", { ascending: false });
+        `
+            )
+            .eq("tenant_id", client.tenant_id),
+          supabase
+            .from("tickets")
+            .select(
+              "id, client_id, client_name, client_phone, client_email, status, service_price, service_type, ticket_number, date, created_at"
+            )
+            .eq("tenant_id", client.tenant_id),
+          supabase
+            .from("transactions")
+            .select(
+              "id, client_id, customer_id, customer_phone, customer_name, amount, status, description, receipt_number, transaction_date, created_at"
+            )
+            .eq("tenant_id", client.tenant_id),
+          supabase
+            .from("gift_cards")
+            .select(
+              "id, code, recipient_name, recipient_phone, recipient_email, sender_name, sender_phone, amount, status, created_at"
+            )
+            .eq("tenant_id", client.tenant_id),
+        ]);
 
-      if (appointmentsError) throw appointmentsError;
+      if (appointmentsRes.error) throw appointmentsRes.error;
+
+      const apptByClient = activityForClient(client, {
+        appointments: appointmentsRes.data || [],
+      });
+      const ticketsByClient = activityForClient(client, {
+        tickets: ticketsRes.data || [],
+      });
+      const txByClient = activityForClient(client, {
+        transactions: transactionsRes.data || [],
+      });
+      const giftCardsByClient = activityForClient(client, {
+        giftCards: giftCardsRes.data || [],
+      });
+
+      const appointmentsData = apptByClient.appointments || [];
+      appointmentsData.sort(
+        (a, b) =>
+          new Date(b.appointment_date) - new Date(a.appointment_date) ||
+          new Date(b.start_time) - new Date(a.start_time)
+      );
+      setClientTickets(ticketsByClient.tickets || []);
+      setClientTransactions(txByClient.transactions || []);
+      setClientGiftCards(giftCardsByClient.giftCards || []);
 
       // 3. Calculer les statistiques
       const completedAppointments =
-        appointmentsData?.filter((a) => a.status === "completed") || [];
+        appointmentsData.filter((a) => a.status === "completed") || [];
       const totalSpent = completedAppointments.reduce(
         (sum, a) => sum + (a.total_price || 0),
         0,
@@ -151,10 +202,10 @@ export default function ClientDetailPage() {
           ? ratings.reduce((a, b) => a + b, 0) / ratings.length
           : 0;
 
-      setAppointments(appointmentsData || []);
+      setAppointments(appointmentsData);
       setStats({
         totalSpent,
-        totalVisits: completedAppointments.length,
+        totalVisits: appointmentsData.length + (ticketsByClient.tickets?.length || 0),
         loyaltyPoints: client.loyalty_points || 0,
         averageRating: parseFloat(averageRating.toFixed(1)),
       });
@@ -232,12 +283,14 @@ export default function ClientDetailPage() {
             </Button>
             <h1 className="text-2xl font-bold">Profil Client</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Edit className="w-4 h-4 mr-2" />
-              Modifier
-            </Button>
-          </div>
+          {canManage && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Edit className="w-4 h-4 mr-2" />
+                Modifier
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -299,7 +352,7 @@ export default function ClientDetailPage() {
               </div>
 
               {/* Statistiques */}
-              <div className="grid grid-cols-3 gap-4 w-full mt-6 pt-6 border-t border-white/20">
+              <div className="grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-white/20">
                 <div className="text-center">
                   <p className="text-primary-foreground/60 text-xs uppercase tracking-wider mb-1">
                     Dépensé
@@ -321,6 +374,15 @@ export default function ClientDetailPage() {
                   <p className="text-xl font-bold flex items-center justify-center gap-1">
                     <Award className="w-4 h-4 text-amber-300" />
                     {stats.loyaltyPoints}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-primary-foreground/60 text-xs uppercase tracking-wider mb-1">
+                    Cartes cadeaux
+                  </p>
+                  <p className="text-xl font-bold flex items-center justify-center gap-1">
+                    <Gift className="w-4 h-4 text-amber-300" />
+                    {clientGiftCards.length}
                   </p>
                 </div>
               </div>
@@ -350,6 +412,20 @@ export default function ClientDetailPage() {
                   >
                     <History className="h-4 w-4" />
                     Historique des visites
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tickets"
+                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 px-0 gap-2"
+                  >
+                    <Ticket className="h-4 w-4" />
+                    Tickets ({clientTickets.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="purchases"
+                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 px-0 gap-2"
+                  >
+                    <ShoppingBag className="h-4 w-4" />
+                    Achats ({clientTransactions.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="notes"
@@ -454,14 +530,96 @@ export default function ClientDetailPage() {
                   )}
                 </TabsContent>
 
+                <TabsContent value="tickets" className="m-0">
+                  {clientTickets.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Ticket className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
+                      <p className="text-muted-foreground">
+                        Aucun ticket pour ce client
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {clientTickets.map((ticket) => (
+                        <div
+                          key={ticket.id}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              #{ticket.ticket_number} -{" "}
+                              {ticket.service_type || "Service"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {ticket.date
+                                ? format(new Date(ticket.date), "dd/MM/yyyy")
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-primary">
+                              {Number(ticket.service_price || 0).toLocaleString()} FCFA
+                            </p>
+                            {getStatusBadge(ticket.status)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="purchases" className="m-0">
+                  {clientTransactions.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
+                      <p className="text-muted-foreground">
+                        Aucun achat pour ce client
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {clientTransactions.map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {tx.description || tx.customer_name || "Achat"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {tx.transaction_date
+                                ? format(
+                                    new Date(tx.transaction_date),
+                                    "dd/MM/yyyy"
+                                  )
+                                : ""}{" "}
+                              •{" "}
+                              {tx.receipt_number || tx.description || ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-primary">
+                              {Number(tx.amount || 0).toLocaleString()} FCFA
+                            </p>
+                            {getStatusBadge(tx.status)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
                 <TabsContent value="notes" className="m-0">
                   <div className="text-center py-12">
                     <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
                     <p className="text-muted-foreground">Aucune note interne</p>
-                    <Button variant="outline" className="mt-4 gap-2">
-                      <Plus className="h-4 w-4" />
-                      Ajouter une note
-                    </Button>
+                    {canManage && (
+                      <Button variant="outline" className="mt-4 gap-2">
+                        <Plus className="h-4 w-4" />
+                        Ajouter une note
+                      </Button>
+                    )}
                   </div>
                 </TabsContent>
 
@@ -476,6 +634,36 @@ export default function ClientDetailPage() {
                         Points fidélité
                       </p>
                     </div>
+                    {clientGiftCards.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">
+                          Cartes cadeaux ({clientGiftCards.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {clientGiftCards.map((card) => (
+                            <div
+                              key={card.id}
+                              className="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                              <div>
+                                <p className="font-medium">
+                                  {card.recipient_name || "Bénéficiaire"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Code {card.code || "—"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-primary">
+                                  {Number(card.amount || 0).toLocaleString()} FCFA
+                                </p>
+                                {getStatusBadge(card.status)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <h3 className="font-semibold">
                         Comment gagner des points ?

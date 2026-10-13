@@ -51,6 +51,7 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { resolveClientId } from "@/lib/clientActivity";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveTenant } from "@/contexts/ActiveTenantContext";
 import { usePlatformConfig } from "@/contexts/PlatformConfigContext";
@@ -1431,9 +1432,12 @@ const fetchClientOrders = async (phone, tenantId) => {
   // ✅ Fonction pour récupérer une commande spécifique
 // Dans GalleryPage.jsx, remplacer la fonction fetchOrderByReceipt
 
-const fetchOrderByReceipt = async (receiptNumber, tenantId) => {
+const fetchOrderByReceipt = async (receiptNumber, tenantId, phone) => {
+  // Lecture publique restreinte : on cible la commande par le telephone du
+  // client (jamais par le numero de recu seul, qui est enumerable).
+  if (!phone) return null;
   try {
-    const { data: order, error } = await supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select(`
         *,
@@ -1449,12 +1453,13 @@ const fetchOrderByReceipt = async (receiptNumber, tenantId) => {
           )
         )
       `)
-      .eq("receipt_number", receiptNumber)
+      .eq("customer_phone", phone)
       .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return order;
+    const rows = data || [];
+    return rows.find((row) => row.receipt_number === receiptNumber) || null;
   } catch (error) {
     console.error("❌ Erreur:", error);
     return null;
@@ -1492,7 +1497,11 @@ const fetchOrderByReceipt = async (receiptNumber, tenantId) => {
   // ✅ Fonction pour afficher un reçu
   const handleViewReceipt = async (order) => {
     if (order && order.receipt_number) {
-      const fullOrder = await fetchOrderByReceipt(order.receipt_number, selectedTenant?.id);
+      const fullOrder = await fetchOrderByReceipt(
+        order.receipt_number,
+        selectedTenant?.id,
+        order.customer_phone || customerPhone.trim()
+      );
       if (fullOrder) {
         setSelectedReceipt(fullOrder);
       } else {
@@ -1543,9 +1552,14 @@ const fetchOrderByReceipt = async (receiptNumber, tenantId) => {
       }
       const receiptNumber = `RCP-${String(lastNumber + 1).padStart(4, "0")}`;
 
+      const clientId = await resolveClientId(tenantId, {
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+      });
+
       const transactionData = {
         tenant_id: tenantId,
-        client_id: null,
+        client_id: clientId,
         amount: subTotal,
         total_after_discount: total,
         discount_amount: discountAmountValue,
@@ -1604,7 +1618,11 @@ const fetchOrderByReceipt = async (receiptNumber, tenantId) => {
 
       toast.success(successMessage);
 
-      const fullOrder = await fetchOrderByReceipt(receiptNumber, tenantId);
+      const fullOrder = await fetchOrderByReceipt(
+        receiptNumber,
+        tenantId,
+        customerPhone.trim()
+      );
       
       if (fullOrder) {
         setSelectedReceipt({

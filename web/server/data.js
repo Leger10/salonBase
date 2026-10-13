@@ -87,6 +87,8 @@ const PUBLIC_READ_TABLES = new Set([
   'appointments',
   'clients',
   'platform_settings',
+  'transactions',
+  'transaction_lines',
   'tenant_specialties',
   'specialty_types',
   'service_templates',
@@ -100,6 +102,8 @@ const PUBLIC_WRITE_TABLES = new Set([
   'contact_messages',
   'notifications',
   'gift_cards',
+  'transactions',
+  'transaction_lines',
 ]);
 // Tables de reference partagees, lisibles publiquement sans filtre tenant.
 const PUBLIC_GLOBAL_TABLES = new Set([
@@ -115,6 +119,16 @@ const PUBLIC_HIDDEN_COLUMNS = {
   appointments: new Set(['client_email', 'client_phone', 'notes']),
   tickets: new Set(['client_email', 'client_phone']),
   clients: new Set(['email', 'phone', 'birthday', 'allergies', 'notes', 'profile_id']),
+  transactions: new Set([
+    'cashier_id',
+    'employee_id',
+    'appointment_id',
+    'ticket_id',
+    'client_id',
+    'customer_id',
+    'gift_card_id',
+    'notes',
+  ]),
 };
 // Certaines tables publiques n'exposent qu'une projection minimale.
 const PUBLIC_ALLOWED_COLUMNS = {
@@ -132,6 +146,33 @@ const PUBLIC_ALLOWED_COLUMNS = {
 };
 // Un message de contact general (page /contact) n'a pas toujours d'etablissement.
 const PUBLIC_TENANT_OPTIONAL = new Set(['contact_messages']);
+// Table sans tenant_id qui herite du tenant par une relation parente. On valide
+// l'etablissement du parent (transaction) avant d'autoriser la ligne.
+const PUBLIC_TENANT_VIA_PARENT = {
+  transaction_lines: { fk: 'transactionId' },
+};
+// Sans session, ces tables ne sont lisibles qu'en ciblant explicitement une
+// ligne (recu de commande, lignes d'une transaction). Sans ce garde-fou, un
+// visiteur pourrait enumerer toutes les commandes d'un etablissement. Le champ
+// `columns` autorise la seule lecture de colonnes inoffensives (numero de recu
+// pour calculer le suivant) sans jamais exposer les coordonnees client.
+const PUBLIC_REQUIRE_FILTER = {
+  transactions: {
+    cols: ['customer_phone'],
+    columns: new Set(['id', 'receipt_number', 'created_at']),
+  },
+  transaction_lines: { cols: ['transaction_id'] },
+};
+
+/** Vrai si le `select` ne demande que des colonnes de la liste blanche. */
+function isSafeColumnOnlySelect(columns, allowed) {
+  if (columns === undefined || columns === null) return false;
+  const tokens = (Array.isArray(columns) ? columns : String(columns).split(','))
+    .map((token) => String(token).trim().toLowerCase())
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => !token.includes('(') && !token.includes(':') && allowed.has(token));
+}
 
 
 
@@ -342,6 +383,16 @@ function buildScope(table, ctx) {
     if (table.scope === 'global') return { id: { in: [] } };
     if (table.scope === 'self') return { isActive: true };
     if (table.scope === 'direct') return { tenant: { isActive: true } };
+    // Portee heritee (ex. transaction_lines via product/transaction) : on
+    // remonte chaque chemin jusqu'a un etablissement actif.
+    if (table.scope && table.scope.paths) {
+      const clauses = table.scope.paths.map((path) => {
+        let clause = { tenant: { isActive: true } };
+        for (const relation of [...path].reverse()) clause = { [relation]: clause };
+        return clause;
+      });
+      return clauses.length === 1 ? clauses[0] : { OR: clauses };
+    }
     return { id: { in: [] } };
   }
 
@@ -647,6 +698,20 @@ async function assertPublicTenant(tenantId) {
   }
 }
 
+/** Verifie le tenant d'une ligne parente pour une table qui en herite. */
+async function assertPublicParentTenant(fkValue) {
+  if (!fkValue) {
+    throw new HttpError(400, 'TENANT_REQUIRED', 'Reference parente requise.');
+  }
+  const parent = await prisma.transaction.findFirst({
+    where: { id: String(fkValue) },
+    select: { tenant: { select: { isActive: true } } },
+  });
+  if (!parent?.tenant?.isActive) {
+    throw new HttpError(403, 'TENANT_FORBIDDEN', 'Transaction parente inconnue ou inactive.');
+  }
+}
+
 /** Convertit une charge utile snake_case en donnees Prisma. */
 function toPrismaData(table, payload) {
   const data = {};
@@ -674,6 +739,25 @@ export async function runQuery(ctx, body) {
     if (op === 'select') {
       if (!PUBLIC_READ_TABLES.has(table.table)) {
         throw new HttpError(403, 'PUBLIC_FORBIDDEN', `Table non accessible publiquement : ${body.table}.`);
+      }
+      const rule = PUBLIC_REQUIRE_FILTER[table.table];
+      if (rule) {
+        const provided = new Set(
+          [...(body.filters ?? []), ...((body.or ?? []).flatMap((g) => g.filters ?? []))]
+            .map((f) => String(f.col).toLowerCase())
+        );
+        const hasId = Boolean(body.id);
+        const hasRequiredFilter = rule.cols.some((col) => provided.has(col));
+        const onlySafeColumns = rule.columns
+          ? isSafeColumnOnlySelect(body.columns, rule.columns)
+          : false;
+        if (!hasId && !hasRequiredFilter && !onlySafeColumns) {
+          throw new HttpError(
+            403,
+            'PUBLIC_FILTER_REQUIRED',
+            `Lecture publique restreinte : precisez ${rule.cols.join(' ou ')}.`
+          );
+        }
       }
     } else if (op === 'insert') {
       if (!PUBLIC_WRITE_TABLES.has(table.table)) {
@@ -748,6 +832,11 @@ export async function runQuery(ctx, body) {
     if (isPublic) {
       for (const data of rows) {
         if (!data.tenantId) {
+          const via = PUBLIC_TENANT_VIA_PARENT[table.table];
+          if (via) {
+            await assertPublicParentTenant(data[via.fk]);
+            continue;
+          }
           if (PUBLIC_TENANT_OPTIONAL.has(table.table)) continue;
           throw new HttpError(400, 'TENANT_REQUIRED', 'tenant_id requis.');
         }
