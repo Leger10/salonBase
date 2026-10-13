@@ -19,6 +19,17 @@ import {
 } from "@/components/ui/tabs.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { Textarea } from "@/components/ui/textarea.jsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog.jsx";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -34,6 +45,8 @@ import {
   Edit,
   Trash2,
   Plus,
+  Loader2,
+  Save,
   MessageSquare,
   History,
   DollarSign,
@@ -64,6 +77,19 @@ export default function ClientDetailPage() {
     loyaltyPoints: 0,
     averageRating: 0,
   });
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    birthday: "",
+    allergies: "",
+    notes: "",
+    loyalty_points: "0",
+  });
+  const [newNote, setNewNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -234,6 +260,97 @@ export default function ClientDetailPage() {
     );
   };
 
+  const openEditDialog = () => {
+    setEditForm({
+      name: client.profile?.full_name || client.name || "",
+      phone: client.profile?.phone || client.phone || "",
+      email: client.profile?.email || client.email || "",
+      birthday: client.birthday
+        ? format(new Date(client.birthday), "yyyy-MM-dd")
+        : "",
+      allergies: client.allergies || "",
+      notes: client.notes || "",
+      loyalty_points: String(client.loyalty_points ?? 0),
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleSaveClient = async () => {
+    if (!editForm.name.trim()) {
+      toast.error("Le nom du client est obligatoire");
+      return;
+    }
+    setSavingClient(true);
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim() || null,
+        email: editForm.email.trim() || null,
+        birthday: editForm.birthday || null,
+        allergies: editForm.allergies.trim() || null,
+        notes: editForm.notes,
+      };
+      const points = parseInt(editForm.loyalty_points, 10);
+      if (!Number.isNaN(points)) payload.loyalty_points = points;
+
+      const { error: clientError } = await supabase
+        .from("clients")
+        .update(payload)
+        .eq("id", client.id);
+      if (clientError) throw clientError;
+
+      if (client.profile_id) {
+        const profilePayload = { full_name: payload.name };
+        if (payload.phone) profilePayload.phone = payload.phone;
+        if (payload.email) profilePayload.email = payload.email;
+
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update(profilePayload)
+          .eq("id", client.profile_id);
+        if (profileError) {
+          console.warn("Profil lie non mis a jour:", profileError);
+        }
+      }
+
+      toast.success("Client mis à jour");
+      setIsEditOpen(false);
+      fetchClientDetails();
+    } catch (err) {
+      console.error("Error saving client:", err);
+      toast.error("Erreur lors de l'enregistrement");
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setSavingNote(true);
+    try {
+      const stamp = format(new Date(), "dd/MM/yyyy HH:mm");
+      const existing = (client.notes || "").trim();
+      const entry = `[${stamp}] ${newNote.trim()}`;
+      const merged = existing ? `${existing}\n${entry}` : entry;
+
+      const { error } = await supabase
+        .from("clients")
+        .update({ notes: merged })
+        .eq("id", client.id);
+
+      if (error) throw error;
+
+      setClient((c) => ({ ...c, notes: merged }));
+      setNewNote("");
+      toast.success("Note ajoutée");
+    } catch (err) {
+      console.error("Error adding note:", err);
+      toast.error("Erreur lors de l'ajout de la note");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -285,8 +402,8 @@ export default function ClientDetailPage() {
           </div>
           {canManage && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Edit className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={openEditDialog}>
+                <Edit className="h-4 w-4" />
                 Modifier
               </Button>
             </div>
@@ -298,10 +415,10 @@ export default function ClientDetailPage() {
           <Card className="lg:col-span-1 dashboard-card bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
             <CardContent className="p-6 flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-white/20 flex items-center justify-center text-4xl font-bold mb-4">
-                {getInitials(client.profile?.full_name)}
+                {getInitials(client.profile?.full_name || client.name)}
               </div>
               <h2 className="text-2xl font-bold mb-1">
-                {client.profile?.full_name}
+                {client.profile?.full_name || client.name}
               </h2>
               <Badge
                 variant="outline"
@@ -311,16 +428,16 @@ export default function ClientDetailPage() {
               </Badge>
 
               <div className="w-full space-y-3 text-sm text-primary-foreground/90 text-left">
-                {client.profile?.email && (
+                {(client.profile?.email || client.email) && (
                   <div className="flex items-center gap-3">
                     <Mail className="w-4 h-4" />
-                    <span>{client.profile.email}</span>
+                    <span>{client.profile?.email || client.email}</span>
                   </div>
                 )}
-                {client.profile?.phone && (
+                {(client.profile?.phone || client.phone) && (
                   <div className="flex items-center gap-3">
                     <Phone className="w-4 h-4" />
-                    <span>{client.profile.phone}</span>
+                    <span>{client.profile?.phone || client.phone}</span>
                   </div>
                 )}
                 {client.birthday && (
@@ -611,14 +728,48 @@ export default function ClientDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="notes" className="m-0">
-                  <div className="text-center py-12">
-                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
-                    <p className="text-muted-foreground">Aucune note interne</p>
+                  <div className="space-y-4">
                     {canManage && (
-                      <Button variant="outline" className="mt-4 gap-2">
-                        <Plus className="h-4 w-4" />
-                        Ajouter une note
-                      </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-note">Ajouter une note interne</Label>
+                        <Textarea
+                          id="new-note"
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                          placeholder="Ex: préférence de coiffure, remarque, suivi..."
+                          rows={3}
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={handleAddNote}
+                            disabled={savingNote || !newNote.trim()}
+                          >
+                            {savingNote ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                            Ajouter une note
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {client.notes?.trim() ? (
+                      <div className="rounded-xl border bg-muted/30 p-4">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {client.notes}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
+                        <p className="text-muted-foreground">
+                          Aucune note interne
+                        </p>
+                      </div>
                     )}
                   </div>
                 </TabsContent>
@@ -681,6 +832,116 @@ export default function ClientDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Modale d'édition du client */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le client</DialogTitle>
+            <DialogDescription>
+              Mettez à jour les informations du profil client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="client-name">Nom complet *</Label>
+              <Input
+                id="client-name"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-phone">Téléphone</Label>
+              <Input
+                id="client-phone"
+                value={editForm.phone}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, phone: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-email">Email</Label>
+              <Input
+                id="client-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, email: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-birthday">Anniversaire</Label>
+              <Input
+                id="client-birthday"
+                type="date"
+                value={editForm.birthday}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, birthday: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-points">Points fidélité</Label>
+              <Input
+                id="client-points"
+                type="number"
+                min="0"
+                value={editForm.loyalty_points}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, loyalty_points: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="client-allergies">Allergies</Label>
+              <Input
+                id="client-allergies"
+                value={editForm.allergies}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, allergies: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="client-notes">Notes internes</Label>
+              <Textarea
+                id="client-notes"
+                rows={3}
+                value={editForm.notes}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, notes: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditOpen(false)}
+              disabled={savingClient}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveClient}
+              disabled={savingClient}
+              className="gap-2"
+            >
+              {savingClient ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
