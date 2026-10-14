@@ -195,7 +195,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
   const [expandedEmployee, setExpandedEmployee] = useState(null);
   const [employeeReviews, setEmployeeReviews] = useState({});
   const [loadingReviews, setLoadingReviews] = useState({});
-  const [sortBy, setSortBy] = useState("rating");
+  const [sortBy, setSortBy] = useState("clients");
   const [selectedReviews, setSelectedReviews] = useState([]);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedEmployeeName, setSelectedEmployeeName] = useState("");
@@ -277,10 +277,12 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
     .sort((a, b) => {
       if (sortBy === "rating") {
         return (b.average_rating || 0) - (a.average_rating || 0);
-      } else if (sortBy === "reviews") {
-        return (b.total_clients_served || 0) - (a.total_clients_served || 0);
       }
-      return 0;
+      if (sortBy === "revenue") {
+        return (b.treated_revenue || 0) - (a.treated_revenue || 0);
+      }
+      // Par défaut : clients traités (assignés, prestation terminée, encaissés)
+      return (b.treated_clients || 0) - (a.treated_clients || 0);
     });
 
   // Statistiques
@@ -290,7 +292,11 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
       rankedEmployees.reduce((sum, e) => sum + (e.average_rating || 0), 0) /
       (rankedEmployees.length || 1),
     totalClients: rankedEmployees.reduce(
-      (sum, e) => sum + (e.total_clients_served || 0),
+      (sum, e) => sum + (e.treated_clients || 0),
+      0,
+    ),
+    totalRevenue: rankedEmployees.reduce(
+      (sum, e) => sum + (e.treated_revenue || 0),
       0,
     ),
   };
@@ -315,18 +321,45 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
             <p className="text-xs text-yellow-300">Note moyenne</p>
           </CardContent>
         </Card>
-        {/* <Card className="border-none shadow-sm bg-gradient-to-br from-green-900/30 to-green-800/20 text-white">
+        <Card className="border-none shadow-sm bg-gradient-to-br from-green-900/30 to-green-800/20 text-white">
           <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 text-green-400 mx-auto mb-1" />
+            <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
             <p className="text-2xl font-bold text-white">{stats.totalClients}</p>
-            <p className="text-xs text-green-300">Clients servis</p>
+            <p className="text-xs text-green-300">Clients traités & encaissés</p>
           </CardContent>
-        </Card> */}
+        </Card>
+        <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 text-white">
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="h-5 w-5 text-emerald-400 mx-auto mb-1" />
+            <p className="text-2xl font-bold text-white">
+              {stats.totalRevenue.toLocaleString()} F
+            </p>
+            <p className="text-xs text-emerald-300">Chiffre d'affaires</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtres de tri */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-gray-400">Trier par :</span>
+        <Button
+          variant={sortBy === "clients" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSortBy("clients")}
+          className={`h-8 text-xs ${sortBy === "clients" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+        >
+          <Users className="h-3 w-3 mr-1" />
+          Clients traités
+        </Button>
+        <Button
+          variant={sortBy === "revenue" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSortBy("revenue")}
+          className={`h-8 text-xs ${sortBy === "revenue" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+        >
+          <TrendingUp className="h-3 w-3 mr-1" />
+          Chiffre d'affaires
+        </Button>
         <Button
           variant={sortBy === "rating" ? "default" : "outline"}
           size="sm"
@@ -335,15 +368,6 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
         >
           <Star className="h-3 w-3 mr-1" />
           Note
-        </Button>
-        <Button
-          variant={sortBy === "reviews" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSortBy("reviews")}
-          className={`h-8 text-xs ${sortBy === "reviews" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
-        >
-          <Users className="h-3 w-3 mr-1" />
-          Clients
         </Button>
         <Button
           variant="ghost"
@@ -440,9 +464,16 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
                             {(employee.average_rating || 0).toFixed(1)}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-400">
-                          {employee.total_clients_served || 0} clients servis
+                        <span className="text-xs text-green-400 flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          {employee.treated_clients || 0} clients traités
                         </span>
+                        {employee.treated_revenue > 0 && (
+                          <span className="text-xs text-emerald-400 flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {employee.treated_revenue.toLocaleString()} F
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -756,6 +787,44 @@ export default function TeamManagement() {
 
       if (error) throw error;
 
+      // Classement : nombre de clients réellement traités par employé, c'est-à-
+      // dire un rendez-vous / ticket qui lui a été assigné, dont la prestation
+      // est terminée ET encaissée à la caisse.
+      const [apptRes, ticketRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("id, employee_id, status, payment_status, total_price")
+          .eq("tenant_id", tenantId),
+        supabase
+          .from("tickets")
+          .select(
+            "id, assigned_employee_id, status, payment_status, transaction_id, service_price",
+          )
+          .eq("tenant_id", tenantId),
+      ]);
+
+      const treated = new Map();
+      const bump = (employeeId, amount) => {
+        if (!employeeId) return;
+        const entry = treated.get(employeeId) || { clients: 0, revenue: 0 };
+        entry.clients += 1;
+        entry.revenue += Number(amount || 0);
+        treated.set(employeeId, entry);
+      };
+
+      for (const appt of apptRes.data || []) {
+        if (appt.status === "completed" && appt.payment_status === "paid") {
+          bump(appt.employee_id, appt.total_price);
+        }
+      }
+      for (const ticket of ticketRes.data || []) {
+        const isPaid =
+          ticket.payment_status === "paid" || Boolean(ticket.transaction_id);
+        if (ticket.status === "completed" && isPaid) {
+          bump(ticket.assigned_employee_id, ticket.service_price);
+        }
+      }
+
       const formattedTeam = employees.map((emp) => ({
         id: emp.id,
         profile_id: emp.profile?.id,
@@ -771,6 +840,8 @@ export default function TeamManagement() {
         is_cashier: emp.is_cashier || false,
         average_rating: emp.average_rating || 0,
         total_clients_served: emp.total_clients_served || 0,
+        treated_clients: treated.get(emp.id)?.clients || 0,
+        treated_revenue: treated.get(emp.id)?.revenue || 0,
         is_available: emp.is_available !== false,
       }));
 
@@ -1694,7 +1765,7 @@ const TeamTable = ({
                     {member.average_rating || 0}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    /5 ({member.total_clients_served || 0} clients)
+                    /5 ({member.treated_clients || 0} clients traités)
                   </span>
                 </div>
               </TableCell>

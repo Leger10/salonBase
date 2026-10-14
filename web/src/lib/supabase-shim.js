@@ -355,9 +355,13 @@ export function createDataClient() {
         ),
     },
 
-    rpc: () => ({
-      then: () => Promise.resolve(postgrestError('RPC_NOT_SUPPORTED', "Les fonctions SQL ne sont pas encore portees.")),
-    }),
+    // PostgREST resout toujours une promesse `{ data, error }`. Un thenable qui
+    // ne rappelle jamais onFulfilled ferait patienter `await` indefiniment
+    // (l'appelant tombait en chargement sans fin, ex. numero de reservation).
+    rpc: () =>
+      Promise.resolve(
+        postgrestError('RPC_NOT_SUPPORTED', "Les fonctions SQL ne sont pas encore portees.")
+      ),
 
     storage: {
       from: () => ({

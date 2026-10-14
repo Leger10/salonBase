@@ -271,7 +271,7 @@ export default function AboutPage() {
                       </>
                     ) : (
                       <>
-                        Fondé en 2020, <strong>{tenantName}</strong> est né d'une vision simple : 
+                        Fondé en 2026, <strong>{tenantName}</strong> est né d'une vision simple : 
                         créer un écosystème complet où la beauté, la créativité et un service 
                         exceptionnel se rejoignent en parfaite harmonie.
                       </>
