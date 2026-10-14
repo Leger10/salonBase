@@ -147,7 +147,9 @@ export default function ServiceCard({
         {!showActions && (
           <Link
             to={
-              tenantSlug ? `/showcase/${tenantSlug}?service=${service.id}` : "#"
+              tenantSlug
+                ? `/booking/tenant/${tenantSlug}?service=${service.id}`
+                : "#"
             }
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/80 py-2.5 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] active:scale-95"
           >

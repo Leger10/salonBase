@@ -586,8 +586,6 @@ export default function AdminSubscription() {
           plan: `${plan.name}`,
           duration: `${duration} mois`,
           amount: Math.round(finalPrice),
-          original_amount: plan.price,
-          discount_percentage: discount,
           payment_method: 'online',
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
@@ -605,7 +603,7 @@ export default function AdminSubscription() {
       if (error) throw error;
 
       // Mettre à jour le tenant
-      await supabase
+      const { error: tenantUpdateError } = await supabase
         .from('tenants')
         .update({
           subscription_status: 'pending',
@@ -614,6 +612,8 @@ export default function AdminSubscription() {
           subscription_end: endDate.toISOString().split('T')[0]
         })
         .eq('id', tenantId);
+
+      if (tenantUpdateError) throw tenantUpdateError;
 
       toast.success(`Demande d'abonnement "${plan.name}" envoyée avec succès !`);
       

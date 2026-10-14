@@ -3551,47 +3551,107 @@ const TeamSection = ({ employees, tenantId, onRateEmployee }) => {
   const [employeeReviews, setEmployeeReviews] = useState({});
   const [loadingReviews, setLoadingReviews] = useState({});
   const [reviewCounts, setReviewCounts] = useState({});
+  const [employeeRatings, setEmployeeRatings] = useState({});
 
   const loadEmployeeReviews = async (employeeId) => {
     if (loadingReviews[employeeId]) return;
 
     setLoadingReviews((prev) => ({ ...prev, [employeeId]: true }));
     try {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select(
-          `
-          *,
-          client:client_id (
-            profile:profile_id (
-              full_name,
-              avatar
+      const [reviewsRes, appointmentsRes] = await Promise.all([
+        supabase
+          .from("reviews")
+          .select(
+            `
+            *,
+            client:client_id (
+              profile:profile_id (
+                full_name,
+                avatar
+              )
             )
+          `,
           )
-        `,
-        )
-        .eq("employee_id", employeeId)
-        .eq("tenant_id", tenantId)
-        .eq("is_approved", true)
-        .order("created_at", { ascending: false });
+          .eq("employee_id", employeeId)
+          .eq("tenant_id", tenantId)
+          .eq("is_approved", true)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("appointments")
+          .select(
+            `
+            id,
+            rating,
+            review,
+            created_at,
+            client_name,
+            service:service_id (
+              name
+            )
+          `,
+          )
+          .eq("employee_id", employeeId)
+          .eq("tenant_id", tenantId)
+          .not("rating", "is", null)
+          .order("created_at", { ascending: false }),
+      ]);
 
-      if (error) throw error;
+      if (reviewsRes.error && reviewsRes.error.code !== "PGRST116") {
+        throw reviewsRes.error;
+      }
+      if (appointmentsRes.error && appointmentsRes.error.code !== "PGRST116") {
+        console.error(
+          "Error loading employee appointment reviews:",
+          appointmentsRes.error,
+        );
+      }
 
-      setEmployeeReviews((prev) => ({
-        ...prev,
-        [employeeId]: data || [],
+      // Avis issus de la table reviews
+      const tableReviews = (reviewsRes.data || []).map((review) => ({
+        id: `review-${review.id}`,
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.created_at,
+        client_name: review.client?.profile?.full_name || "Client",
+        service_name: review.service?.name,
       }));
 
-      setReviewCounts((prev) => ({
-        ...prev,
-        [employeeId]: data?.length || 0,
+      // Avis issus des rendez-vous notés
+      const appointmentReviews = (appointmentsRes.data || []).map((appt) => ({
+        id: `appt-${appt.id}`,
+        rating: appt.rating,
+        comment: appt.review,
+        created_at: appt.created_at,
+        client_name: appt.client_name || "Client",
+        service_name: appt.service?.name,
       }));
+
+      // Agrégation de TOUS les avis de l'employé (reviews + rendez-vous notés)
+      const combined = [...tableReviews, ...appointmentReviews]
+        .filter((review) => review.rating && Number(review.rating) > 0)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const average =
+        combined.length > 0
+          ? combined.reduce((sum, r) => sum + Number(r.rating), 0) /
+            combined.length
+          : 0;
+
+      setEmployeeReviews((prev) => ({ ...prev, [employeeId]: combined }));
+      setReviewCounts((prev) => ({ ...prev, [employeeId]: combined.length }));
+      setEmployeeRatings((prev) => ({ ...prev, [employeeId]: average }));
     } catch (error) {
       console.error("Error loading employee reviews:", error);
       toast.error("Erreur lors du chargement des avis");
     } finally {
       setLoadingReviews((prev) => ({ ...prev, [employeeId]: false }));
     }
+  };
+
+  const getEmployeeRating = (employee) => {
+    const value = employeeRatings[employee.id];
+    if (typeof value === "number") return value;
+    return Number(employee.average_rating) || 0;
   };
 
   useEffect(() => {
@@ -4055,9 +4115,9 @@ const TeamSection = ({ employees, tenantId, onRateEmployee }) => {
 
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-1">
                       <div className="flex items-center gap-0.5">
-                        {renderStars(employee.average_rating || 0, "h-3 w-3 sm:h-4 sm:w-4")}
+                        {renderStars(getEmployeeRating(employee), "h-3 w-3 sm:h-4 sm:w-4")}
                         <span className="text-xs sm:text-sm font-medium ml-0.5">
-                          {(employee.average_rating || 0).toFixed(1)}
+                          {getEmployeeRating(employee).toFixed(1)}
                         </span>
                       </div>
                       <span className="text-[10px] sm:text-xs text-muted-foreground">
@@ -4152,13 +4212,16 @@ const TeamSection = ({ employees, tenantId, onRateEmployee }) => {
                             <div className="flex items-start gap-2 sm:gap-3">
                               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                 <span className="text-[10px] sm:text-xs font-bold">
-                                  {review.client?.profile?.full_name?.charAt(0) || "C"}
+                                  {(review.client_name ||
+                                    review.client?.profile?.full_name ||
+                                    "C")?.charAt(0)}
                                 </span>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-1">
                                   <span className="font-medium text-xs sm:text-sm truncate">
-                                    {review.client?.profile?.full_name ||
+                                    {review.client_name ||
+                                      review.client?.profile?.full_name ||
                                       review.client?.name ||
                                       "Client"}
                                   </span>

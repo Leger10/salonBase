@@ -241,7 +241,7 @@ export default function SubscriptionGuard({ children }) {
 
       if (error) throw error;
 
-      await supabase
+      const { error: tenantUpdateError } = await supabase
         .from('tenants')
         .update({
           subscription_status: 'pending',
@@ -250,6 +250,8 @@ export default function SubscriptionGuard({ children }) {
           subscription_end: endDate.toISOString().split('T')[0]
         })
         .eq('id', tenantId);
+
+      if (tenantUpdateError) throw tenantUpdateError;
 
       // ✅ Fermer le modal avant de rediriger
       setShowModal(false);

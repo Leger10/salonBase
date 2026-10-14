@@ -40,6 +40,40 @@ const WRITE_LEVEL = {
   user_tenants: 'super_admin',
 };
 
+// Un admin de salon met a jour sa propre fiche `tenants` (parametres du salon,
+// demande d'abonnement). On restreint les colonnes pour ne jamais laisser un
+// admin s'octroyer des droits : pas d'id/slug, pas de is_active, pas de
+// subscription_mode ni de champs external_payment_* (qui contourneraient le
+// guard d'abonnement). Le perimetre reste borne au tenant de la session (voir
+// buildScope, scope 'self').
+const TENANT_ADMIN_SELF_COLUMNS = new Set([
+  'name',
+  'description',
+  'address',
+  'phone',
+  'email',
+  'logo_url',
+  'cover_image',
+  'primary_color',
+  'secondary_color',
+  'city',
+  'show_on_home',
+  'subscription_status',
+  'subscription_plan',
+  'subscription_start',
+  'subscription_end',
+  'updated_at',
+]);
+
+/** Vrai si un admin met a jour sa fiche tenant avec des colonnes autorisees. */
+function isAdminTenantSelfUpdate(tableName, op, body, ctx) {
+  if (tableName !== 'tenants' || op !== 'update') return false;
+  if (ctx.role !== 'admin') return false;
+  const keys = Object.keys(body.payload ?? {});
+  if (!keys.length) return false;
+  return keys.every((key) => TENANT_ADMIN_SELF_COLUMNS.has(key.toLowerCase()));
+}
+
 // Roles par defaut quand la table n'est pas listee. Un employe peut supprimer
 // une fiche comme il la cree : ce qui protege d'une suppression massive, c'est
 // le perimetre tenant impose plus le refus de delete sans filtre (voir runQuery),
@@ -771,7 +805,8 @@ export async function runQuery(ctx, body) {
   const levels = { super_admin: 4, admin: 3, employee: 2, client: 1 };
   const needed = levels[requiredLevel(body.table, op)];
   if (op !== 'select' && !isPublic) {
-    if ((levels[ctx.role] ?? 0) < needed) {
+    const adminTenantSelfUpdate = isAdminTenantSelfUpdate(table.table, op, body, ctx);
+    if (!adminTenantSelfUpdate && (levels[ctx.role] ?? 0) < needed) {
       throw new HttpError(403, 'FORBIDDEN', `Droits insuffisants pour ${op} sur ${body.table}.`);
     }
   }
