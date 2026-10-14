@@ -31,6 +31,7 @@ import ContactPage from "@/pages/ContactPage.jsx";
 import PricingPage from "@/pages/PricingPage.jsx";
 import ReviewsPage from "@/pages/ReviewsPage.jsx";
 import AboutPage from "@/pages/AboutPage.jsx";
+import LegalPage from "@/pages/LegalPage.jsx";
 import TenantShowcase from "@/pages/TenantShowcase.jsx";
 import TicketQueuePage from "@/pages/TicketQueuePage.jsx";
 import RateEmployeePage from "./pages/RateEmployeePage";
@@ -240,6 +241,9 @@ function App() {
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/reviews" element={<ReviewsPage />} />
                     <Route path="/about" element={<AboutPage />} />
+                    <Route path="/privacy" element={<LegalPage page="privacy" />} />
+                    <Route path="/terms" element={<LegalPage page="terms" />} />
+                    <Route path="/cookies" element={<LegalPage page="cookies" />} />
 <Route path="/promotions" element={<PromotionsPage />} />
 <Route path="/showcase/:slug/promotions" element={<PromotionsPage />} />
                     <Route
