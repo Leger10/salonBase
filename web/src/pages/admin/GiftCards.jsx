@@ -63,12 +63,18 @@ import {
   Banknote,
   Wallet,
   ArrowLeftRight,
+  LayoutList,
+  ShieldCheck,
+  PackageCheck,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { QRCodeCanvas } from "qrcode.react";
 
 // ========== LISTE DES OCCASIONS EN FRANÇAIS ==========
 const OCCASIONS = [
@@ -222,11 +228,15 @@ const GiftCardPreview = ({ giftCard, onPay }) => {
     status,
     created_at,
     code,
+    payment_status,
   } = giftCard;
 
-  const isPending = status === 'pending' || status === 'en_attente';
+  const isPending =
+    status === "pending" ||
+    status === "en_attente" ||
+    payment_status === "en_attente";
 
-  const getOccasionEmoji = (occasion) => {
+  const getOccasionEmoji = (occ) => {
     const emojis = {
       birthday: "🎂",
       anniversary: "💑",
@@ -245,190 +255,181 @@ const GiftCardPreview = ({ giftCard, onPay }) => {
       friends_day: "🤝",
       loyalty: "⭐",
     };
-    return emojis[occasion] || "🎁";
+    return emojis[occ] || "🎁";
   };
 
   const getDeliveryLabel = (method) => {
     const labels = {
       whatsapp: "📱 WhatsApp",
-      physical: "🏪 En présentielle",
-      presentielle: "🏪 En présentielle",
+      physical: "🏪 En présentiel",
+      presentielle: "🏪 En présentiel",
       email: "📧 Par email",
     };
-    return labels[method] || method;
+    return labels[method] || method || "—";
   };
 
   const primaryColor = tenant_primary_color || "#ec4899";
+  const bg = `radial-gradient(120% 120% at 0% 0%, ${primaryColor}66 0%, transparent 42%), radial-gradient(130% 130% at 100% 100%, ${primaryColor}55 0%, transparent 45%), linear-gradient(135deg, #1c1030 0%, #0b0616 100%)`;
+  const goldText = {
+    backgroundImage:
+      "linear-gradient(135deg,#f9e08a,#e0a53c 45%,#fff6cf 60%,#c98a2b)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    color: "transparent",
+  };
+  const qrValue = code ? `CARTE-CADEAU:${code}` : "CARTE-CADEAU";
+  const occasionLabel = getOccasionLabel(occasion).replace(/^\S+\s/, "");
 
   return (
-    <div className="relative" id="gift-card-preview">
+    <div id="gift-card-preview" style={{ width: "100%" }}>
       <div
-        className="rounded-3xl overflow-hidden shadow-2xl max-w-4xl mx-auto bg-white dark:bg-gray-900"
         style={{
-          border: `2px solid ${primaryColor}`,
-          minHeight: '200px',
-          maxWidth: '800px',
-          width: '100%',
-          aspectRatio: '2 / 1',
-          boxShadow: `0 20px 60px ${primaryColor}20, 0 4px 20px rgba(0,0,0,0.05)`,
+          position: "relative",
+          overflow: "hidden",
+          color: "#ffffff",
+          background: bg,
+          border: "1px solid rgba(255,255,255,0.14)",
+          borderRadius: "26px",
+          padding: "20px",
+          width: "100%",
+          minHeight: "240px",
+          boxShadow: `0 24px 70px ${primaryColor}33, 0 4px 20px rgba(0,0,0,0.2)`,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          gap: "14px",
         }}
       >
-        {/* Décoration de fond */}
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
-          <div 
-            className="absolute -top-32 -right-32 w-80 h-80 rounded-full blur-2xl"
-            style={{ backgroundColor: primaryColor }}
-          />
-          <div 
-            className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full blur-2xl"
-            style={{ backgroundColor: primaryColor }}
-          />
-        </div>
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "-60%",
+            left: "-10%",
+            width: "55%",
+            height: "220%",
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
+            transform: "rotate(18deg)",
+            pointerEvents: "none",
+          }}
+        />
 
-        <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 p-6 h-full z-10">
-          
-          {/* ===== COLONNE GAUCHE ===== */}
-          <div className="flex flex-col justify-between space-y-4">
-            {/* Logo et titre */}
-            <div className="flex items-center gap-3">
-              {tenant_logo ? (
-                <img
-                  src={tenant_logo}
-                  alt={tenant_name}
-                  className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md"
-                />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
-                  <Gift className="h-6 w-6" style={{ color: primaryColor }} />
-                </div>
-              )}
-              <div>
-                <p className="text-base font-bold text-foreground tracking-tight">{tenant_name || "SalonApp"}</p>
-                <p 
-                  className="text-[10px] uppercase tracking-wider font-medium tracking-widest"
-                  style={{ color: primaryColor }}
-                >
-                  ✦ Carte cadeau
-                </p>
+        <div className="flex items-center justify-between gap-2 relative z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            {tenant_logo ? (
+              <img
+                src={tenant_logo}
+                alt={tenant_name}
+                className="w-10 h-10 rounded-xl object-cover border-2 border-white/50 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 flex-shrink-0">
+                <Gift className="h-5 w-5" />
               </div>
-            </div>
-
-            {/* Offert à */}
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <div 
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: primaryColor }}
-                />
-                <p 
-                  className="text-[10px] uppercase tracking-wider font-semibold tracking-widest"
-                  style={{ color: primaryColor }}
-                >
-                  Offert à
-                </p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{recipient_name || "Non attribué"}</p>
-              {recipient_phone && (
-                <p className="text-sm text-muted-foreground font-medium">{recipient_phone}</p>
-              )}
-            </div>
-
-            {/* Valeur */}
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <div 
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: primaryColor }}
-                />
-                <p 
-                  className="text-[10px] uppercase tracking-wider font-semibold tracking-widest"
-                  style={{ color: primaryColor }}
-                >
-                  Valeur
-                </p>
-              </div>
-              <div 
-                className="text-3xl font-extrabold tracking-tight"
-                style={{ color: primaryColor }}
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate">
+                {tenant_name || "SalonApp"}
+              </p>
+              <p
+                className="text-[9px] uppercase tracking-[0.25em] font-semibold"
+                style={goldText}
               >
-                {amount?.toLocaleString()} FCFA
-              </div>
+                ✦ Carte cadeau
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 flex-shrink-0">
+            <span className="text-base leading-none">
+              {getOccasionEmoji(occasion)}
+            </span>
+            <span className="text-[10px] font-medium truncate max-w-[110px]">
+              {occasionLabel}
+            </span>
+          </div>
+        </div>
 
-          {/* ===== COLONNE DROITE ===== */}
-          <div className="flex flex-col justify-between items-end space-y-4">
-            {/* Occasion */}
-            <div 
-              className="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm"
-              style={{ 
-                backgroundColor: `${primaryColor}12`,
-                border: `1px solid ${primaryColor}20`
-              }}
+        <div className="flex items-start justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              Offert à
+            </p>
+            <p className="text-lg font-bold truncate">
+              {recipient_name || "Non attribué"}
+            </p>
+            {recipient_phone && (
+              <p className="text-[11px] opacity-70 truncate">
+                {recipient_phone}
+              </p>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              Valeur
+            </p>
+            <p
+              className="text-3xl font-extrabold tracking-tight"
+              style={goldText}
             >
-              <span className="text-xl leading-none">{getOccasionEmoji(occasion)}</span>
-              <span className="text-sm font-semibold" style={{ color: primaryColor }}>
-                Pour {getOccasionLabel(occasion)}
-              </span>
-            </div>
+              {amount?.toLocaleString()} FCFA
+            </p>
+          </div>
+        </div>
 
-            {/* Expéditeur */}
-            <div className="text-right space-y-0.5">
-              <div className="flex items-center justify-end gap-1.5">
-                <p 
-                  className="text-[10px] uppercase tracking-wider font-semibold tracking-widest"
-                  style={{ color: primaryColor }}
-                >
-                  De la part de
-                </p>
-                <div 
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: primaryColor }}
-                />
-              </div>
-              <p className="text-lg font-bold text-foreground">{sender_name || "Anonyme"}</p>
-              {sender_phone && (
-                <p className="text-sm text-muted-foreground font-medium">{sender_phone}</p>
-              )}
-            </div>
-
-            {/* Message */}
+        <div className="flex items-end justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              De la part de
+            </p>
+            <p className="text-sm font-bold truncate">
+              {sender_name || "Anonyme"}
+            </p>
             {message && (
-              <div 
-                className="text-sm italic text-foreground/80 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-4 py-2 rounded-xl border shadow-sm max-w-[280px]"
-                style={{ borderColor: `${primaryColor}15` }}
-              >
-                "{message}"
-              </div>
-            )}
-
-            {/* Livraison et date */}
-            <div 
-              className="flex items-center gap-3 text-xs text-muted-foreground bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-4 py-1.5 rounded-full border shadow-sm"
-              style={{ borderColor: `${primaryColor}15` }}
-            >
-              <span className="font-medium">{getDeliveryLabel(delivery_method)}</span>
-              <span className="text-muted-foreground/30">•</span>
-              <span>{created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}</span>
-            </div>
-
-            {/* Bouton Payer */}
-            {isPending && (
-              <Button
-                onClick={() => onPay && onPay(giftCard)}
-                className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
-                size="sm"
-              >
-                <Banknote className="h-4 w-4" />
-                Payer à la caisse
-              </Button>
+              <p className="text-[11px] italic opacity-80 mt-1 line-clamp-2 max-w-[240px]">
+                “{message}”
+              </p>
             )}
           </div>
 
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="text-right">
+              <p className="text-[10px] opacity-70">
+                {getDeliveryLabel(delivery_method)}
+              </p>
+              <p className="text-[10px] opacity-70">
+                {created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}
+              </p>
+              {code && (
+                <p className="font-mono text-[10px] tracking-widest mt-0.5 bg-white/10 px-1.5 py-0.5 rounded">
+                  {code}
+                </p>
+              )}
+            </div>
+            <div className="bg-white p-1.5 rounded-lg">
+              <QRCodeCanvas
+                value={qrValue}
+                size={56}
+                bgColor="#ffffff"
+                fgColor="#0b0616"
+                level="M"
+              />
+            </div>
+          </div>
         </div>
+
+        {isPending && onPay && (
+          <div className="relative z-10">
+            <Button
+              onClick={() => onPay(giftCard)}
+              className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+              size="sm"
+            >
+              <Banknote className="h-4 w-4" />
+              Payer à la caisse
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -500,7 +501,8 @@ export default function GiftCards() {
   // ========== RÉCUPÉRER LES DONNÉES ==========
   useEffect(() => {
     fetchGiftCards();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, isSuperAdmin]);
 
   const fetchGiftCards = async () => {
     setLoading(true);
@@ -553,14 +555,14 @@ export default function GiftCards() {
       const payload = {
         tenant_id: tenantId,
         code: formData.code || generateGiftCardCode(),
-        amount: parseFloat(formData.amount),
-        recipient_name: formData.recipient_name || null,
+        amount: parseFloat(formData.amount) || 0,
+        recipient_name: formData.recipient_name || "Bénéficiaire",
         recipient_email: formData.recipient_email || null,
-        recipient_phone: formData.recipient_phone || null,
-        sender_name: formData.sender_name || null,
+        recipient_phone: formData.recipient_phone || "",
+        sender_name: formData.sender_name || "Client",
         sender_phone: formData.sender_phone || null,
         message: formData.message || null,
-        occasion: formData.occasion || null,
+        occasion: formData.occasion || "other",
         delivery_method: formData.delivery_method || "presentielle",
         payment_status: formData.payment_status || "payé",
         status: formData.payment_status === "payé" ? "paid" : "pending",
@@ -568,6 +570,7 @@ export default function GiftCards() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         tenant_name: currentUser?.profile?.tenant_name || null,
+        tenant_logo: currentUser?.profile?.logo_url || null,
         tenant_primary_color: currentUser?.profile?.primary_color || "#ec4899",
       };
 
@@ -604,6 +607,42 @@ export default function GiftCards() {
       toast.error("Erreur lors de la suppression");
     }
   };
+
+  // ========== CHANGER LE STATUT ==========
+  const updateCardStatus = async (card, newStatus, extra = {}, label) => {
+    try {
+      const { error } = await supabase
+        .from("gift_cards")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+          ...extra,
+        })
+        .eq("id", card.id);
+      if (error) throw error;
+      toast.success(label || "Statut mis à jour");
+      setSelectedCard((prev) =>
+        prev && prev.id === card.id ? { ...prev, status: newStatus, ...extra } : prev
+      );
+      await fetchGiftCards();
+    } catch (err) {
+      console.error("Error updating status:", err);
+      toast.error(err.message || "Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleValidate = (card) =>
+    updateCardStatus(card, "validated", { validated_at: new Date().toISOString() }, "🎉 Carte validée");
+  const handleDeliver = (card) =>
+    updateCardStatus(card, "delivered", { sent_at: new Date().toISOString() }, "📦 Carte livrée");
+  const handleUse = (card) =>
+    updateCardStatus(card, "used", { used_at: new Date().toISOString() }, "🎁 Carte marquée utilisée");
+  const handleCancel = (card) => {
+    if (!window.confirm("Annuler cette carte cadeau ?")) return;
+    updateCardStatus(card, "cancelled", {}, "❌ Carte annulée");
+  };
+  const handleReactivate = (card) =>
+    updateCardStatus(card, "paid", {}, "♻️ Carte réactivée");
 
   // ========== MODIFIER UNE CARTE ==========
   const handleEdit = (card) => {
@@ -880,7 +919,7 @@ ${card.message ? `💬 Message: "${card.message}"` : ""}
             <Gift className="h-4 w-4 mr-2" /> Cartes
           </Button>
           <Button variant={viewMode === "table" ? "default" : "ghost"} size="sm" className="rounded-none" onClick={() => setViewMode("table")}>
-            <Table className="h-4 w-4 mr-2" /> Liste
+            <LayoutList className="h-4 w-4 mr-2" /> Liste
           </Button>
         </div>
       </div>
@@ -908,13 +947,38 @@ ${card.message ? `💬 Message: "${card.message}"` : ""}
               <TableCell>{card.amount?.toLocaleString()} FCFA</TableCell>
               <TableCell>{getOccasionLabel(card.occasion)}</TableCell>
               <TableCell>{getStatusBadge(card)}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right space-x-1">
                 <Button variant="ghost" size="icon" onClick={() => viewCard(card)}><Eye className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" onClick={() => handleEdit(card)}><Edit className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(card.id)}><Trash2 className="h-4 w-4" /></Button>
-                {card.status === 'pending' && (
+                {(card.status === 'pending' || card.payment_status === 'en_attente') && (
                   <Button size="sm" className="bg-amber-500 text-white hover:bg-amber-600" onClick={() => openPaymentModal(card)}>
                     <Banknote className="h-3 w-3 mr-1" /> Payer
+                  </Button>
+                )}
+                {(card.status === 'paid' || card.payment_status === 'payé') && (
+                  <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleValidate(card)}>
+                    <ShieldCheck className="h-3 w-3 mr-1" /> Valider
+                  </Button>
+                )}
+                {card.status === 'validated' && (
+                  <Button size="sm" className="bg-purple-600 text-white hover:bg-purple-700" onClick={() => handleDeliver(card)}>
+                    <PackageCheck className="h-3 w-3 mr-1" /> Livrer
+                  </Button>
+                )}
+                {(card.status === 'delivered' || card.status === 'validated') && (
+                  <Button size="sm" className="bg-gray-700 text-white hover:bg-gray-800" onClick={() => handleUse(card)}>
+                    <CheckCircle className="h-3 w-3 mr-1" /> Utiliser
+                  </Button>
+                )}
+                {(card.status === 'pending' || card.status === 'paid' || card.payment_status === 'en_attente' || card.payment_status === 'payé') && (
+                  <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleCancel(card)}>
+                    <Ban className="h-3 w-3 mr-1" /> Annuler
+                  </Button>
+                )}
+                {(card.status === 'cancelled' || card.status === 'annulé') && (
+                  <Button size="sm" variant="outline" onClick={() => handleReactivate(card)}>
+                    <RotateCcw className="h-3 w-3 mr-1" /> Réactiver
                   </Button>
                 )}
               </TableCell>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { supabase } from '@/lib/supabase';
-import DashboardLayout from "@/layouts/DashboardLayout.jsx";
 import {
   Card,
   CardContent,
@@ -42,11 +41,10 @@ import {
 import { toast } from "sonner";
 
 export default function AdminBranchesPage() {
-  console.log("✅ AdminBranchesPage est monté");
-  
   const { currentUser } = useAuth();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState(null);
   const [formData, setFormData] = useState({
@@ -59,32 +57,20 @@ export default function AdminBranchesPage() {
   });
 
   useEffect(() => {
-    console.log("🔄 useEffect exécuté");
-    fetchData();
-  }, []);
+    if (currentUser?.profile?.tenant_id) {
+      fetchBranches();
+    } else if (currentUser) {
+      setLoading(false);
+    }
+  }, [currentUser]);
 
-  const fetchData = async () => {
-    console.log("📡 FetchData appelé");
+  const fetchBranches = async () => {
     setLoading(true);
+    setError(null);
     try {
       const tenantId = currentUser?.profile?.tenant_id;
-      console.log("🏢 Tenant ID:", tenantId);
-      
       if (!tenantId) {
-        console.warn("⚠️ Pas de tenant_id, utilisation de données de test");
-        // Données de test pour que la page s'affiche
-        setBranches([
-          {
-            id: "1",
-            name: "Salon Principal (Test)",
-            address: "123 Rue de Test, Paris",
-            phone: "01 23 45 67 89",
-            email: "test@salon.com",
-            is_main: true,
-            is_active: true,
-            tenant_id: "test"
-          }
-        ]);
+        setBranches([]);
         setLoading(false);
         return;
       }
@@ -95,29 +81,14 @@ export default function AdminBranchesPage() {
         .eq("tenant_id", tenantId)
         .order("is_main", { ascending: false });
 
-      console.log("📦 Données reçues:", data);
-      
-      if (error) {
-        console.error("❌ Erreur Supabase:", error);
-        throw error;
-      }
-      
+      if (error) throw error;
+
       setBranches(data || []);
-    } catch (error) {
-      console.error("❌ Error fetching branches:", error);
-      toast.error("Erreur lors du chargement");
-      // En cas d'erreur, on met des données de test
-      setBranches([
-        {
-          id: "1",
-          name: "Salon Principal",
-          address: "123 Rue de la Paix, Paris",
-          phone: "01 23 45 67 89",
-          email: "principal@salon.com",
-          is_main: true,
-          is_active: true,
-        }
-      ]);
+    } catch (err) {
+      console.error("Error fetching branches:", err);
+      setError(err.message || "Erreur lors du chargement");
+      setBranches([]);
+      toast.error("Erreur lors du chargement des succursales");
     } finally {
       setLoading(false);
     }
@@ -169,10 +140,10 @@ export default function AdminBranchesPage() {
       setModalOpen(false);
       setEditingBranch(null);
       resetForm();
-      fetchData();
+      fetchBranches();
     } catch (error) {
       console.error("Error saving branch:", error);
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error(error.message || "Erreur lors de la sauvegarde");
     }
   };
 
@@ -207,10 +178,10 @@ export default function AdminBranchesPage() {
 
       if (error) throw error;
       toast.success("Succursale supprimée");
-      fetchData();
+      fetchBranches();
     } catch (error) {
       console.error("Error deleting branch:", error);
-      toast.error("Erreur lors de la suppression");
+      toast.error(error.message || "Erreur lors de la suppression");
     }
   };
 
@@ -226,28 +197,24 @@ export default function AdminBranchesPage() {
 
       if (error) throw error;
       toast.success(`Succursale ${!currentStatus ? "activée" : "désactivée"}`);
-      fetchData();
+      fetchBranches();
     } catch (error) {
       console.error("Error toggling status:", error);
       toast.error("Erreur lors du changement de statut");
     }
   };
 
-  // Ne pas afficher le skeleton si on a des données
   if (loading && branches.length === 0) {
     return (
-      <DashboardLayout>
-        <div className="p-8 space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-96 w-full rounded-xl" />
-        </div>
-      </DashboardLayout>
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-8 space-y-6">
+    <div className="p-8 space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Multi-établissement</h1>
@@ -392,7 +359,6 @@ export default function AdminBranchesPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
       {/* Modal d'ajout/modification */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -502,6 +468,6 @@ export default function AdminBranchesPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </div>
   );
 }

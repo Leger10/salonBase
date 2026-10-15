@@ -40,6 +40,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { QRCodeCanvas } from "qrcode.react";
 
 // ========== LISTE DES OCCASIONS EN FRANÇAIS ==========
 const OCCASIONS = [
@@ -85,25 +86,24 @@ const getPaymentMethodLabel = (value) => {
 const GiftCardPreview = ({ giftCard, isPDF = false }) => {
   if (!giftCard) return null;
 
-  const { 
-    amount, 
-    recipient_name, 
-    recipient_phone, 
-    sender_name, 
+  const {
+    amount,
+    recipient_name,
+    recipient_phone,
+    sender_name,
     sender_phone,
-    message, 
-    occasion, 
-    delivery_method, 
-    tenant_name, 
-    tenant_logo, 
-    tenant_primary_color, 
+    message,
+    occasion,
+    delivery_method,
+    tenant_name,
+    tenant_logo,
+    tenant_primary_color,
     created_at,
     code,
     status,
-    payment_method
   } = giftCard;
 
-  const getOccasionEmoji = (occasion) => {
+  const getOccasionEmoji = (occ) => {
     const emojis = {
       birthday: "🎂",
       anniversary: "💑",
@@ -122,408 +122,415 @@ const GiftCardPreview = ({ giftCard, isPDF = false }) => {
       friends_day: "🤝",
       loyalty: "⭐",
     };
-    return emojis[occasion] || "🎁";
+    return emojis[occ] || "🎁";
   };
 
   const getDeliveryLabel = (method) => {
-    const labels = { 
-      whatsapp: "📱 WhatsApp", 
-      physical: "🏪 En présentielle", 
-      presentielle: "🏪 En présentielle", 
-      email: "📧 Par email" 
+    const labels = {
+      whatsapp: "WhatsApp",
+      physical: "En présentiel",
+      presentielle: "En présentiel",
+      email: "Par email",
     };
-    return labels[method] || method;
+    return labels[method] || method || "—";
   };
 
   const primaryColor = tenant_primary_color || "#ec4899";
+  const bg = `radial-gradient(120% 120% at 0% 0%, ${primaryColor}66 0%, transparent 42%), radial-gradient(130% 130% at 100% 100%, ${primaryColor}55 0%, transparent 45%), linear-gradient(135deg, #1c1030 0%, #0b0616 100%)`;
+  const goldText = {
+    backgroundImage:
+      "linear-gradient(135deg,#f9e08a,#e0a53c 45%,#fff6cf 60%,#c98a2b)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    color: "transparent",
+  };
+  const qrValue = code ? `CARTE-CADEAU:${code}` : "CARTE-CADEAU";
+  const occasionLabel = getOccasionLabel(occasion).replace(/^\S+\s/, "");
 
-  // Version pour le PDF
+  const Holo = (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        top: "-60%",
+        left: "-10%",
+        width: "60%",
+        height: "220%",
+        background:
+          "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
+        transform: "rotate(18deg)",
+        pointerEvents: "none",
+      }}
+    />
+  );
+
   if (isPDF) {
     return (
-      <div 
+      <div
         id="gift-card-pdf"
         style={{
-          width: '800px',
-          height: '400px',
-          backgroundColor: '#ffffff',
-          borderRadius: '24px',
-          border: `2px solid ${primaryColor}`,
-          padding: '30px',
-          display: 'flex',
-          flexDirection: 'row',
-          fontFamily: 'Arial, sans-serif',
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
+          width: "800px",
+          height: "400px",
+          borderRadius: "28px",
+          padding: "34px",
+          display: "flex",
+          flexDirection: "row",
+          fontFamily: "Inter, Arial, sans-serif",
+          position: "relative",
+          overflow: "hidden",
+          color: "#ffffff",
+          background: bg,
+          border: "1px solid rgba(255,255,255,0.14)",
+          boxShadow: "0 24px 70px rgba(0,0,0,0.35)",
         }}
       >
-        {/* Fond décoratif */}
-        <div style={{
-          position: 'absolute',
-          top: '-100px',
-          right: '-100px',
-          width: '300px',
-          height: '300px',
-          borderRadius: '50%',
-          backgroundColor: primaryColor,
-          opacity: 0.05,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: '-100px',
-          left: '-100px',
-          width: '300px',
-          height: '300px',
-          borderRadius: '50%',
-          backgroundColor: primaryColor,
-          opacity: 0.05,
-          pointerEvents: 'none',
-        }} />
+        {Holo}
 
-        {/* COLONNE GAUCHE */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          paddingRight: '20px',
-          zIndex: 1,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            paddingRight: "24px",
+            zIndex: 1,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             {tenant_logo ? (
-              <img 
-                src={tenant_logo} 
-                alt={tenant_name} 
-                style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover' }} 
+              <img
+                src={tenant_logo}
+                alt={tenant_name}
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "16px",
+                  objectFit: "cover",
+                  border: "2px solid rgba(255,255,255,0.5)",
+                }}
               />
             ) : (
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: `${primaryColor}15`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <span style={{ fontSize: '24px' }}>🎁</span>
+              <div
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "26px",
+                }}
+              >
+                🎁
               </div>
             )}
             <div>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>
+              <p style={{ fontSize: "19px", fontWeight: 700, margin: 0 }}>
                 {tenant_name || "SalonApp"}
               </p>
-              <p style={{ fontSize: '10px', fontWeight: '600', color: primaryColor, textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
+              <p
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  letterSpacing: "3px",
+                  textTransform: "uppercase",
+                  margin: 0,
+                  ...goldText,
+                }}
+              >
                 ✦ Carte cadeau
               </p>
             </div>
           </div>
 
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: primaryColor }} />
-              <p style={{ fontSize: '10px', fontWeight: '600', color: primaryColor, textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
-                Offert à
-              </p>
-            </div>
-            <p style={{ fontSize: '22px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>
+          <div>
+            <p
+              style={{
+                fontSize: "10px",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                opacity: 0.7,
+                margin: 0,
+              }}
+            >
+              Offert à
+            </p>
+            <p style={{ fontSize: "26px", fontWeight: 700, margin: "2px 0 0" }}>
               {recipient_name || "Non attribué"}
             </p>
             {recipient_phone && (
-              <p style={{ fontSize: '14px', color: '#64748b', fontWeight: '500', margin: 0 }}>
+              <p style={{ fontSize: "14px", opacity: 0.7, margin: 0 }}>
                 {recipient_phone}
               </p>
             )}
           </div>
 
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: primaryColor }} />
-              <p style={{ fontSize: '10px', fontWeight: '600', color: primaryColor, textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
-                Valeur
-              </p>
-            </div>
-            <p style={{ fontSize: '32px', fontWeight: '800', color: primaryColor, margin: 0 }}>
+          <div>
+            <p
+              style={{
+                fontSize: "10px",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                opacity: 0.7,
+                margin: 0,
+              }}
+            >
+              Valeur
+            </p>
+            <p
+              style={{
+                fontSize: "40px",
+                fontWeight: 800,
+                margin: "2px 0 0",
+                ...goldText,
+              }}
+            >
               {amount?.toLocaleString()} FCFA
             </p>
           </div>
         </div>
 
-        {/* COLONNE DROITE */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          zIndex: 1,
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            borderRadius: '9999px',
-            backgroundColor: `${primaryColor}12`,
-            border: `1px solid ${primaryColor}20`,
-          }}>
-            <span style={{ fontSize: '20px' }}>{getOccasionEmoji(occasion)}</span>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: primaryColor }}>
-              Pour {getOccasionLabel(occasion)}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "8px 18px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.18)",
+            }}
+          >
+            <span style={{ fontSize: "20px" }}>{getOccasionEmoji(occasion)}</span>
+            <span style={{ fontSize: "14px", fontWeight: 600 }}>
+              {occasionLabel}
             </span>
           </div>
 
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-              <p style={{ fontSize: '10px', fontWeight: '600', color: primaryColor, textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
-                De la part de
-              </p>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: primaryColor }} />
-            </div>
-            <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>
+          <div style={{ textAlign: "right" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                opacity: 0.7,
+                margin: 0,
+              }}
+            >
+              De la part de
+            </p>
+            <p style={{ fontSize: "20px", fontWeight: 700, margin: "2px 0 0" }}>
               {sender_name || "Anonyme"}
             </p>
             {sender_phone && (
-              <p style={{ fontSize: '14px', color: '#64748b', fontWeight: '500', margin: 0 }}>
+              <p style={{ fontSize: "14px", opacity: 0.7, margin: 0 }}>
                 {sender_phone}
               </p>
             )}
           </div>
 
           {message && (
-            <div style={{
-              fontSize: '14px',
-              fontStyle: 'italic',
-              color: '#1a1a2e',
-              backgroundColor: 'rgba(255,255,255,0.8)',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              border: `1px solid ${primaryColor}15`,
-              maxWidth: '280px',
-              textAlign: 'right',
-            }}>
-              "{message}"
+            <div
+              style={{
+                fontSize: "14px",
+                fontStyle: "italic",
+                background: "rgba(255,255,255,0.1)",
+                padding: "10px 16px",
+                borderRadius: "14px",
+                border: "1px solid rgba(255,255,255,0.14)",
+                maxWidth: "300px",
+                textAlign: "right",
+              }}
+            >
+              “{message}”
             </div>
           )}
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            fontSize: '11px',
-            color: '#64748b',
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            padding: '6px 16px',
-            borderRadius: '9999px',
-            border: `1px solid ${primaryColor}15`,
-          }}>
-            <span style={{ fontWeight: '500' }}>{getDeliveryLabel(delivery_method)}</span>
-            <span style={{ color: '#94a3b8' }}>•</span>
-            <span>{created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ textAlign: "right" }}>
+              <p style={{ fontSize: "11px", opacity: 0.75, margin: 0 }}>
+                {getDeliveryLabel(delivery_method)} ·{" "}
+                {created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}
+              </p>
+              {code && (
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "12px",
+                    letterSpacing: "2px",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  {code}
+                </p>
+              )}
+            </div>
+            <div
+              style={{ background: "#ffffff", padding: "6px", borderRadius: "10px" }}
+            >
+              <QRCodeCanvas
+                value={qrValue}
+                size={64}
+                bgColor="#ffffff"
+                fgColor="#0b0616"
+                level="M"
+              />
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Version responsive pour l'affichage web - optimisée pour iPhone
   return (
-    <div 
-      className="gift-card-wrapper"
-      style={{
-        width: '100%',
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '0',
-      }}
-    >
+    <div style={{ width: "100%", maxWidth: "800px", margin: "0 auto" }}>
       <div
         className="gift-card-container"
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '20px',
-          border: `2px solid ${primaryColor}`,
-          padding: '16px 12px',
-          width: '100%',
-          minHeight: '280px',
-          boxShadow: `0 20px 60px ${primaryColor}20, 0 4px 20px rgba(0,0,0,0.05)`,
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
+          position: "relative",
+          overflow: "hidden",
+          color: "#ffffff",
+          background: bg,
+          border: "1px solid rgba(255,255,255,0.14)",
+          borderRadius: "26px",
+          padding: "20px",
+          width: "100%",
+          minHeight: "270px",
+          boxShadow: `0 24px 70px ${primaryColor}33, 0 4px 20px rgba(0,0,0,0.2)`,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          gap: "14px",
         }}
       >
-        {/* Fond décoratif */}
-        <div style={{
-          position: 'absolute',
-          top: '-60px',
-          right: '-60px',
-          width: '150px',
-          height: '150px',
-          borderRadius: '50%',
-          backgroundColor: primaryColor,
-          opacity: 0.04,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: '-60px',
-          left: '-60px',
-          width: '150px',
-          height: '150px',
-          borderRadius: '50%',
-          backgroundColor: primaryColor,
-          opacity: 0.04,
-          pointerEvents: 'none',
-        }} />
+        {Holo}
 
-        {/* Version mobile : layout vertical */}
-        <div className="flex flex-col h-full relative z-10 gap-3">
-          
-          {/* Ligne 1 : Logo + Titre + Occasion */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              {tenant_logo ? (
-                <img 
-                  src={tenant_logo} 
-                  alt={tenant_name} 
-                  className="w-8 h-8 rounded-lg object-cover border border-white shadow-md flex-shrink-0" 
-                />
-              ) : (
-                <div 
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md flex-shrink-0"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
-                  <Gift className="h-4 w-4" style={{ color: primaryColor }} />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-foreground truncate">{tenant_name || "SalonApp"}</p>
-                <p 
-                  className="text-[8px] uppercase tracking-wider font-medium"
-                  style={{ color: primaryColor }}
-                >
-                  ✦ Carte cadeau
-                </p>
+        <div className="flex items-center justify-between gap-2 relative z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            {tenant_logo ? (
+              <img
+                src={tenant_logo}
+                alt={tenant_name}
+                className="w-10 h-10 rounded-xl object-cover border-2 border-white/50 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 flex-shrink-0">
+                <Gift className="h-5 w-5" />
               </div>
-            </div>
-            <div 
-              className="flex items-center gap-1 px-2 py-1 rounded-full shadow-sm flex-shrink-0"
-              style={{ 
-                backgroundColor: `${primaryColor}12`,
-                border: `1px solid ${primaryColor}20`
-              }}
-            >
-              <span className="text-sm leading-none">{getOccasionEmoji(occasion)}</span>
-              <span className="text-[9px] font-semibold truncate max-w-[80px]" style={{ color: primaryColor }}>
-                {getOccasionLabel(occasion)}
-              </span>
-            </div>
-          </div>
-
-          {/* Ligne 2 : Destinataire + Valeur */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <div 
-                  className="w-1 h-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: primaryColor }}
-                />
-                <p 
-                  className="text-[8px] uppercase tracking-wider font-semibold"
-                  style={{ color: primaryColor }}
-                >
-                  Offert à
-                </p>
-              </div>
-              <p className="text-base font-bold text-foreground truncate">{recipient_name || "Non attribué"}</p>
-              {recipient_phone && (
-                <p className="text-[10px] text-muted-foreground font-medium truncate">{recipient_phone}</p>
-              )}
-            </div>
-            <div className="text-right flex-shrink-0">
-              <div className="flex items-center justify-end gap-1">
-                <p 
-                  className="text-[8px] uppercase tracking-wider font-semibold"
-                  style={{ color: primaryColor }}
-                >
-                  Valeur
-                </p>
-                <div 
-                  className="w-1 h-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: primaryColor }}
-                />
-              </div>
-              <div 
-                className="text-xl font-extrabold tracking-tight"
-                style={{ color: primaryColor }}
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate">
+                {tenant_name || "SalonApp"}
+              </p>
+              <p
+                className="text-[9px] uppercase tracking-[0.25em] font-semibold"
+                style={goldText}
               >
-                {amount?.toLocaleString()} FCFA
-              </div>
+                ✦ Carte cadeau
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 flex-shrink-0">
+            <span className="text-base leading-none">
+              {getOccasionEmoji(occasion)}
+            </span>
+            <span className="text-[10px] font-medium truncate max-w-[100px]">
+              {occasionLabel}
+            </span>
+          </div>
+        </div>
 
-          {/* Ligne 3 : Expéditeur + Message */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <p 
-                  className="text-[8px] uppercase tracking-wider font-semibold"
-                  style={{ color: primaryColor }}
-                >
-                  De la part de
-                </p>
-                <div 
-                  className="w-1 h-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: primaryColor }}
-                />
-              </div>
-              <p className="text-sm font-bold text-foreground truncate">{sender_name || "Anonyme"}</p>
-              {sender_phone && (
-                <p className="text-[10px] text-muted-foreground font-medium truncate">{sender_phone}</p>
-              )}
-            </div>
+        <div className="flex items-start justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              Offert à
+            </p>
+            <p className="text-lg font-bold truncate">
+              {recipient_name || "Non attribué"}
+            </p>
+            {recipient_phone && (
+              <p className="text-[11px] opacity-70 truncate">
+                {recipient_phone}
+              </p>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              Valeur
+            </p>
+            <p className="text-3xl font-extrabold tracking-tight" style={goldText}>
+              {amount?.toLocaleString()} FCFA
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
+              De la part de
+            </p>
+            <p className="text-sm font-bold truncate">
+              {sender_name || "Anonyme"}
+            </p>
             {message && (
-              <div 
-                className="text-[10px] italic text-foreground/80 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-2 py-1 rounded-lg border shadow-sm max-w-[120px] flex-shrink-0 text-right"
-                style={{ borderColor: `${primaryColor}15` }}
-              >
-                "{message}"
-              </div>
+              <p className="text-[11px] italic opacity-80 mt-1 line-clamp-2 max-w-[240px]">
+                “{message}”
+              </p>
             )}
           </div>
 
-          {/* Ligne 4 : Livraison + Date + Code + Statut */}
-          <div className="flex items-center justify-between gap-2 mt-auto pt-1 border-t border-gray-100/50">
-            <div className="flex items-center gap-2 text-[8px] text-muted-foreground bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-2 py-0.5 rounded-full border"
-              style={{ borderColor: `${primaryColor}15` }}
-            >
-              <span className="font-medium">{getDeliveryLabel(delivery_method)}</span>
-              <span className="text-muted-foreground/30">•</span>
-              <span>{created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}</span>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="text-right">
+              <p className="text-[10px] opacity-70">
+                {getDeliveryLabel(delivery_method)}
+              </p>
+              <p className="text-[10px] opacity-70">
+                {created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}
+              </p>
               {code && (
-                <span className="font-mono text-[8px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                <p className="font-mono text-[10px] tracking-widest mt-0.5 bg-white/10 px-1.5 py-0.5 rounded">
                   {code}
-                </span>
+                </p>
               )}
-              {status && (
-                <Badge 
-                  variant={status === 'pending' ? 'outline' : status === 'pending_cash' ? 'secondary' : 'default'}
-                  className="text-[6px] sm:text-[8px] px-1 py-0.5"
-                >
-                  {status === 'pending' && '⏳ En attente'}
-                  {status === 'pending_cash' && '🏪 Caisse'}
-                  {status === 'paid' && '✅ Payée'}
-                  {status === 'validated' && '🎉 Validée'}
-                </Badge>
-              )}
+            </div>
+            <div className="bg-white p-1.5 rounded-lg">
+              <QRCodeCanvas
+                value={qrValue}
+                size={56}
+                bgColor="#ffffff"
+                fgColor="#0b0616"
+                level="M"
+              />
             </div>
           </div>
-
         </div>
+
+        {status && (
+          <div className="relative z-10">
+            <Badge
+              variant="outline"
+              className="text-[10px] border-white/25 text-white/90 bg-white/5"
+            >
+              {status === "pending" && "⏳ En attente"}
+              {status === "pending_cash" && "🏪 À régler en caisse"}
+              {status === "paid" && "✅ Payée"}
+              {status === "validated" && "🎉 Validée"}
+              {status === "used" && "🎁 Utilisée"}
+              {status === "cancelled" && "❌ Annulée"}
+            </Badge>
+          </div>
+        )}
       </div>
     </div>
   );
