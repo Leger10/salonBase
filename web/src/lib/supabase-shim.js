@@ -10,16 +10,59 @@
 // depuis le navigateur.
 //
 // Non couvert (renvoie une erreur explicite pour les attraper au lieu d'echouer
-// silencieusement) : rpc(), storage et functions.invoke. Le temps reel
-// (`channel().on().subscribe()`) n'est pas migre non plus, mais il renvoie un
-// abonnement inerte : un throw dans un useEffect ferait planter tout l'arbre
-// React, alors que les donnees se chargent deja par les fetch normaux.
-import { apiFetch } from './api.js';
+// silencieusement) : rpc() et functions.invoke. Le stockage, lui, est branche sur
+// `POST /api/storage/upload` (Cloudinary ou disque local, selon le serveur). Le
+// temps reel (`channel().on().subscribe()`) n'est pas migre non plus, mais il
+// renvoie un abonnement inerte : un throw dans un useEffect ferait planter tout
+// l'arbre React, alors que les donnees se chargent deja par les fetch normaux.
+import { apiFetch, apiUpload } from './api.js';
 
 const ENDPOINT = '/api/data/query';
 
 function postgrestError(code, message, details = null) {
   return { data: null, error: { code, message, details, hint: null } };
+}
+
+// --- Stockage ---------------------------------------------------------------
+// Le serveur est la source de verite : GET /api/storage/limits indique s'il
+// utilise Cloudinary (CDN) ou son disque local, et donc la forme des URL.
+const VIDEO_EXTENSIONS = new Set([
+  'mp4', 'webm', 'mov', 'm4v', 'ogv', 'ogg', 'avi', 'mkv', 'wmv', 'flv', 'mpg', 'mpeg', '3gp',
+]);
+
+let storageConfig = null; // null tant que /api/storage/limits n'a pas repondu
+let storageConfigPromise = null;
+// URL exacte renvoyee par l'API pour chaque objet envoye (Cloudinary peut
+// renvoyer une URL versionnee) : getPublicUrl la reutilise si disponible.
+const knownPublicUrls = new Map();
+
+function ensureStorageConfig() {
+  if (storageConfigPromise) return storageConfigPromise;
+  storageConfigPromise = apiFetch('/api/storage/limits')
+    .then((data) => {
+      storageConfig = data?.provider === 'cloudinary' && data?.cloud_name ? data : null;
+      return storageConfig;
+    })
+    .catch(() => {
+      storageConfig = null;
+      return null;
+    });
+  return storageConfigPromise;
+}
+
+function buildPublicUrl(objectPath) {
+  if (knownPublicUrls.has(objectPath)) return knownPublicUrls.get(objectPath);
+
+  const cloudName = storageConfig?.cloud_name;
+  if (cloudName) {
+    const match = /\.([A-Za-z0-9]+)$/.exec(objectPath);
+    const ext = match ? match[1].toLowerCase() : '';
+    const resourceType = VIDEO_EXTENSIONS.has(ext) ? 'video' : 'image';
+    const publicId = objectPath.replace(/\.[^./]+$/, '');
+    return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${publicId}${ext ? `.${ext}` : ''}`;
+  }
+
+  return `/storage/${objectPath}`;
 }
 
 /**
@@ -363,13 +406,79 @@ export function createDataClient() {
         postgrestError('RPC_NOT_SUPPORTED', "Les fonctions SQL ne sont pas encore portees.")
       ),
 
+    // Stockage de fichiers : les images et videos partent vers le serveur Node
+    // (`POST /api/storage/upload`, corps brut). Selon la configuration serveur,
+    // elles finissent sur Cloudinary (CDN) ou dans `web/storage`. Contrat
+    // identique a Supabase Storage : from(bucket).upload(path, file).
     storage: {
-      from: () => ({
-        // Les blobs (avatars, visuels) passent encore par Supabase Storage.
-        // A migrer vers un stockage objet heberge.
-        upload: () => Promise.resolve(postgrestError('STORAGE_NOT_SUPPORTED', 'Stockage non migre.')),
-        getPublicUrl: (path) => ({ data: { publicUrl: `/storage/${path}` } }),
+      from: (bucket = 'tenant-assets') => {
+        // Supabase Stockage considere `path` comme une cle complete : la cle
+        // exposee par getPublicUrl est donc `<bucket>/<path>`.
+        const objectPath = (p) => {
+          const raw = String(p ?? '').trim();
+          const prefix = `${bucket}/`;
+          return raw.startsWith(prefix) ? raw : `${prefix}${raw}`;
+        };
+
+        return {
+          upload: async (p, file, _options = {}) => {
+            const key = objectPath(p);
+            let payload = file;
+            if (payload instanceof ArrayBuffer) payload = new Blob([payload]);
+            else if (ArrayBuffer.isView(payload)) {
+              payload = new Blob([payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)]);
+            }
+
+            // La reponse de l'API porte l'URL publique definitive (Cloudinary).
+            await ensureStorageConfig();
+
+            try {
+              const data = await apiUpload(
+                `/api/storage/upload?path=${encodeURIComponent(key)}`,
+                payload,
+                { contentType: payload?.type || 'application/octet-stream' }
+              );
+              const publicUrl = data?.publicUrl ?? buildPublicUrl(key);
+              knownPublicUrls.set(key, publicUrl);
+              return {
+                data: { path: data?.path ?? key, fullPath: data?.path ?? key, publicUrl },
+                error: null,
+              };
+            } catch (error) {
+              return postgrestError(
+                error.code || 'UPLOAD_FAILED',
+                error.message || "Echec de l'envoi du fichier."
+              );
+            }
+          },
+
+          getPublicUrl: (p) => ({ data: { publicUrl: buildPublicUrl(objectPath(p)) } }),
+
+          remove: async (p) => {
+            const list = (Array.isArray(p) ? p : [p]).filter(Boolean).map(objectPath);
+            try {
+              const data = await apiFetch('/api/storage/remove', { method: 'POST', body: { paths: list } });
+              return { data, error: null };
+            } catch (error) {
+              return postgrestError(error.code || 'REMOVE_FAILED', error.message);
+            }
+          },
+        };
+      },
+
+      // La creation de bucket Supabase n'a plus d'objet (le serveur gere ses
+      // propres dossiers) : on renvoie une liste statique pour que les pages
+      // qui verifient l'existence d'un bucket continuent de fonctionner.
+      listBuckets: async () => ({
+        data: ['tenant-assets', 'products', 'images'].map((id) => ({
+          id,
+          name: id,
+          public: true,
+        })),
+        error: null,
       }),
+
+      createBucket: async (id) => ({ data: { id, name: id, public: true }, error: null }),
     },
 
     functions: {

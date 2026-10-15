@@ -32,6 +32,38 @@ export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}
   return data;
 }
 
+/**
+ * Corps brut (fichier binaire) vers l'API : `/api/storage/upload` attend
+ * l'octet-meme du fichier (pas de JSON, pas de multipart).
+ */
+export async function apiUpload(path, body, { method = 'POST', contentType } = {}) {
+  const response = await fetch(`${BASE}${path}`, {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': contentType || 'application/octet-stream' },
+    body,
+  });
+
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // Reponse non-JSON (page d'erreur du proxy d'hebergement, 413 HTML...)
+    data = null;
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.message ?? data?.error ?? `Echec de l'envoi du fichier (${response.status})`
+    );
+    error.status = response.status;
+    error.code = data?.error ?? null;
+    throw error;
+  }
+  return data;
+}
+
 // --- Better Auth ----------------------------------------------------------
 // Les routes sont celles exposees par server/index.js sur /api/auth/*.
 

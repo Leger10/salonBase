@@ -19,6 +19,7 @@ import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES 
 import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
 import { getEmployeeClientStats } from './employee-stats.js';
+import { mountStorage, storageRoot } from './storage.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url)) + '/..';
 
@@ -28,7 +29,13 @@ const app = express();
 const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '2mb' }));
+// JSON : 16 Mo (une image de 10 Mo encodee en base64 pese ~13 Mo). Les videos
+// passent par /api/storage/upload en corps brut, jamais ici.
+const jsonParser = express.json({ limit: '16mb' });
+app.use((req, res, next) => {
+  if (req.path === '/api/storage/upload') return next();
+  jsonParser(req, res, next);
+});
 
 // --- CORS -----------------------------------------------------------------
 // En production le front (Netlify) et l'API (Hostinger) sont sur des domaines
@@ -54,6 +61,10 @@ app.all('/api/auth/*splat', toNodeHandler(auth));
 
 // Enveloppe les handlers async pour router leurs exceptions vers next().
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// --- Stockage de fichiers (images / videos) --------------------------------
+// `POST /api/storage/upload`, `POST /api/storage/remove`, `GET /api/storage/limits`.
+mountStorage(app, wrap);
 
 // --- Sante ----------------------------------------------------------------
 app.get(
@@ -347,6 +358,15 @@ app.post(
 const DIST = path.join(ROOT, 'dist');
 const hasDist = existsSync(path.join(DIST, 'index.html'));
 
+// --- Fichiers uploades (images / videos) -----------------------------------
+// Monte avant le repli SPA : /storage/... doit renvoyer le fichier lui-meme.
+// Le dossier peut ne pas encore exister au demarrage : express.static passe
+// alors la main (fallthrough) et creer le fichier au premier upload suffit.
+app.use(
+  '/storage',
+  express.static(storageRoot(), { index: false, fallthrough: true, maxAge: '7d' })
+);
+
 if (hasDist) {
   // Fichiers haches : Vite genere des noms avec hash, on peut tout mettre en cache.
   app.use(
@@ -356,10 +376,12 @@ if (hasDist) {
   app.use(express.static(DIST, { index: false, maxAge: '1h' }));
 }
 
-// Repli SPA : toute requete GET hors /api renvoie index.html (routage React).
-// Sans cela, un rafraichissement sur /admin/... renverrait 404.
+// Repli SPA : toute requete GET hors /api et /storage renvoie index.html (routage
+// React). Sans cela, un rafraichissement sur /admin/... renverrait 404.
 app.get('{*splat}', (req, res, next) => {
-  if (!hasDist || req.path.startsWith('/api/')) return next();
+  if (!hasDist || req.path.startsWith('/api/') || req.path.startsWith('/storage/')) {
+    return next();
+  }
   res.sendFile(path.join(DIST, 'index.html'));
 });
 
@@ -370,6 +392,17 @@ app.get('{*splat}', (req, res, next) => {
 app.use((err, req, res, _next) => {
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.code, message: err.message });
+  }
+  // Corps trop volumineux (body-parser / express.json) : on repond 413 et pas
+  // 500, le front affiche alors la limite concernee.
+  if (err?.type === 'entity.too.large' || err?.status === 413) {
+    return res.status(413).json({
+      error: 'FILE_TOO_LARGE',
+      message: 'Requete trop volumineuse : fichier ou envoi trop important.',
+    });
+  }
+  if (err instanceof SyntaxError && err.status === 400) {
+    return res.status(400).json({ error: 'INVALID_JSON', message: 'Corps JSON invalide.' });
   }
   console.error('[api]', err);
   res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Erreur interne.' });

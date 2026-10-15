@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import { Textarea } from "@/components/ui/textarea.jsx";
+import UploadHint from "@/components/ui/upload-hint.jsx";
+import { validateFile } from "@/utils/uploadLimits.js";
 import {
   Select,
   SelectContent,
@@ -236,9 +238,6 @@ const ServiceForm = React.memo(({
                   <p className="text-sm text-muted-foreground">
                     Cliquez pour uploader une image
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    PNG, JPG jusqu'à 2MB
-                  </p>
                 </div>
               )}
               <input
@@ -253,6 +252,7 @@ const ServiceForm = React.memo(({
                 }}
               />
             </div>
+            <UploadHint kind="image" className="justify-center" />
           </div>
         </div>
       </div>
@@ -679,15 +679,10 @@ export default function AdminServiceManagement() {
   const handleImageUpload = useCallback(async (file, type = 'image') => {
     if (!file) return;
 
-    // Vérification du type de fichier
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Format d\'image non supporté. Utilisez JPG, PNG, WEBP ou GIF.');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('L\'image ne doit pas dépasser 2MB');
+    // Format + taille : memes regles que le serveur (utils/uploadLimits.js)
+    const check = validateFile(file, 'image');
+    if (!check.ok) {
+      toast.error(check.message);
       return;
     }
 
@@ -723,7 +718,7 @@ export default function AdminServiceManagement() {
       toast.success('Image téléchargée avec succès');
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Erreur lors du téléchargement de l\'image');
+      toast.error(error?.message || 'Erreur lors du téléchargement de l\'image');
       setImagePreview(null);
       setFormData(prev => ({ ...prev, image_url: '' }));
     } finally {

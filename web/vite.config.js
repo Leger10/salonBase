@@ -333,6 +333,11 @@ export default defineConfig({
 				target: process.env.API_URL || 'http://localhost:4000',
 				changeOrigin: true,
 			},
+			// Fichiers uploades (images/videos), servis par l'API Node.
+			'/storage': {
+				target: process.env.API_URL || 'http://localhost:4000',
+				changeOrigin: true,
+			},
 			'/files': {
 				target: process.env.API_URL || 'http://localhost:4000',
 				changeOrigin: true,

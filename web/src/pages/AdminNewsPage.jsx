@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import { Textarea } from "@/components/ui/textarea.jsx";
+import UploadHint from "@/components/ui/upload-hint.jsx";
+import { validateFile } from "@/utils/uploadLimits.js";
 import {
   Select,
   SelectContent,
@@ -213,14 +215,21 @@ export default function AdminNewsPage() {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const check = validateFile(file, 'image');
+    if (!check.ok) {
+      toast.error(check.message);
+      e.target.value = '';
+      return;
     }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const uploadImage = async (file) => {
@@ -502,9 +511,6 @@ export default function AdminNewsPage() {
                     <p className="text-sm font-medium">
                       Cliquez pour ajouter une image
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      JPEG, PNG, WEBP (Max 5MB)
-                    </p>
                   </div>
                 )}
                 <input
@@ -514,6 +520,7 @@ export default function AdminNewsPage() {
                   accept="image/jpeg,image/png,image/gif,image/webp"
                   onChange={handleImageChange}
                 />
+                <UploadHint kind="image" className="justify-center" />
               </div>
             </div>
 

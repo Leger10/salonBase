@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.j
 import { Switch } from '@/components/ui/switch.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Separator } from '@/components/ui/separator.jsx';
+import UploadHint from '@/components/ui/upload-hint.jsx';
+import { validateFile } from '@/utils/uploadLimits.js';
 import { toast } from 'sonner';
 import { 
   Loader2, Save, Building2, Palette, Layout, CalendarIcon, 
@@ -193,12 +195,9 @@ export default function AdminSettingsPage() {
 
   const handleImageUpload = async (file, type) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Veuillez sélectionner une image');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('L\'image ne doit pas dépasser 5MB');
+    const check = validateFile(file, 'image');
+    if (!check.ok) {
+      toast.error(check.message);
       return;
     }
 
@@ -934,6 +933,7 @@ export default function AdminSettingsPage() {
                                 <Loader2 className="h-8 w-8 animate-spin text-white" />
                               </div>
                             )}
+                            <UploadHint kind="image" />
                           </div>
                         </div>
                       )}
@@ -1299,6 +1299,7 @@ export default function AdminSettingsPage() {
                                 e.target.value = '';
                               }}
                             />
+                            <UploadHint kind="image" />
                           </div>
                         </div>
                       )}
@@ -1555,6 +1556,7 @@ export default function AdminSettingsPage() {
                         <p className="text-sm text-muted-foreground">
                           {previewLogo ? '✅ Logo chargé' : 'Aucun logo sélectionné'}
                         </p>
+                        <UploadHint kind="image" />
                         {previewLogo && (
                           <Button 
                             type="button" 

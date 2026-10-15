@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/dialog.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
+import UploadHint from "@/components/ui/upload-hint.jsx";
+import { validateFile } from "@/utils/uploadLimits.js";
 import {
   Select,
   SelectContent,
@@ -320,6 +322,13 @@ export default function AdminPlanningsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const check = validateFile(file, "image");
+    if (!check.ok) {
+      toast.error(check.message);
+      e.target.value = "";
+      return;
+    }
+
     setUploadingImage(true);
     try {
       const tenantId = currentUser?.profile?.tenant_id;
@@ -342,7 +351,7 @@ export default function AdminPlanningsPage() {
       toast.success("Image uploadée avec succès");
     } catch (error) {
       console.error("Error uploading image:", error);
-      toast.error("Erreur lors de l'upload de l'image");
+      toast.error(error?.message || "Erreur lors de l'upload de l'image");
     } finally {
       setUploadingImage(false);
     }
@@ -355,16 +364,11 @@ export default function AdminPlanningsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Vérifier le type de fichier
-    const validTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i)) {
-      toast.error("Format de vidéo non supporté. Utilisez MP4, WebM, OGG, MOV, AVI, WMV, FLV ou MKV.");
-      return;
-    }
-
-    // Vérifier la taille (max 100MB)
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("La vidéo ne doit pas dépasser 100MB");
+    // Formats acceptes + taille maximale (voir src/utils/uploadLimits.js)
+    const check = validateFile(file, "video");
+    if (!check.ok) {
+      toast.error(check.message);
+      e.target.value = "";
       return;
     }
 
@@ -390,7 +394,7 @@ export default function AdminPlanningsPage() {
       toast.success("Vidéo uploadée avec succès");
     } catch (error) {
       console.error("Error uploading video:", error);
-      toast.error("Erreur lors de l'upload de la vidéo");
+      toast.error(error?.message || "Erreur lors de l'upload de la vidéo");
     } finally {
       setUploadingVideo(false);
     }
@@ -968,11 +972,9 @@ export default function AdminPlanningsPage() {
                   {selectedMediaType === "video" && formData.video_url && (
                     <p className="text-xs text-green-500 mt-1">Vidéo chargée ✓</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {selectedMediaType === "image" 
-                      ? "Formats: JPG, PNG, GIF, SVG (max 10MB)" 
-                      : "Formats: MP4, WebM, OGG, MOV, AVI, WMV (max 100MB)"}
-                  </p>
+                  <UploadHint
+                    kind={selectedMediaType === "image" ? "image" : "video"}
+                  />
                 </div>
               </div>
             </div>

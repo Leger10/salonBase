@@ -16,6 +16,9 @@ out/
 # Donnees exportees depuis Supabase (contiennent des donnees personnelles)
 *.ndjson
 
+# Fichiers uploades (repli local quand Cloudinary n'est pas configure)
+storage/
+
 # Fichiers de test temporaires
 _test-*.cjs
 _test-*.mjs

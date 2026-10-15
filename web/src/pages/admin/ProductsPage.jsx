@@ -13,6 +13,13 @@ import { Button } from "@/components/ui/button.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import { Textarea } from "@/components/ui/textarea.jsx";
+import UploadHint from "@/components/ui/upload-hint.jsx";
+import {
+  validateFile,
+  isVideoFile,
+  formatBytes,
+  maxBytesFor,
+} from "@/utils/uploadLimits.js";
 import {
   Select,
   SelectContent,
@@ -270,17 +277,20 @@ export default function ProductsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
+    const isVideo = isVideoFile(file);
+    const isImage = !isVideo && (!file.type || file.type.startsWith('image/'));
     
     if (!isVideo && !isImage) {
       toast.error("Veuillez sélectionner une image ou une vidéo");
+      e.target.value = "";
       return;
     }
 
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast.error(`Le fichier est trop volumineux (max ${isVideo ? '50MB' : '5MB'})`);
+    // Taille + format : meme regles que le serveur (voir utils/uploadLimits.js)
+    const check = validateFile(file, isVideo ? "video" : "image");
+    if (!check.ok) {
+      toast.error(check.message);
+      e.target.value = "";
       return;
     }
 
@@ -1508,15 +1518,15 @@ export default function ProductsPage() {
 
                       {selectedFile && !uploading && (
                         <p className="text-xs text-muted-foreground text-center mt-2">
-                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          {selectedFile.name} ({formatBytes(selectedFile.size)} / max{" "}
+                          {formatBytes(maxBytesFor(fileType === "video" ? "video" : "image"))})
                         </p>
                       )}
                     </div>
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Formats supportés: Images (PNG, JPG, WEBP) ou Vidéos (MP4, WEBM, MOV)
-                </p>
+                <UploadHint kind="image" />
+                <UploadHint kind="video" className="mt-0.5" />
               </div>
             </div>
 

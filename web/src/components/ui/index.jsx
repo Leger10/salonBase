@@ -23,5 +23,8 @@ export { Skeleton } from "./skeleton.jsx";
 // Calendrier
 export { Calendar, CalendarDayButton } from "./calendar.jsx";
 
+// Envoi de fichiers
+export { default as UploadHint } from "./upload-hint.jsx";
+
 // Utilitaires
 export { cn } from "@/lib/utils.js";

@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/tabs.jsx";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
 import { Separator } from "@/components/ui/separator.jsx";
+import UploadHint from "@/components/ui/upload-hint.jsx";
+import { validateFile } from "@/utils/uploadLimits.js";
 import {
   Select,
   SelectContent,
@@ -360,12 +362,9 @@ export default function SuperAdminSettingsPage() {
   // ========== GESTION DES IMAGES ==========
   const handleImageUpload = async (file, type) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Veuillez sélectionner une image");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
+    const check = validateFile(file, "image");
+    if (!check.ok) {
+      toast.error(check.message);
       return;
     }
 
@@ -832,6 +831,7 @@ export default function SuperAdminSettingsPage() {
                           <Loader2 className="h-8 w-8 animate-spin text-white" />
                         </div>
                       )}
+                      <UploadHint kind="image" />
                     </div>
                     <div className="flex-1 space-y-2">
                       <p className="text-sm text-muted-foreground">
@@ -918,6 +918,7 @@ export default function SuperAdminSettingsPage() {
                           <Loader2 className="h-6 w-6 animate-spin text-white" />
                         </div>
                       )}
+                      <UploadHint kind="image" />
                     </div>
                     <div className="flex-1 space-y-2">
                       <p className="text-sm text-muted-foreground">
@@ -1002,6 +1003,7 @@ export default function SuperAdminSettingsPage() {
                         e.target.value = "";
                       }}
                     />
+                    <UploadHint kind="image" className="text-center" />
                   </div>
                 </div>
 
@@ -1065,6 +1067,7 @@ export default function SuperAdminSettingsPage() {
                         e.target.value = "";
                       }}
                     />
+                    <UploadHint kind="image" className="text-center" />
                   </div>
                 </div>
 
