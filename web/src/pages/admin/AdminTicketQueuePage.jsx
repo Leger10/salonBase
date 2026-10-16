@@ -41,7 +41,7 @@ const ACTIVE_STATUSES = ["waiting", "called", "in_progress"];
 // ✅ Styles pour les cartes élégantes
 const cardStyles = {
   stats:
-    "relative overflow-hidden rounded-2xl border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50",
+    "relative overflow-hidden rounded-2xl border-0 shadow-lg bg-gradient-to-br from-card to-muted/50",
   ticket:
     "relative overflow-hidden rounded-2xl border-0 shadow-lg transition-all hover:shadow-xl group",
   called:
@@ -50,7 +50,7 @@ const cardStyles = {
   inProgress:
     "border-2 border-indigo-400/50 bg-gradient-to-br from-indigo-50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/10",
   archived:
-    "border-2 border-gray-400/50 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/30 dark:to-gray-900/20 opacity-75",
+    "border-2 border-gray-400/50 bg-gradient-to-br from-muted to-muted/50 opacity-75",
 };
 
 function AdminTicketQueuePage() {
@@ -952,7 +952,7 @@ function AdminTicketQueuePage() {
       },
       archived: {
         label: "📦 Archivé",
-        className: "bg-gray-100 text-gray-500 border-gray-200",
+        className: "bg-muted text-muted-foreground border-border",
       },
     };
     return config[status] || config.waiting;
@@ -1277,7 +1277,7 @@ function AdminTicketQueuePage() {
               {filteredTickets.length}
             </Badge>
             {archivedCount > 0 && (
-              <Badge variant="outline" className="ml-1 text-gray-500">
+              <Badge variant="outline" className="ml-1 text-muted-foreground">
                 📦 {archivedCount} archivés
               </Badge>
             )}
@@ -1386,7 +1386,7 @@ function AdminTicketQueuePage() {
                                     : isCompleted
                                       ? "text-green-700 dark:text-green-300"
                                       : isArchived
-                                        ? "text-gray-500 dark:text-gray-400"
+                                        ? "text-muted-foreground"
                                         : ""
                                 }`}
                               >
@@ -1431,7 +1431,7 @@ function AdminTicketQueuePage() {
                                   : isCompleted
                                     ? "text-green-700 dark:text-green-300"
                                     : isArchived
-                                      ? "text-gray-500 dark:text-gray-400"
+                                      ? "text-muted-foreground"
                                       : ""
                               }`}
                             >
@@ -1561,7 +1561,7 @@ function AdminTicketQueuePage() {
 
                           {(ticket.status === "completed" ||
                             ticket.status === "archived") && (
-                            <Badge className="bg-gray-100 text-gray-600 border-0 px-4 py-2">
+                            <Badge className="bg-muted text-muted-foreground border-0 px-4 py-2">
                               {ticket.status === "completed"
                                 ? "✅ Terminé"
                                 : "📦 Archivé"}

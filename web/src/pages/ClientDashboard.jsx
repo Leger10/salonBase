@@ -311,7 +311,7 @@ export default function ClientDashboard() {
       pending: { class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', label: 'En attente' },
       completed: { class: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', label: 'Terminé' },
       cancelled: { class: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', label: 'Annulé' },
-      no_show: { class: 'bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300', label: 'Non présenté' },
+      no_show: { class: 'bg-muted text-foreground', label: 'Non présenté' },
       in_progress: { class: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300', label: 'En cours' }
     };
     const { class: bgClass, label } = config[status] || config.pending;
@@ -321,7 +321,7 @@ export default function ClientDashboard() {
   const getLoyaltyTier = (points) => {
     if (points >= 2500) return { name: 'Platinum', icon: Crown, color: 'text-cyan-500 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-950/40' };
     if (points >= 1000) return { name: 'Gold', icon: Crown, color: 'text-yellow-500 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-yellow-950/40' };
-    if (points >= 500) return { name: 'Silver', icon: Star, color: 'text-gray-400 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800/50' };
+    if (points >= 500) return { name: 'Silver', icon: Star, color: 'text-muted-foreground', bg: 'bg-muted' };
     return { name: 'Bronze', icon: Star, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-950/40' };
   };
 
@@ -695,7 +695,7 @@ export default function ClientDashboard() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {promotions.map((promo) => (
-                  <div key={promo.id} className="p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                  <div key={promo.id} className="p-3 bg-muted/50 rounded-lg">
                     <p className="font-semibold text-primary">{promo.name}</p>
                     <p className="text-sm text-muted-foreground mt-1">{promo.description}</p>
                     <p className="text-xs text-primary mt-2">

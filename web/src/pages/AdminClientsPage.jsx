@@ -504,19 +504,19 @@ export default function AdminClientsPage() {
 
     return (
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-black border border-gray-700 text-white">
-          <DialogHeader className="border-b border-gray-700 pb-4">
-            <DialogTitle className="flex items-center gap-3 text-2xl text-white">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card border border-border text-foreground">
+          <DialogHeader className="border-b border-border pb-4">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-foreground">
               <div className="p-2 rounded-xl bg-primary/20">
                 <User className="h-6 w-6 text-primary" />
               </div>
-              <span className="text-white">{selectedClient.full_name}</span>
+              <span className="text-foreground">{selectedClient.full_name}</span>
             </DialogTitle>
-            <DialogDescription className="text-gray-400 flex items-center gap-2">
+            <DialogDescription className="text-muted-foreground flex items-center gap-2">
               <Mail className="h-4 w-4" /> {selectedClient.email}
               {selectedClient.phone && (
                 <>
-                  <span className="text-gray-600">•</span>
+                  <span className="text-muted-foreground">•</span>
                   <Phone className="h-4 w-4" /> {selectedClient.phone}
                 </>
               )}
@@ -526,42 +526,42 @@ export default function AdminClientsPage() {
           <div className="space-y-6 py-4">
             {/* Statistiques client */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Card className="bg-gray-900 border-gray-700">
+              <Card className="bg-card border-border">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Rendez-vous</p>
+                  <p className="text-xs text-muted-foreground">Rendez-vous</p>
                   <p className="text-xl font-bold text-primary">
                     {clientAppointments.length}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-gray-900 border-gray-700">
+              <Card className="bg-card border-border">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Tickets</p>
-                  <p className="text-xl font-bold text-blue-400">
+                  <p className="text-xs text-muted-foreground">Tickets</p>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                     {clientTickets.length}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-gray-900 border-gray-700">
+              <Card className="bg-card border-border">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Achats produit</p>
-                  <p className="text-xl font-bold text-green-400">
+                  <p className="text-xs text-muted-foreground">Achats produit</p>
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
                     {clientTransactions.length}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-gray-900 border-gray-700">
+              <Card className="bg-card border-border">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Cartes cadeaux</p>
-                  <p className="text-xl font-bold text-pink-400">
+                  <p className="text-xs text-muted-foreground">Cartes cadeaux</p>
+                  <p className="text-xl font-bold text-pink-600 dark:text-pink-400">
                     {clientGiftCards.length}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-gray-900 border-gray-700">
+              <Card className="bg-card border-border">
                 <CardContent className="p-3 text-center">
-                  <p className="text-xs text-gray-400">Points</p>
-                  <p className="text-xl font-bold text-yellow-400">
+                  <p className="text-xs text-muted-foreground">Points</p>
+                  <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
                     {selectedClient.loyalty_points}
                   </p>
                 </CardContent>
@@ -571,7 +571,7 @@ export default function AdminClientsPage() {
             {/* Rendez-vous du client */}
             {clientAppointments.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Calendar className="h-4 w-4" /> Rendez-vous (
                   {clientAppointments.length})
                 </h4>
@@ -579,14 +579,14 @@ export default function AdminClientsPage() {
                   {clientAppointments.slice(0, 5).map((appt) => (
                     <div
                       key={appt.id}
-                      className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg"
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {appt.service?.name || "Service"} -{" "}
                           {appt.total_price?.toLocaleString() || 0} FCFA
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {appt.appointment_date} à {appt.start_time}
                         </p>
                       </div>
@@ -596,7 +596,7 @@ export default function AdminClientsPage() {
                     </div>
                   ))}
                   {clientAppointments.length > 5 && (
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       + {clientAppointments.length - 5} autres
                     </p>
                   )}
@@ -607,7 +607,7 @@ export default function AdminClientsPage() {
             {/* Tickets du client */}
             {clientTickets.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Ticket className="h-4 w-4" /> Tickets ({clientTickets.length}
                   )
                 </h4>
@@ -615,14 +615,14 @@ export default function AdminClientsPage() {
                   {clientTickets.slice(0, 5).map((ticket) => (
                     <div
                       key={ticket.id}
-                      className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg"
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           #{ticket.ticket_number} -{" "}
                           {ticket.service_type || "Service"}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {ticket.date} •{" "}
                           {ticket.service_price?.toLocaleString() || 0} FCFA
                         </p>
@@ -635,7 +635,7 @@ export default function AdminClientsPage() {
                     </div>
                   ))}
                   {clientTickets.length > 5 && (
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       + {clientTickets.length - 5} autres
                     </p>
                   )}
@@ -646,7 +646,7 @@ export default function AdminClientsPage() {
             {/* Transactions du client */}
             {clientTransactions.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <ShoppingBag className="h-4 w-4" /> Achats (
                   {clientTransactions.length})
                 </h4>
@@ -654,14 +654,14 @@ export default function AdminClientsPage() {
                   {clientTransactions.slice(0, 5).map((transaction) => (
                     <div
                       key={transaction.id}
-                      className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg"
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {transaction.service_name || "Achat"} -{" "}
                           {transaction.amount?.toLocaleString() || 0} FCFA
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {transaction.transaction_date ||
                             format(
                               new Date(transaction.created_at),
@@ -683,7 +683,7 @@ export default function AdminClientsPage() {
                     </div>
                   ))}
                   {clientTransactions.length > 5 && (
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       + {clientTransactions.length - 5} autres
                     </p>
                   )}
@@ -694,7 +694,7 @@ export default function AdminClientsPage() {
             {/* Cartes cadeaux du client */}
             {clientGiftCards.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Award className="h-4 w-4" /> Cartes cadeaux (
                   {clientGiftCards.length})
                 </h4>
@@ -702,14 +702,14 @@ export default function AdminClientsPage() {
                   {clientGiftCards.slice(0, 5).map((card) => (
                     <div
                       key={card.id}
-                      className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg"
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {card.recipient_name || "Bénéficiaire"} -{" "}
                           {card.amount?.toLocaleString() || 0} FCFA
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           Code {card.code || "—"} •{" "}
                           {card.created_at
                             ? format(new Date(card.created_at), "dd/MM/yyyy")
@@ -722,7 +722,7 @@ export default function AdminClientsPage() {
                     </div>
                   ))}
                   {clientGiftCards.length > 5 && (
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       + {clientGiftCards.length - 5} autres
                     </p>
                   )}
@@ -734,7 +734,7 @@ export default function AdminClientsPage() {
               clientTickets.length === 0 &&
               clientTransactions.length === 0 &&
               clientGiftCards.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <p>Aucune activité pour ce client</p>
                 </div>
               )}

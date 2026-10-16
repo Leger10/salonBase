@@ -107,7 +107,7 @@ const renderStars = (rating, size = "h-4 w-4") => {
       {[...Array(emptyStars)].map((_, i) => (
         <Star
           key={`empty-${i}`}
-          className={`${size} text-gray-300 dark:text-gray-600`}
+          className={`${size} text-muted-foreground/50`}
         />
       ))}
     </div>
@@ -124,7 +124,7 @@ const ClientReviewCard = ({ review, index }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
-      className="border-b border-gray-700 last:border-0 py-3 hover:bg-gray-800/50 transition-colors px-2 rounded-lg"
+      className="border-b border-border last:border-0 py-3 hover:bg-muted/50 transition-colors px-2 rounded-lg"
     >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -136,17 +136,17 @@ const ClientReviewCard = ({ review, index }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between flex-wrap gap-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-white">
+              <span className="font-medium text-sm text-foreground">
                 {review.client_name || "Client anonyme"}
               </span>
               {review.client_phone && (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Phone className="h-3 w-3" />
                   {review.client_phone}
                 </span>
               )}
             </div>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {format(new Date(review.created_at), "dd MMM yyyy", {
                 locale: fr,
               })}
@@ -163,7 +163,7 @@ const ClientReviewCard = ({ review, index }) => {
           {review.comment && (
             <div>
               <p
-                className={`text-sm text-gray-300 ${!expanded && "line-clamp-2"}`}
+                className={`text-sm text-muted-foreground ${!expanded && "line-clamp-2"}`}
               >
                 {review.comment}
               </p>
@@ -179,7 +179,7 @@ const ClientReviewCard = ({ review, index }) => {
           )}
 
           {review.service_name && (
-            <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-0.5 rounded-full inline-block mt-1">
+            <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full inline-block mt-1">
               {review.service_name}
             </span>
           )}
@@ -305,33 +305,33 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
     <div className="space-y-4">
       {/* Statistiques - Fond sombre */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-none shadow-sm bg-gradient-to-br from-blue-900/30 to-blue-800/20 text-white">
+        <Card className="border-none shadow-sm bg-gradient-to-br from-blue-900/30 to-blue-800/20 text-foreground">
           <CardContent className="p-4 text-center">
             <Users className="h-5 w-5 text-blue-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
+            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
             <p className="text-xs text-blue-300">Employés actifs</p>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 text-white">
+        <Card className="border-none shadow-sm bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 text-foreground">
           <CardContent className="p-4 text-center">
             <Star className="h-5 w-5 text-yellow-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-foreground">
               {stats.avgRating.toFixed(1)}/5
             </p>
             <p className="text-xs text-yellow-300">Note moyenne</p>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-gradient-to-br from-green-900/30 to-green-800/20 text-white">
+        <Card className="border-none shadow-sm bg-gradient-to-br from-green-900/30 to-green-800/20 text-foreground">
           <CardContent className="p-4 text-center">
             <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold text-white">{stats.totalClients}</p>
+            <p className="text-2xl font-bold text-foreground">{stats.totalClients}</p>
             <p className="text-xs text-green-300">Clients traités & encaissés</p>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 text-white">
+        <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 text-foreground">
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-5 w-5 text-emerald-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-foreground">
               {stats.totalRevenue.toLocaleString()} F
             </p>
             <p className="text-xs text-emerald-300">Chiffre d'affaires</p>
@@ -341,12 +341,12 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
       {/* Filtres de tri */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm text-gray-400">Trier par :</span>
+        <span className="text-sm text-muted-foreground">Trier par :</span>
         <Button
           variant={sortBy === "clients" ? "default" : "outline"}
           size="sm"
           onClick={() => setSortBy("clients")}
-          className={`h-8 text-xs ${sortBy === "clients" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+          className={`h-8 text-xs ${sortBy === "clients" ? "bg-primary text-white" : "border-border text-muted-foreground hover:bg-muted"}`}
         >
           <Users className="h-3 w-3 mr-1" />
           Clients traités
@@ -355,7 +355,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
           variant={sortBy === "revenue" ? "default" : "outline"}
           size="sm"
           onClick={() => setSortBy("revenue")}
-          className={`h-8 text-xs ${sortBy === "revenue" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+          className={`h-8 text-xs ${sortBy === "revenue" ? "bg-primary text-white" : "border-border text-muted-foreground hover:bg-muted"}`}
         >
           <TrendingUp className="h-3 w-3 mr-1" />
           Chiffre d'affaires
@@ -364,7 +364,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
           variant={sortBy === "rating" ? "default" : "outline"}
           size="sm"
           onClick={() => setSortBy("rating")}
-          className={`h-8 text-xs ${sortBy === "rating" ? "bg-primary text-white" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+          className={`h-8 text-xs ${sortBy === "rating" ? "bg-primary text-white" : "border-border text-muted-foreground hover:bg-muted"}`}
         >
           <Star className="h-3 w-3 mr-1" />
           Note
@@ -373,7 +373,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
           variant="ghost"
           size="sm"
           onClick={onRefresh}
-          className="h-8 text-xs text-gray-400 hover:text-white hover:bg-gray-800 ml-auto"
+          className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-muted ml-auto"
         >
           <RefreshCw className="h-3 w-3 mr-1" />
           Actualiser
@@ -382,9 +382,9 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
       {/* Liste des employés classés */}
       {rankedEmployees.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700">
-          <Users className="h-12 w-12 text-gray-500 mx-auto mb-2" />
-          <p className="text-gray-400">Aucun employé actif</p>
+        <div className="text-center py-12 bg-muted/50 rounded-xl border border-border">
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+          <p className="text-muted-foreground">Aucun employé actif</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -398,7 +398,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
               if (index === 0)
                 return <Crown className="h-5 w-5 text-yellow-400" />;
               if (index === 1)
-                return <Medal className="h-5 w-5 text-gray-300" />;
+                return <Medal className="h-5 w-5 text-muted-foreground" />;
               if (index === 2)
                 return <Medal className="h-5 w-5 text-amber-400" />;
               return null;
@@ -406,15 +406,15 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
             const getRankBg = () => {
               if (index === 0) return "border-yellow-500/30 bg-yellow-950/30";
-              if (index === 1) return "border-gray-500/30 bg-gray-800/50";
+              if (index === 1) return "border-border bg-muted/50";
               if (index === 2) return "border-amber-500/30 bg-amber-950/30";
-              return "border-gray-700 bg-gray-800/30";
+              return "border-border bg-muted/30";
             };
 
             return (
               <Card
                 key={employee.id}
-                className={`border ${getRankBg()} hover:shadow-lg hover:shadow-primary/5 transition-all text-white`}
+                className={`border ${getRankBg()} hover:shadow-lg hover:shadow-primary/5 transition-all text-foreground`}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
@@ -423,7 +423,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                         isTop3
                           ? "bg-primary text-white"
-                          : "bg-gray-700 text-gray-400"
+                          : "bg-muted text-muted-foreground"
                       }`}
                     >
                       #{index + 1}
@@ -438,7 +438,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-white">
+                        <span className="font-semibold text-foreground">
                           {employee.name}
                         </span>
                         {isTop3 && getMedal()}
@@ -450,7 +450,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
                         {employee.position && (
                           <Badge
                             variant="outline"
-                            className="border-gray-600 text-gray-300 text-[10px]"
+                            className="border-border text-muted-foreground text-[10px]"
                           >
                             {employee.position}
                           </Badge>
@@ -481,7 +481,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleExpand(employee.id)}
-                      className="flex-shrink-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                      className="flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                     >
                       {isExpanded ? (
                         <ChevronUp className="h-4 w-4" />
@@ -493,9 +493,9 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
                   {/* Avis développés */}
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-gray-700">
+                    <div className="mt-4 pt-4 border-t border-border">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-sm flex items-center gap-2 text-gray-300">
+                        <h4 className="font-medium text-sm flex items-center gap-2 text-muted-foreground">
                           <MessageCircle className="h-4 w-4 text-primary" />
                           Avis clients ({reviews.length})
                         </h4>
@@ -528,13 +528,13 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
                             />
                           ))}
                           {reviews.length > 5 && (
-                            <p className="text-xs text-center text-gray-500 pt-2">
+                            <p className="text-xs text-center text-muted-foreground pt-2">
                               + {reviews.length - 5} autres avis
                             </p>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">
+                        <p className="text-sm text-muted-foreground text-center py-4">
                           Aucun avis pour le moment
                         </p>
                       )}
@@ -549,20 +549,20 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
 
       {/* Modal des avis détaillés - Fond sombre */}
       <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-gray-900 border-gray-700 text-white">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-card border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
               <MessageCircle className="h-5 w-5 text-primary" />
               Avis pour {selectedEmployeeName}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-muted-foreground">
               {selectedReviews.length} avis clients
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-4">
             {selectedReviews.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
+              <p className="text-center text-muted-foreground py-8">
                 Aucun avis pour le moment
               </p>
             ) : (
@@ -575,7 +575,7 @@ const EmployeeRanking = ({ employees, tenantId, onRefresh }) => {
           <DialogFooter>
             <Button
               variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-border text-muted-foreground hover:bg-muted"
               onClick={() => setIsReviewModalOpen(false)}
             >
               Fermer
@@ -1221,7 +1221,7 @@ export default function TeamManagement() {
     const variants = {
       admin: { className: "bg-purple-100 text-purple-800", label: "Admin" },
       manager: { className: "bg-blue-100 text-blue-800", label: "Manager" },
-      employee: { className: "bg-gray-100 text-gray-800", label: "Employé" },
+      employee: { className: "bg-muted text-foreground", label: "Employé" },
     };
     const variant = variants[role] || variants.employee;
     return <Badge className={variant.className}>{variant.label}</Badge>;
@@ -1236,7 +1236,7 @@ export default function TeamManagement() {
       );
     }
     return (
-      <Badge className="bg-gray-100 text-gray-800 gap-1">
+      <Badge className="bg-muted text-foreground gap-1">
         <XCircle className="h-3 w-3" /> Inactif
       </Badge>
     );
@@ -1258,7 +1258,7 @@ export default function TeamManagement() {
                 <CheckCircle className="h-3 w-3 mr-1" />
                 {stats.active} actifs
               </Badge>
-              <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+              <Badge className="bg-muted text-muted-foreground border-border">
                 <XCircle className="h-3 w-3 mr-1" />
                 {stats.inactive} inactifs
               </Badge>
@@ -1328,7 +1328,7 @@ export default function TeamManagement() {
                 Actifs ({stats.active})
               </TabsTrigger>
               <TabsTrigger value="inactive" className="gap-2">
-                <XCircle className="h-3 w-3 text-gray-400" />
+                <XCircle className="h-3 w-3 text-muted-foreground" />
                 Inactifs ({stats.inactive})
               </TabsTrigger>
               <TabsTrigger value="cashier" className="gap-2">

@@ -503,7 +503,7 @@ export default function AdminAppointmentsPage() {
       pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
       in_progress: "bg-purple-100 text-purple-800 border-purple-200",
       no_show: "bg-gray-100 text-gray-800 border-gray-200",
-      archived: "bg-gray-100 text-gray-500 border-gray-200",
+      archived: "bg-muted text-muted-foreground border-border",
     };
     return (
       <Badge className={variants[status] || "bg-gray-100 text-gray-800"}>
@@ -938,7 +938,7 @@ export default function AdminAppointmentsPage() {
   // ✅ Dialogue de confirmation de réinitialisation
   const ResetConfirmationDialog = () => (
     <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-      <DialogContent className="sm:max-w-md bg-black border border-gray-700 text-white">
+      <DialogContent className="sm:max-w-md bg-card border border-border text-foreground">
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${resetType === "full" ? "text-red-400" : "text-amber-400"}`}>
             {resetType === "full" ? (
@@ -953,7 +953,7 @@ export default function AdminAppointmentsPage() {
               </>
             )}
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             {resetType === "full" 
               ? "Cette action est irréversible. Tous les rendez-vous du jour seront archivés."
               : "Les nouveaux rendez-vous commenceront à #01."
@@ -1001,11 +1001,11 @@ export default function AdminAppointmentsPage() {
             </div>
           )}
           
-          <div className="flex gap-3 justify-end pt-2 border-t border-gray-800 mt-2">
+          <div className="flex gap-3 justify-end pt-2 border-t border-border mt-2">
             <Button 
               variant="outline" 
               onClick={() => setResetDialogOpen(false)}
-              className="px-6 border-gray-600 text-gray-300 hover:bg-gray-800"
+              className="px-6 border-border text-foreground hover:bg-muted"
             >
               Annuler
             </Button>
@@ -1118,7 +1118,7 @@ export default function AdminAppointmentsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => exportAppointmentsByStatus("all")}>
-                <FileText className="h-4 w-4 mr-2 text-gray-500" />
+                <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                 Tous ({statusCounts.all})
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAppointmentsByStatus("pending")}>
@@ -1142,7 +1142,7 @@ export default function AdminAppointmentsPage() {
                 Annulés ({statusCounts.cancelled})
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportAppointmentsByStatus("archived")}>
-                <Archive className="h-4 w-4 mr-2 text-gray-500" />
+                <Archive className="h-4 w-4 mr-2 text-muted-foreground" />
                 Archivés ({statusCounts.archived})
               </DropdownMenuItem>
             </DropdownMenuContent>

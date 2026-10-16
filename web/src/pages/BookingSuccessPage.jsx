@@ -246,24 +246,24 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
 
   const getStatusConfig = (status) => {
     const config = {
-      pending: { label: "En attente", className: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: "⏳" },
-      confirmed: { label: "Confirmé", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon: "✅" },
-      in_progress: { label: "En cours", className: "bg-blue-500/20 text-blue-300 border-blue-500/30", icon: "💇" },
-      completed: { label: "Terminé", className: "bg-green-500/20 text-green-300 border-green-500/30", icon: "🎉" },
-      cancelled: { label: "Annulé", className: "bg-red-500/20 text-red-300 border-red-500/30", icon: "❌" },
-      no_show: { label: "Non présent", className: "bg-gray-500/20 text-gray-300 border-gray-500/30", icon: "🚫" },
+      pending: { label: "En attente", className: "bg-amber-100 text-amber-800 border-amber-500/30", icon: "⏳" },
+      confirmed: { label: "Confirmé", className: "bg-emerald-100 text-emerald-800 border-emerald-500/30", icon: "✅" },
+      in_progress: { label: "En cours", className: "bg-blue-100 text-blue-800 border-blue-500/30", icon: "💇" },
+      completed: { label: "Terminé", className: "bg-green-100 text-green-800 border-green-500/30", icon: "🎉" },
+      cancelled: { label: "Annulé", className: "bg-red-100 text-red-700 border-red-500/30", icon: "❌" },
+      no_show: { label: "Non présent", className: "bg-muted text-foreground border-gray-500/30", icon: "🚫" },
     };
     return config[status] || config.pending;
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: "border-amber-500/30 bg-amber-950/30",
-      confirmed: "border-emerald-500/30 bg-emerald-950/30",
-      in_progress: "border-blue-500/30 bg-blue-950/30",
-      completed: "border-green-500/30 bg-green-950/30",
-      cancelled: "border-red-500/30 bg-red-950/30",
-      no_show: "border-gray-500/30 bg-gray-800/30",
+      pending: "border-amber-500/30 bg-amber-50 dark:bg-amber-950/30",
+      confirmed: "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30",
+      in_progress: "border-blue-500/30 bg-blue-50 dark:bg-blue-950/30",
+      completed: "border-green-500/30 bg-green-50 dark:bg-green-950/30",
+      cancelled: "border-red-500/30 bg-red-50 dark:bg-red-950/30",
+      no_show: "border-gray-500/30 bg-muted dark:bg-gray-800/30",
     };
     return colors[status] || colors.pending;
   };
@@ -280,9 +280,9 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[90vh] overflow-y-auto bg-black border border-gray-700 text-white p-6">
-        <DialogHeader className="border-b border-gray-700 pb-4">
-          <DialogTitle className="flex items-center gap-3 text-2xl text-white">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[90vh] overflow-y-auto bg-card border border-border text-foreground p-6">
+        <DialogHeader className="border-b border-border pb-4">
+          <DialogTitle className="flex items-center gap-3 text-2xl text-foreground">
             <div className="p-2 rounded-xl bg-primary/20">
               <Calendar className="h-6 w-6 text-primary" />
             </div>
@@ -295,7 +295,7 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription className="text-sm text-gray-400 flex items-center gap-2 mt-1">
+          <DialogDescription className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
             {isAuthenticated 
               ? `👤 ${currentUser?.profile?.full_name}`
               : "Entrez votre email ou nom pour voir vos rendez-vous"}
@@ -310,13 +310,13 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
                 <select
                   value={searchMode}
                   onChange={(e) => setSearchMode(e.target.value)}
-                  className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="email">Par email</option>
                   <option value="name">Par nom</option>
                 </select>
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={searchMode === "email" ? "Entrez votre email" : "Entrez votre nom"}
                     value={searchMode === "email" ? clientEmail : clientName}
@@ -333,19 +333,19 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSearch();
                     }}
-                    className="pl-10 bg-gray-900 border-gray-700 flex-1 text-white placeholder:text-gray-400"
+                    className="pl-10 bg-card border-border flex-1 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <Button onClick={handleSearch} className="gap-2 bg-primary hover:bg-primary/90 text-white">
                   <Search className="h-4 w-4" />
                   Chercher
                 </Button>
-                <Button onClick={handleReset} variant="outline" className="gap-2 border-gray-700 text-gray-300 hover:bg-gray-800">
+                <Button onClick={handleReset} variant="outline" className="gap-2 border-border text-foreground hover:bg-muted">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
               {hasSearched && displayAppointments.length === 0 && (
-                <p className="text-sm text-gray-400 text-center">Aucun rendez-vous trouvé</p>
+                <p className="text-sm text-muted-foreground text-center">Aucun rendez-vous trouvé</p>
               )}
             </div>
           )}
@@ -354,12 +354,12 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
             <div className="p-4 bg-primary/10 border border-primary/30 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-white">👤 {currentUser?.profile?.full_name}</p>
-                  <p className="text-xs text-gray-400">{currentUser?.profile?.email}</p>
+                  <p className="font-medium text-foreground">👤 {currentUser?.profile?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{currentUser?.profile?.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">✅ Connecté</Badge>
-                  <Button variant="ghost" size="sm" className="text-xs text-primary h-7 px-2 hover:bg-gray-800" onClick={() => {
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-500/30">✅ Connecté</Badge>
+                  <Button variant="ghost" size="sm" className="text-xs text-primary h-7 px-2 hover:bg-muted" onClick={() => {
                     if (currentUser?.profile?.email) fetchAppointmentsByEmail(currentUser.profile.email);
                   }}>
                     <RefreshCw className="h-3 w-3 mr-1" /> Rafraîchir
@@ -371,17 +371,17 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
 
           {/* ✅ Filtres par statut */}
           {appointments.length > 0 && (
-            <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-700">
+            <div className="flex flex-wrap gap-2 pb-2 border-b border-border">
               <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" className="text-xs" onClick={() => setStatusFilter("all")}>
                 Tous ({appointments.length})
               </Button>
-              <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" className="text-xs border-amber-500/30 text-amber-300 hover:bg-amber-950/30" onClick={() => setStatusFilter("pending")}>
+              <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" className="text-xs border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30" onClick={() => setStatusFilter("pending")}>
                 ⏳ En attente ({appointments.filter(a => a.status === "pending").length})
               </Button>
-              <Button variant={statusFilter === "confirmed" ? "default" : "outline"} size="sm" className="text-xs border-emerald-500/30 text-emerald-300 hover:bg-emerald-950/30" onClick={() => setStatusFilter("confirmed")}>
+              <Button variant={statusFilter === "confirmed" ? "default" : "outline"} size="sm" className="text-xs border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" onClick={() => setStatusFilter("confirmed")}>
                 ✅ Confirmés ({appointments.filter(a => a.status === "confirmed").length})
               </Button>
-              <Button variant={statusFilter === "completed" ? "default" : "outline"} size="sm" className="text-xs border-green-500/30 text-green-300 hover:bg-green-950/30" onClick={() => setStatusFilter("completed")}>
+              <Button variant={statusFilter === "completed" ? "default" : "outline"} size="sm" className="text-xs border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/30" onClick={() => setStatusFilter("completed")}>
                 🎉 Terminés ({appointments.filter(a => a.status === "completed").length})
               </Button>
             </div>
@@ -392,20 +392,20 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
             <div className="flex justify-center py-16">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-sm text-gray-400">Chargement de vos rendez-vous...</p>
+                <p className="text-sm text-muted-foreground">Chargement de vos rendez-vous...</p>
               </div>
             </div>
           ) : displayAppointments.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="h-12 w-12 text-gray-500" />
+              <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-12 w-12 text-muted-foreground" />
               </div>
-              <p className="text-lg font-medium text-white">{hasSearched ? "Aucun rendez-vous trouvé" : "Aucun rendez-vous"}</p>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-lg font-medium text-foreground">{hasSearched ? "Aucun rendez-vous trouvé" : "Aucun rendez-vous"}</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 {isAuthenticated ? "Vous n'avez pas encore de rendez-vous" : "Entrez votre email ou nom pour voir vos rendez-vous"}
               </p>
               {!isAuthenticated && !hasSearched && (
-                <p className="text-xs text-gray-500 mt-2">💡 Utilisez l'email ou le nom utilisé lors de la réservation</p>
+                <p className="text-xs text-muted-foreground mt-2">💡 Utilisez l'email ou le nom utilisé lors de la réservation</p>
               )}
               <Button asChild className="w-full gap-2 mt-4">
                 <Link to={`/booking/tenant/${tenantId || "tenant"}`}>
@@ -444,7 +444,7 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
                             <Calendar className="h-6 w-6 text-primary" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-400">Rendez-vous</p>
+                            <p className="text-xs text-muted-foreground">Rendez-vous</p>
                             <p className="font-mono font-bold text-lg text-primary">
                               #{bookingNumber}
                             </p>
@@ -457,30 +457,30 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
 
                       <div className="space-y-2">
                         <div>
-                          <p className="font-bold text-lg text-white">{appointment.service?.name || "Service"}</p>
-                          <p className="text-sm text-gray-400">{tenantName || appointment.tenant?.name || "Salon"}</p>
+                          <p className="font-bold text-lg text-foreground">{appointment.service?.name || "Service"}</p>
+                          <p className="text-sm text-muted-foreground">{tenantName || appointment.tenant?.name || "Salon"}</p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3 text-sm">
-                          <span className="flex items-center gap-1 text-gray-300">
+                          <span className="flex items-center gap-1 text-foreground">
                             <Calendar className="h-4 w-4 text-primary" />
                             {formatDate(appointment.appointment_date)}
                           </span>
                           {/* ✅ Afficher l'heure depuis start_time */}
-                          <span className="flex items-center gap-1 text-gray-300">
+                          <span className="flex items-center gap-1 text-foreground">
                             <Clock className="h-4 w-4 text-primary" />
                             {appointmentTime || "Horaire non défini"}
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {appointment.employee?.profile?.full_name && (
-                            <span className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full">
                               <User className="h-3 w-3" /> {appointment.employee.profile.full_name}
                             </span>
                           )}
                           {appointment.service?.duration && (
-                            <span className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full">
                               <Clock className="h-3 w-3" /> {appointment.service.duration} min
                             </span>
                           )}
@@ -491,13 +491,13 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
                           )}
                           {isToday && <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Aujourd'hui</Badge>}
                           {isPast && appointment.status !== "completed" && (
-                            <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30 text-[10px]">Passé</Badge>
+                            <Badge className="bg-muted text-muted-foreground border-gray-500/30 text-[10px]">Passé</Badge>
                           )}
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-gray-700/50">
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                      <div className="pt-2 border-t border-border/50">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><User className="h-3 w-3" /> {appointment.client_name || "Client"}</span>
                           {appointment.client_email && (
                             <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {appointment.client_email}</span>
@@ -510,7 +510,7 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
 
                       <div className="flex gap-2 mt-2">
                         {appointment.status === "pending" && (
-                          <Button size="sm" variant="outline" className="flex-1 text-xs border-gray-700 text-gray-300 hover:bg-gray-800" onClick={() => toast.info("Fonctionnalité à venir")}>
+                          <Button size="sm" variant="outline" className="flex-1 text-xs border-border text-foreground hover:bg-muted" onClick={() => toast.info("Fonctionnalité à venir")}>
                             Annuler
                           </Button>
                         )}
@@ -528,18 +528,18 @@ const MyAppointmentsModal = ({ isOpen, onClose, tenantId, tenantName, initialEma
           )}
         </div>
 
-        <div className="border-t border-gray-700 pt-4 mt-2">
-          <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="border-t border-border pt-4 mt-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               Total: {displayAppointments.length} rendez-vous
               {appointments.length !== displayAppointments.length && appointments.length > 0 && ` (sur ${appointments.length})`}
               {statusFilter !== "all" && ` - Filtré: ${statusFilter}`}
             </span>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-gray-400 hover:text-white hover:bg-gray-800">
+              <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted">
                 <RefreshCw className="h-3 w-3 mr-1" /> Réinitialiser
               </Button>
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-400 hover:text-white hover:bg-gray-800">
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground hover:bg-muted">
                 Fermer
               </Button>
             </div>

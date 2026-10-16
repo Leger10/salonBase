@@ -154,7 +154,7 @@ export default function SuperAdminSettingsPage() {
               </span>
             </div>
             <button onClick={() => setNotification(null)}>
-              <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+              <X className="w-5 h-5 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
         )}
@@ -162,8 +162,8 @@ export default function SuperAdminSettingsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Paramètres</h1>
-            <p className="text-gray-600 mt-1">Configuration globale de la plateforme</p>
+            <h1 className="text-3xl font-bold text-foreground">Paramètres</h1>
+            <p className="text-muted-foreground mt-1">Configuration globale de la plateforme</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -191,16 +191,16 @@ export default function SuperAdminSettingsPage() {
         {/* Settings Tabs */}
         <div className="space-y-6">
           {/* General Settings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-6 border-b border-border flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-lg">
                 <Globe className="w-5 h-5 text-blue-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Général</h2>
+              <h2 className="text-lg font-semibold text-foreground">Général</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du site</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Nom du site</label>
                 <input
                   type="text"
                   value={settings.general.siteName}
@@ -208,11 +208,11 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     general: { ...settings.general, siteName: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Email de contact</label>
                 <input
                   type="email"
                   value={settings.general.contactEmail}
@@ -220,11 +220,11 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     general: { ...settings.general, contactEmail: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
                 <textarea
                   value={settings.general.siteDescription}
                   onChange={(e) => setSettings({
@@ -232,18 +232,18 @@ export default function SuperAdminSettingsPage() {
                     general: { ...settings.general, siteDescription: e.target.value }
                   })}
                   rows="2"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fuseau horaire</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Fuseau horaire</label>
                 <select
                   value={settings.general.timezone}
                   onChange={(e) => setSettings({
                     ...settings,
                     general: { ...settings.general, timezone: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="Europe/Paris">Europe/Paris</option>
                   <option value="Europe/London">Europe/London</option>
@@ -252,14 +252,14 @@ export default function SuperAdminSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Langue</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Langue</label>
                 <select
                   value={settings.general.language}
                   onChange={(e) => setSettings({
                     ...settings,
                     general: { ...settings.general, language: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="fr">Français</option>
                   <option value="en">English</option>
@@ -270,18 +270,18 @@ export default function SuperAdminSettingsPage() {
           </div>
 
           {/* Security Settings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-6 border-b border-border flex items-center gap-3">
               <div className="p-2 bg-red-50 rounded-lg">
                 <Shield className="w-5 h-5 text-red-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Sécurité</h2>
+              <h2 className="text-lg font-semibold text-foreground">Sécurité</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">Authentification à deux facteurs</p>
-                  <p className="text-sm text-gray-500">Renforce la sécurité des comptes</p>
+                  <p className="font-medium text-foreground">Authentification à deux facteurs</p>
+                  <p className="text-sm text-muted-foreground">Renforce la sécurité des comptes</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -293,11 +293,11 @@ export default function SuperAdminSettingsPage() {
                     })}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Durée de session (minutes)</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Durée de session (minutes)</label>
                 <input
                   type="number"
                   value={settings.security.sessionTimeout}
@@ -305,18 +305,18 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     security: { ...settings.security, sessionTimeout: parseInt(e.target.value) }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Politique de mot de passe</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Politique de mot de passe</label>
                 <select
                   value={settings.security.passwordPolicy}
                   onChange={(e) => setSettings({
                     ...settings,
                     security: { ...settings.security, passwordPolicy: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="weak">Faible</option>
                   <option value="medium">Moyen</option>
@@ -324,7 +324,7 @@ export default function SuperAdminSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tentatives de connexion max</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Tentatives de connexion max</label>
                 <input
                   type="number"
                   value={settings.security.maxLoginAttempts}
@@ -332,19 +332,19 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     security: { ...settings.security, maxLoginAttempts: parseInt(e.target.value) }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
           </div>
 
           {/* Notification Settings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-6 border-b border-border flex items-center gap-3">
               <div className="p-2 bg-purple-50 rounded-lg">
                 <Bell className="w-5 h-5 text-purple-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+              <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
             </div>
             <div className="p-6 space-y-3">
               {[
@@ -355,7 +355,7 @@ export default function SuperAdminSettingsPage() {
                 { key: 'newTenantAlert', label: 'Alertes nouveaux salons' }
               ].map((item) => (
                 <div key={item.key} className="flex items-center justify-between py-2">
-                  <span className="text-gray-700">{item.label}</span>
+                  <span className="text-muted-foreground">{item.label}</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -366,7 +366,7 @@ export default function SuperAdminSettingsPage() {
                       })}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
               ))}
@@ -374,23 +374,23 @@ export default function SuperAdminSettingsPage() {
           </div>
 
           {/* Billing Settings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-6 border-b border-border flex items-center gap-3">
               <div className="p-2 bg-green-50 rounded-lg">
                 <Database className="w-5 h-5 text-green-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Facturation</h2>
+              <h2 className="text-lg font-semibold text-foreground">Facturation</h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Devise</label>
                 <select
                   value={settings.billing.currency}
                   onChange={(e) => setSettings({
                     ...settings,
                     billing: { ...settings.billing, currency: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="EUR">EUR - Euro</option>
                   <option value="USD">USD - Dollar</option>
@@ -398,7 +398,7 @@ export default function SuperAdminSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Taux de TVA (%)</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Taux de TVA (%)</label>
                 <input
                   type="number"
                   value={settings.billing.taxRate}
@@ -406,18 +406,18 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     billing: { ...settings.billing, taxRate: parseInt(e.target.value) }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Passerelle de paiement</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Passerelle de paiement</label>
                 <select
                   value={settings.billing.paymentGateway}
                   onChange={(e) => setSettings({
                     ...settings,
                     billing: { ...settings.billing, paymentGateway: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="stripe">Stripe</option>
                   <option value="paypal">PayPal</option>
@@ -425,7 +425,7 @@ export default function SuperAdminSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Préfixe facture</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Préfixe facture</label>
                 <input
                   type="text"
                   value={settings.billing.invoicePrefix}
@@ -433,7 +433,7 @@ export default function SuperAdminSettingsPage() {
                     ...settings,
                     billing: { ...settings.billing, invoicePrefix: e.target.value }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>

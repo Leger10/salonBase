@@ -157,7 +157,7 @@ export default function SuperAdminUsersPage() {
               </span>
             </div>
             <button onClick={() => setNotification(null)}>
-              <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+              <X className="w-5 h-5 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
         )}
@@ -165,12 +165,12 @@ export default function SuperAdminUsersPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
-            <p className="text-gray-600 mt-1">Gérez tous les utilisateurs de la plateforme</p>
+            <h1 className="text-2xl font-bold text-foreground">Gestion des Utilisateurs</h1>
+            <p className="text-muted-foreground mt-1">Gérez tous les utilisateurs de la plateforme</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Rechercher..."
@@ -179,7 +179,7 @@ export default function SuperAdminUsersPage() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                className="pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
               />
             </div>
             <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
@@ -196,40 +196,40 @@ export default function SuperAdminUsersPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-card rounded-lg shadow overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inscrit le</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utilisateur</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rôle</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Inscrit le</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-gray-200">
                     {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={user.id} className="hover:bg-muted transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              <User className="w-5 h-5 text-gray-600" />
+                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                              <User className="w-5 h-5 text-muted-foreground" />
                             </div>
-                            <span className="font-medium text-gray-900">{user.full_name || 'N/A'}</span>
+                            <span className="font-medium text-foreground">{user.full_name || 'N/A'}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">{user.email}</span>
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">{user.email}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">{formatDate(user.created_at)}</span>
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">{formatDate(user.created_at)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -263,21 +263,21 @@ export default function SuperAdminUsersPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Page {currentPage} sur {totalPages}
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -290,38 +290,38 @@ export default function SuperAdminUsersPage() {
         {/* Edit Modal */}
         {showEditModal && editingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="bg-card rounded-lg p-6 max-w-md w-full">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Modifier l'utilisateur</h2>
                 <button onClick={() => setShowEditModal(false)}>
-                  <X className="w-6 h-6 text-gray-500 hover:text-gray-700" />
+                  <X className="w-6 h-6 text-muted-foreground hover:text-foreground" />
                 </button>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Nom complet</label>
                   <input
                     type="text"
                     value={editingUser.full_name || ''}
                     onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Email</label>
                   <input
                     type="email"
                     value={editingUser.email}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-muted"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Rôle</label>
                   <select
                     value={editingUser.role || 'user'}
                     onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="user">Utilisateur</option>
                     <option value="admin">Admin</option>
@@ -332,7 +332,7 @@ export default function SuperAdminUsersPage() {
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-border rounded-lg hover:bg-muted"
                 >
                   Annuler
                 </button>
@@ -350,21 +350,21 @@ export default function SuperAdminUsersPage() {
         {/* Delete Modal */}
         {showDeleteModal && selectedUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="bg-card rounded-lg p-6 max-w-md w-full">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-red-600">Confirmer la suppression</h2>
                 <button onClick={() => setShowDeleteModal(false)}>
-                  <X className="w-6 h-6 text-gray-500 hover:text-gray-700" />
+                  <X className="w-6 h-6 text-muted-foreground hover:text-foreground" />
                 </button>
               </div>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Êtes-vous sûr de vouloir supprimer l'utilisateur <span className="font-semibold">{selectedUser.full_name}</span> ?
                 Cette action est irréversible.
               </p>
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-border rounded-lg hover:bg-muted"
                 >
                   Annuler
                 </button>

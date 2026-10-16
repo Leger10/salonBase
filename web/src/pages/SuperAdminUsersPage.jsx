@@ -322,7 +322,7 @@ export default function SuperAdminUsersPage() {
               </span>
             </div>
             <button onClick={() => setNotification(null)}>
-              <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+              <X className="w-5 h-5 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
         )}
@@ -330,19 +330,19 @@ export default function SuperAdminUsersPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
-            <p className="text-gray-600 mt-1">Gérez tous les utilisateurs et leurs rôles</p>
+            <h1 className="text-2xl font-bold text-foreground">Gestion des Utilisateurs</h1>
+            <p className="text-muted-foreground mt-1">Gérez tous les utilisateurs et leurs rôles</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => fetchUsers()}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="p-2 border border-border rounded-lg hover:bg-muted transition-colors"
               title="Actualiser"
             >
-              <RefreshCw className="w-5 h-5 text-gray-600" />
+              <RefreshCw className="w-5 h-5 text-muted-foreground" />
             </button>
             <div className="relative">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Rechercher..."
@@ -351,7 +351,7 @@ export default function SuperAdminUsersPage() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                className="pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary w-64"
               />
             </div>
           </div>
@@ -363,7 +363,7 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-2xl font-bold">{stats.total}</p>
                 </div>
                 <User className="w-8 h-8 text-primary opacity-50" />
@@ -374,7 +374,7 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Actifs</p>
+                  <p className="text-sm text-muted-foreground">Actifs</p>
                   <p className="text-2xl font-bold text-green-600">{stats.active}</p>
                 </div>
                 <UserCheck className="w-8 h-8 text-green-500 opacity-50" />
@@ -385,7 +385,7 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Inactifs</p>
+                  <p className="text-sm text-muted-foreground">Inactifs</p>
                   <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
                 </div>
                 <UserX className="w-8 h-8 text-red-500 opacity-50" />
@@ -396,7 +396,7 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Admins</p>
+                  <p className="text-sm text-muted-foreground">Admins</p>
                   <p className="text-2xl font-bold text-purple-600">{stats.admins}</p>
                 </div>
                 <Shield className="w-8 h-8 text-purple-500 opacity-50" />
@@ -407,7 +407,7 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Employés</p>
+                  <p className="text-sm text-muted-foreground">Employés</p>
                   <p className="text-2xl font-bold text-blue-600">{stats.employees}</p>
                 </div>
                 <User className="w-8 h-8 text-blue-500 opacity-50" />
@@ -418,10 +418,10 @@ export default function SuperAdminUsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Clients</p>
-                  <p className="text-2xl font-bold text-gray-600">{stats.clients}</p>
+                  <p className="text-sm text-muted-foreground">Clients</p>
+                  <p className="text-2xl font-bold text-muted-foreground">{stats.clients}</p>
                 </div>
-                <Users className="w-8 h-8 text-gray-500 opacity-50" />
+                <Users className="w-8 h-8 text-muted-foreground opacity-50" />
               </div>
             </CardContent>
           </Card>
@@ -433,48 +433,48 @@ export default function SuperAdminUsersPage() {
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <div className="bg-card rounded-lg shadow-sm border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-muted border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salon</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Abonnement</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utilisateur</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rôle</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Salon</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Abonnement</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-card divide-y divide-gray-200">
                   {users.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan="7" className="px-6 py-12 text-center text-muted-foreground">
                         <User className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                         <p>Aucun utilisateur trouvé</p>
                       </td>
                     </tr>
                   ) : (
                     users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={user.id} className="hover:bg-muted transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <User className="w-5 h-5 text-primary" />
                             </div>
-                            <span className="font-medium text-gray-900">{user.full_name || 'N/A'}</span>
+                            <span className="font-medium text-foreground">{user.full_name || 'N/A'}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">{user.email}</span>
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">{user.email}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-muted-foreground">
                             {user.tenants?.name || 'Non assigné'}
                           </span>
                           {user.tenants?.trial_ends_at && (
@@ -487,7 +487,7 @@ export default function SuperAdminUsersPage() {
                           {user.tenants?.subscription_status ? (
                             getSubscriptionBadge(user.tenants.subscription_status)
                           ) : (
-                            <span className="text-sm text-gray-400">Aucun</span>
+                            <span className="text-sm text-muted-foreground">Aucun</span>
                           )}
                         </td>
                         <td className="px-6 py-4">{getStatusBadge(user.is_active)}</td>
@@ -549,7 +549,7 @@ export default function SuperAdminUsersPage() {
                                 setSelectedUser(user);
                                 setShowEditModal(true);
                               }}
-                              className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                              className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
                               title="Détails"
                             >
                               <Eye className="w-4 h-4" />
@@ -568,24 +568,24 @@ export default function SuperAdminUsersPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               Affichage de {users.length} utilisateurs sur {totalUsers}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="px-4 py-2 text-sm text-gray-600">
+              <span className="px-4 py-2 text-sm text-muted-foreground">
                 Page {currentPage} sur {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -767,7 +767,7 @@ export default function SuperAdminUsersPage() {
                     {selectedUser.tenants?.subscription_status ? (
                       getSubscriptionBadge(selectedUser.tenants.subscription_status)
                     ) : (
-                      <span className="text-sm text-gray-400">Aucun</span>
+                      <span className="text-sm text-muted-foreground">Aucun</span>
                     )}
                   </div>
                 </div>

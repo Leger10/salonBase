@@ -132,20 +132,39 @@ export default function GiftCardPublic() {
     setShowSuccess(false);
   };
 
-  useEffect(() => { if (slug) { fetchTenant(); fetchMyGiftCards(); } }, [slug]);
+  useEffect(() => { if (slug) fetchTenant(); }, [slug]);
+
+  // L'historique ne peut se charger qu'une fois le salon connu.
+  useEffect(() => { if (tenant?.id) fetchMyGiftCards(); }, [tenant?.id]);
 
   const fetchMyGiftCards = async () => {
     if (!tenant?.id) return;
     setLoadingHistory(true);
     try {
-      let phone = formData.recipient_phone || localStorage.getItem('gift_card_phone') || (isAuthenticated && currentUser?.profile?.phone);
-      if (!phone) { setMyGiftCards([]); setLoadingHistory(false); return; }
-      const cleanPhone = phone.replace(/\s/g, '').replace(/-/g, '');
+      // Un client retrouve les cartes qu'il a recues (destinataire) ET celles
+      // qu'il a commandees (expediteur) : on interroge les deux colonnes.
+      const phones = [
+        formData.recipient_phone,
+        localStorage.getItem('gift_card_phone'),
+        localStorage.getItem('gift_card_sender_phone'),
+        isAuthenticated ? currentUser?.profile?.phone : null,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).replace(/\s/g, '').replace(/-/g, ''))
+        .filter((value) => value.length > 0);
+      const uniquePhones = [...new Set(phones)];
+
+      if (uniquePhones.length === 0) { setMyGiftCards([]); setLoadingHistory(false); return; }
+
+      const orExpression = uniquePhones
+        .map((phone) => `recipient_phone.eq."${phone}",sender_phone.eq."${phone}"`)
+        .join(',');
+
       const { data, error } = await supabase
         .from("gift_cards")
         .select("*")
         .eq("tenant_id", tenant.id)
-        .eq("recipient_phone", cleanPhone)
+        .or(orExpression)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setMyGiftCards(data || []);
@@ -226,6 +245,7 @@ export default function GiftCardPublic() {
 
       if (error) throw error;
       localStorage.setItem('gift_card_phone', cleanRecipientPhone);
+      localStorage.setItem('gift_card_sender_phone', cleanSenderPhone);
       setCreatedGiftCard(giftCard);
       setShowSuccess(true);
       toast.success("🎉 Carte cadeau créée ! En attente de validation par l'admin.");
@@ -582,6 +602,9 @@ export default function GiftCardPublic() {
               <CardContent className="p-4 sm:p-6 text-center">
                 <Gift className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground/30 mx-auto" />
                 <p className="text-xs sm:text-sm text-muted-foreground">Aucune carte trouvée</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground/80 mt-1">
+                  Saisissez le numéro utilisé pour la commande puis « Actualiser ».
+                </p>
               </CardContent>
             </Card>
           ) : (

@@ -557,7 +557,7 @@ export default function EmployeeTicketQueuePage() {
                       )}
 
                       {ticket.status === 'waiting' && (myActiveTicket || ticket.assigned_employee_id) && (
-                        <Badge className="bg-gray-100 text-gray-500">
+                        <Badge className="bg-muted text-muted-foreground">
                           {ticket.assigned_employee_id === employee?.id ? 'En cours...' : 'Assigné à un autre'}
                         </Badge>
                       )}

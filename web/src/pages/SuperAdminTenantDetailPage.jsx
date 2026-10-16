@@ -67,14 +67,14 @@ export default function SuperAdminTenantDetailPage() {
       <div className="p-6">
         <button
           onClick={() => navigate('/super-admin/tenants')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           Retour
         </button>
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-card rounded-lg shadow">
+          <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-100 rounded-lg">
@@ -82,7 +82,7 @@ export default function SuperAdminTenantDetailPage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold">{tenant.name}</h1>
-                  <p className="text-gray-600">ID: {tenant.id}</p>
+                  <p className="text-muted-foreground">ID: {tenant.id}</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -106,31 +106,31 @@ export default function SuperAdminTenantDetailPage() {
 
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Informations Générales</h3>
+              <h3 className="font-semibold text-foreground mb-4">Informations Générales</h3>
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="w-4 h-4" />
                   <span>{tenant.email || 'N/A'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="w-4 h-4" />
                   <span>Admin: {tenant.admin_name || 'N/A'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="w-4 h-4" />
                   <span>Créé le: {new Date(tenant.created_at).toLocaleDateString('fr-FR')}</span>
                 </div>
               </div>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Statistiques</h3>
+              <h3 className="font-semibold text-foreground mb-4">Statistiques</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Utilisateurs</p>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Utilisateurs</p>
                   <p className="text-2xl font-bold">0</p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Abonnements</p>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Abonnements</p>
                   <p className="text-2xl font-bold">0</p>
                 </div>
               </div>

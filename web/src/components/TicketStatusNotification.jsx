@@ -60,9 +60,9 @@ export function TicketStatusNotification({ ticket, onClose }) {
       cancelled: {
         icon: X,
         color: 'bg-gray-500',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-300',
-        textColor: 'text-gray-700',
+        bgColor: 'bg-muted',
+        borderColor: 'border-border',
+        textColor: 'text-muted-foreground',
         title: '❌ Ticket annulé',
         message: 'Votre ticket a été annulé',
         emoji: '❌'
@@ -426,7 +426,7 @@ export function TicketStatusTrackerWithNotifications({ tenantId, currentUser, is
             ? 'border-purple-400 shadow-lg shadow-purple-100/50'
             : myTicket.status === 'completed'
             ? 'border-green-400 shadow-lg shadow-green-100/50'
-            : 'border-gray-200'
+            : 'border-border'
         }`}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">

@@ -604,7 +604,7 @@ export default function SuperAdminUsers() {
               <Input
                 value={selectedUser?.email || ''}
                 disabled
-                className="bg-gray-50"
+                className="bg-muted"
               />
               <p className="text-xs text-muted-foreground mt-1">L'email ne peut pas être modifié</p>
             </div>
@@ -1034,7 +1034,7 @@ export default function SuperAdminUsers() {
               <thead className="bg-muted/50 border-b">
                 <tr className="text-left text-sm text-muted-foreground">
                   <th className="px-4 py-3">
-                    <input type="checkbox" checked={selectedUsers.length === users.length && users.length > 0} onChange={toggleSelectAll} className="rounded border-gray-300" />
+                    <input type="checkbox" checked={selectedUsers.length === users.length && users.length > 0} onChange={toggleSelectAll} className="rounded border-border" />
                   </th>
                   <th className="px-4 py-3 font-medium">Utilisateur</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
@@ -1057,7 +1057,7 @@ export default function SuperAdminUsers() {
                     return (
                       <tr key={user.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
-                          <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleSelectUser(user.id)} className="rounded border-gray-300" />
+                          <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleSelectUser(user.id)} className="rounded border-border" />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">

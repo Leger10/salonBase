@@ -418,10 +418,10 @@ export default function AdminPlanningsPage() {
 
   const getStatusBadge = (status) => {
     const colors = {
-      draft: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+      draft: "bg-gray-500/20 text-muted-foreground border-gray-500/30",
       published: "bg-green-500/20 text-green-400 border-green-500/30",
       scheduled: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      archived: "bg-gray-700/20 text-gray-400 border-gray-700/30",
+      archived: "bg-gray-700/20 text-muted-foreground border-gray-700/30",
     };
 
     return (
@@ -453,7 +453,7 @@ export default function AdminPlanningsPage() {
     if (pub.image_url) {
       return <ImageIcon className="h-4 w-4 text-blue-500" />;
     }
-    return <Megaphone className="h-4 w-4 text-gray-400" />;
+    return <Megaphone className="h-4 w-4 text-muted-foreground" />;
   };
 
   // ============================================
@@ -740,7 +740,7 @@ export default function AdminPlanningsPage() {
                                     handleStatusChange(pub.id, "draft")
                                   }
                                 >
-                                  <FileText className="h-4 w-4 mr-2 text-gray-500" />
+                                  <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                                   Passer en brouillon
                                 </DropdownMenuItem>
                               )}
@@ -750,7 +750,7 @@ export default function AdminPlanningsPage() {
                                     handleStatusChange(pub.id, "archived")
                                   }
                                 >
-                                  <EyeOff className="h-4 w-4 mr-2 text-gray-500" />
+                                  <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
                                   Archiver
                                 </DropdownMenuItem>
                               )}
@@ -1030,7 +1030,7 @@ export default function AdminPlanningsPage() {
                     is_highlighted: e.target.checked,
                   })
                 }
-                className="rounded border-gray-300"
+                className="rounded border-border"
               />
               <Label htmlFor="is_highlighted" className="cursor-pointer flex items-center gap-2">
                 <Star className="h-4 w-4 text-amber-500" />

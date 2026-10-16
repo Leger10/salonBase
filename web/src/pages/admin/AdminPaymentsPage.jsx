@@ -881,15 +881,15 @@ export default function AdminPaymentsPage() {
 
       {/* Modal Détails du paiement */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-black border border-gray-700 text-white">
-          <DialogHeader className="border-b border-gray-700 pb-4">
-            <DialogTitle className="flex items-center gap-3 text-2xl text-white">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border text-foreground">
+          <DialogHeader className="border-b border-border pb-4">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-foreground">
               <div className="p-2 rounded-xl bg-primary/20">
                 <Crown className="h-6 w-6 text-primary" />
               </div>
               <span>Détails de l'abonnement</span>
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-muted-foreground">
               {selectedPayment?.receipt_number || selectedPayment?.id.substring(0, 8).toUpperCase()}
             </DialogDescription>
           </DialogHeader>
@@ -897,15 +897,15 @@ export default function AdminPaymentsPage() {
           {selectedPayment && (
             <div className="space-y-6 py-4">
               {/* Montant et statut */}
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
                 <div>
-                  <p className="text-sm text-gray-400">Montant</p>
+                  <p className="text-sm text-muted-foreground">Montant</p>
                   <p className="text-3xl font-bold text-primary">
                     {selectedPayment.amount?.toLocaleString()} FCFA
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-400">Statut</p>
+                  <p className="text-sm text-muted-foreground">Statut</p>
                   <Badge className={getStatusBadge(selectedPayment.status).className}>
                     {getStatusBadge(selectedPayment.status).label}
                   </Badge>
@@ -915,24 +915,24 @@ export default function AdminPaymentsPage() {
               {/* Détails du plan */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Plan</p>
-                  <p className="font-medium text-white">{selectedPayment.plan_name}</p>
+                  <p className="text-xs text-muted-foreground">Plan</p>
+                  <p className="font-medium text-foreground">{selectedPayment.plan_name}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Durée</p>
-                  <p className="font-medium text-white">{selectedPayment.duration_months} mois</p>
+                  <p className="text-xs text-muted-foreground">Durée</p>
+                  <p className="font-medium text-foreground">{selectedPayment.duration_months} mois</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Date de début</p>
-                  <p className="text-white">
+                  <p className="text-xs text-muted-foreground">Date de début</p>
+                  <p className="text-foreground">
                     {selectedPayment.start_date
                       ? format(new Date(selectedPayment.start_date), "dd MMMM yyyy", { locale: fr })
                       : "N/A"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Date de fin</p>
-                  <p className="text-white">
+                  <p className="text-xs text-muted-foreground">Date de fin</p>
+                  <p className="text-foreground">
                     {selectedPayment.end_date
                       ? format(new Date(selectedPayment.end_date), "dd MMMM yyyy", { locale: fr })
                       : "N/A"}
@@ -942,23 +942,23 @@ export default function AdminPaymentsPage() {
 
               {/* Caractéristiques du plan */}
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4" /> Caractéristiques
                 </h4>
-                <div className="bg-gray-800/30 rounded-lg p-3 grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-300">
+                <div className="bg-muted/30 rounded-lg p-3 grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-foreground">
                     <Users className="h-4 w-4 text-primary" />
                     <span>{selectedPayment.max_employees || 0} employés</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-foreground">
                     <Scissors className="h-4 w-4 text-primary" />
                     <span>{selectedPayment.max_services || 0} services</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-foreground">
                     <Package className="h-4 w-4 text-primary" />
                     <span>{selectedPayment.max_products || 0} produits</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-foreground">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>Support inclus</span>
                   </div>
@@ -967,15 +967,15 @@ export default function AdminPaymentsPage() {
 
               {/* Méthode de paiement */}
               <div className="space-y-1">
-                <p className="text-xs text-gray-500">Méthode de paiement</p>
-                <div className="flex items-center gap-2 text-gray-300">
+                <p className="text-xs text-muted-foreground">Méthode de paiement</p>
+                <div className="flex items-center gap-2 text-foreground">
                   {getMethodIcon(selectedPayment.payment_method)}
                   <span>{getMethodLabel(selectedPayment.payment_method)}</span>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="border-t border-gray-700 pt-4 flex gap-2 flex-wrap">
+              <div className="border-t border-border pt-4 flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   className="gap-2 border-green-600 text-green-400 hover:bg-green-950/30"
@@ -986,7 +986,7 @@ export default function AdminPaymentsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="gap-2 border-gray-600 text-gray-300 hover:bg-gray-800"
+                  className="gap-2 border-border text-foreground hover:bg-muted"
                   onClick={() => window.print()}
                 >
                   <Printer className="h-4 w-4" />

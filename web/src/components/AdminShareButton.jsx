@@ -161,7 +161,7 @@ export default function AdminShareButton({ tenantId, tenantName, tenantSlug }) {
             </Button>
 
             {showQR && (
-              <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-xl shadow-lg border w-full">
+              <div className="flex flex-col items-center gap-3 p-4 bg-card rounded-xl shadow-lg border w-full">
                 <div className="bg-white p-3 rounded-lg">
                   {typeof QRCodeCanvas !== 'undefined' ? (
                     <QRCodeCanvas 
@@ -173,8 +173,8 @@ export default function AdminShareButton({ tenantId, tenantName, tenantSlug }) {
                       fgColor="#000000"
                     />
                   ) : (
-                    <div className="w-[180px] h-[180px] flex items-center justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-                      <p className="text-xs text-gray-500 text-center px-2">
+                    <div className="w-[180px] h-[180px] flex items-center justify-center bg-muted rounded-lg border-2 border-dashed border-border">
+                      <p className="text-xs text-muted-foreground text-center px-2">
                         QR Code non disponible
                         <br />
                         <span className="text-[10px]">Installez qrcode.react</span>
@@ -184,7 +184,7 @@ export default function AdminShareButton({ tenantId, tenantName, tenantSlug }) {
                 </div>
                 {typeof QRCodeCanvas !== 'undefined' && (
                   <div className="text-center">
-                    <p className="text-xs text-gray-500 font-medium">
+                    <p className="text-xs text-muted-foreground font-medium">
                       Scannez ce QR Code pour découvrir {tenantName}
                     </p>
                     <Button

@@ -25,7 +25,7 @@ export default function ServiceCard({
       whileHover={{ y: -6 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className={cn(
-        "group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-md hover:shadow-2xl transition-all duration-300",
+        "group relative overflow-hidden rounded-2xl bg-card shadow-md hover:shadow-2xl transition-all duration-300",
         className
       )}
     >
@@ -53,7 +53,7 @@ export default function ServiceCard({
 
         {/* ✅ Prix en bas à gauche */}
         <div className="absolute bottom-4 left-4">
-          <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl px-3.5 py-2 shadow-lg border border-white/20">
+          <div className="flex items-center gap-1.5 bg-card/95 backdrop-blur-md rounded-xl px-3.5 py-2 shadow-lg border border-white/20">
             <DollarSign className="h-3.5 w-3.5 text-primary" />
             <span className="font-bold text-base md:text-lg">
               {service.price.toLocaleString()} FCFA

@@ -237,7 +237,7 @@ const MonthlyRanking = ({ employeeId, tenantId, selectedMonth }) => {
 
   const getMedal = (index) => {
     if (index === 0) return <Crown className="h-5 w-5 text-yellow-500" />;
-    if (index === 1) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (index === 1) return <Medal className="h-5 w-5 text-muted-foreground" />;
     if (index === 2) return <Medal className="h-5 w-5 text-amber-600" />;
     return null;
   };
@@ -1228,7 +1228,7 @@ export default function EmployeeDashboard() {
             </Button>
           )}
           {ticket.status === 'waiting' && myTicket && (
-            <Badge className="w-full justify-center bg-gray-100 text-gray-500 text-center py-2">
+            <Badge className="w-full justify-center bg-muted text-muted-foreground text-center py-2">
               ⏳ En attente...
             </Badge>
           )}
@@ -1314,7 +1314,7 @@ export default function EmployeeDashboard() {
                   return (
                     <div key={star} className="flex items-center gap-2">
                       <span className="text-xs w-8 text-right">{star}⭐</span>
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-yellow-400 rounded-full transition-all"
                           style={{ width: `${percentage}%` }}

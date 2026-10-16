@@ -537,7 +537,7 @@ export default function AdminSettingsPage() {
     ];
 
     return (
-      <div className="bg-gray-900 text-white rounded-xl p-6">
+      <div className="bg-card text-foreground rounded-xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Colonne 1: Brand */}
           <div>
@@ -549,7 +549,7 @@ export default function AdminSettingsPage() {
               )}
               <span className="text-lg font-bold">{tenant.name || 'BeautyFlow'}</span>
             </div>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               {settings.footer_description || tenant.description || 'Votre salon de beauté et bien-être.'}
             </p>
           </div>
@@ -557,7 +557,7 @@ export default function AdminSettingsPage() {
           {/* Colonne 2: Contact */}
           <div>
             <h4 className="font-semibold mb-3">Contact</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-2 text-sm text-muted-foreground">
               {settings.footer_address && (
                 <li className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -582,7 +582,7 @@ export default function AdminSettingsPage() {
           {/* Colonne 3: Horaires */}
           <div>
             <h4 className="font-semibold mb-3">Horaires</h4>
-            <ul className="space-y-1 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-muted-foreground">
               {days.map(day => {
                 const hours = settings[`footer_hours_${day.key}`];
                 return hours && (
@@ -615,7 +615,7 @@ export default function AdminSettingsPage() {
                 ))}
               </div>
             )}
-            <p className="text-sm text-gray-400 mt-4">
+            <p className="text-sm text-muted-foreground mt-4">
               © {new Date().getFullYear()} {settings.footer_copyright || tenant.name}
             </p>
           </div>

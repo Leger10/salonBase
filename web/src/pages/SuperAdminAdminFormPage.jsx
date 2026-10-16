@@ -68,44 +68,44 @@ export default function SuperAdminAdminFormPage() {
       <div className="p-6">
         <button
           onClick={() => navigate('/super-admin/admins')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           Retour
         </button>
 
-        <div className="bg-white rounded-lg shadow p-6 max-w-2xl">
+        <div className="bg-card rounded-lg shadow p-6 max-w-2xl">
           <h1 className="text-2xl font-bold mb-6">
             {id ? 'Modifier l\'Admin' : 'Nouvel Admin'}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Nom complet *</label>
               <input
                 type="text"
                 required
                 value={formData.full_name || ''}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Email *</label>
               <input
                 type="email"
                 required
                 value={formData.email || ''}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Salon</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Salon</label>
               <select
                 value={formData.tenant_id || ''}
                 onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Aucun</option>
                 {tenants.map(t => (
@@ -117,7 +117,7 @@ export default function SuperAdminAdminFormPage() {
               <button
                 type="button"
                 onClick={() => navigate('/super-admin/admins')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-border rounded-lg hover:bg-muted"
               >
                 Annuler
               </button>

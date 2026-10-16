@@ -126,19 +126,13 @@
     text-wrap: balance;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: hsl(var(--foreground));
   }
 
-  /* ✅ Amélioration de la lisibilité des textes */
+  /* ✅ Lisibilité des textes : on ne force PAS `color` ici, sinon les
+     sous-éléments des surfaces sombres (cartes cadeaux, panneaux, héros)
+     héritent du texte sombre en thème clair et deviennent illisibles. */
   p, li, span, a {
     letter-spacing: -0.01em;
-    color: hsl(var(--foreground));
-  }
-
-  /* ✅ Texte muted plus contrasté */
-  .text-muted-foreground {
-    color: hsl(var(--muted-foreground));
-    opacity: 0.9;
   }
 
   /* ✅ Bordures plus visibles */
@@ -147,9 +141,8 @@
     border-opacity: 0.8;
   }
 
-  /* ✅ Liens plus contrastés */
+  /* ✅ Liens */
   a {
-    color: hsl(var(--foreground));
     text-decoration: none;
   }
 
@@ -157,22 +150,15 @@
     color: hsl(var(--primary));
   }
 
-  /* ✅ Labels et placeholders plus lisibles */
+  /* ✅ Labels plus lisibles */
   label {
-    color: hsl(var(--foreground));
     font-weight: 500;
   }
 
   input::placeholder,
   textarea::placeholder {
     color: hsl(var(--muted-foreground));
-    opacity: 0.7;
-  }
-
-  /* ✅ Amélioration du contraste des sélecteurs */
-  select,
-  .select-value {
-    color: hsl(var(--foreground));
+    opacity: 0.8;
   }
 
   /* ✅ Badges plus contrastés */

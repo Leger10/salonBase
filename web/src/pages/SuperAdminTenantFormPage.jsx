@@ -46,44 +46,44 @@ export default function SuperAdminTenantFormPage() {
       <div className="p-6">
         <button
           onClick={() => navigate('/super-admin/tenants')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           Retour
         </button>
 
-        <div className="bg-white rounded-lg shadow p-6 max-w-2xl">
+        <div className="bg-card rounded-lg shadow p-6 max-w-2xl">
           <h1 className="text-2xl font-bold mb-6">
             {id ? 'Modifier le Salon' : 'Nouveau Salon'}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nom du salon *</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Nom du salon *</label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows="4"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -91,15 +91,15 @@ export default function SuperAdminTenantFormPage() {
                 type="checkbox"
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-border rounded focus:ring-blue-500"
               />
-              <label className="text-sm text-gray-700">Actif</label>
+              <label className="text-sm text-muted-foreground">Actif</label>
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => navigate('/super-admin/tenants')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-border rounded-lg hover:bg-muted"
               >
                 Annuler
               </button>

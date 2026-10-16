@@ -415,14 +415,14 @@ export default function SuperAdminServicesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-gray-200 bg-gray-50/30">
+        <Card className="border-border bg-muted/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Services inactifs</p>
-                <p className="text-2xl font-bold text-gray-700">{countInactive}</p>
+                <p className="text-sm text-muted-foreground">Services inactifs</p>
+                <p className="text-2xl font-bold text-muted-foreground">{countInactive}</p>
               </div>
-              <XCircle className="h-8 w-8 text-gray-400 opacity-60" />
+              <XCircle className="h-8 w-8 text-muted-foreground opacity-60" />
             </div>
           </CardContent>
         </Card>
@@ -479,7 +479,7 @@ export default function SuperAdminServicesPage() {
                 Actifs ({countActive})
               </TabsTrigger>
               <TabsTrigger value="inactive" className="gap-2">
-                <XCircle className="h-3 w-3 text-gray-400" />
+                <XCircle className="h-3 w-3 text-muted-foreground" />
                 Inactifs ({countInactive})
               </TabsTrigger>
             </TabsList>
@@ -702,7 +702,7 @@ export default function SuperAdminServicesPage() {
                 id="edit-is_active"
                 checked={editFormData.is_active}
                 onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
               <Label htmlFor="edit-is_active" className="cursor-pointer">
                 Service actif (visible dans le store)

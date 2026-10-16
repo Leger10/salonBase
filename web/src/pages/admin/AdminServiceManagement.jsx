@@ -924,7 +924,7 @@ export default function AdminServiceManagement() {
                 <CheckCircle className="h-3 w-3 mr-1" />
                 {countActive} actifs
               </Badge>
-              <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+              <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
                 <XCircle className="h-3 w-3 mr-1" />
                 {countInactive} inactifs
               </Badge>
@@ -1095,7 +1095,7 @@ export default function AdminServiceManagement() {
                 Actifs ({countActive})
               </TabsTrigger>
               <TabsTrigger value="inactive" className="gap-2">
-                <XCircle className="h-3 w-3 text-gray-400" />
+                <XCircle className="h-3 w-3 text-muted-foreground" />
                 Inactifs ({countInactive})
               </TabsTrigger>
             </TabsList>
@@ -1265,7 +1265,7 @@ export default function AdminServiceManagement() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="h-9 w-9 p-0 rounded-xl bg-white/90 backdrop-blur-sm hover:bg-white shadow-lg hover:shadow-xl transition-all border border-gray-200/50"
+                  className="h-9 w-9 p-0 rounded-xl bg-card/90 backdrop-blur-sm hover:bg-card shadow-lg hover:shadow-xl transition-all border border-border/50"
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -1273,12 +1273,12 @@ export default function AdminServiceManagement() {
                   }}
                   title="Modifier"
                 >
-                  <Edit className="h-4 w-4 text-gray-700" />
+                  <Edit className="h-4 w-4 text-muted-foreground" />
                 </Button>
                 <Button
                   variant={service.is_active ? "secondary" : "default"}
                   size="sm"
-                  className={`h-9 w-9 p-0 rounded-xl bg-white/90 backdrop-blur-sm hover:bg-white shadow-lg hover:shadow-xl transition-all border border-gray-200/50 ${
+                  className={`h-9 w-9 p-0 rounded-xl bg-card/90 backdrop-blur-sm hover:bg-card shadow-lg hover:shadow-xl transition-all border border-border/50 ${
                     !service.is_active ? 'bg-green-500 hover:bg-green-600 text-white border-green-500' : ''
                   }`}
                   onClick={(e) => {
@@ -1289,7 +1289,7 @@ export default function AdminServiceManagement() {
                   title={service.is_active ? "Masquer" : "Afficher"}
                 >
                   {service.is_active ? (
-                    <EyeOff className="h-4 w-4 text-gray-700" />
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
                   ) : (
                     <Eye className="h-4 w-4 text-white" />
                   )}
@@ -1297,7 +1297,7 @@ export default function AdminServiceManagement() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="h-9 w-9 p-0 rounded-xl bg-white/90 backdrop-blur-sm hover:bg-red-500 hover:text-white shadow-lg hover:shadow-xl transition-all border border-gray-200/50 text-red-500 hover:border-red-500"
+                  className="h-9 w-9 p-0 rounded-xl bg-card/90 backdrop-blur-sm hover:bg-red-500 hover:text-white shadow-lg hover:shadow-xl transition-all border border-border/50 text-red-500 hover:border-red-500"
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
