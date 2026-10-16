@@ -70,11 +70,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
-import { QRCodeCanvas } from "qrcode.react";
+import GiftCardPreview from "@/components/GiftCardPreview";
+import { downloadGiftCardPdf } from "@/utils/giftCardPdf";
 
 // ========== LISTE DES OCCASIONS EN FRANÇAIS ==========
 const OCCASIONS = [
@@ -206,232 +203,6 @@ const StatusBadge = ({ status }) => {
     <Badge className={`${config.color} border px-3 py-1 text-xs font-medium`}>
       {config.label}
     </Badge>
-  );
-};
-
-// ========== COMPOSANT : CARTE CADEAU PRÉVISUALISATION (FORMAT RECTANGLE 20/10) ==========
-const GiftCardPreview = ({ giftCard, onPay }) => {
-  if (!giftCard) return null;
-
-  const {
-    amount,
-    recipient_name,
-    recipient_phone,
-    sender_name,
-    sender_phone,
-    message,
-    occasion,
-    delivery_method,
-    tenant_name,
-    tenant_logo,
-    tenant_primary_color,
-    status,
-    created_at,
-    code,
-    payment_status,
-  } = giftCard;
-
-  const isPending =
-    status === "pending" ||
-    status === "en_attente" ||
-    payment_status === "en_attente";
-
-  const getOccasionEmoji = (occ) => {
-    const emojis = {
-      birthday: "🎂",
-      anniversary: "💑",
-      wedding: "💍",
-      baby: "👶",
-      graduation: "🎓",
-      new_job: "💼",
-      goodbye: "✈️",
-      thank_you: "🙏",
-      other: "🎁",
-      christmas: "🎄",
-      new_year: "🎊",
-      valentine: "❤️",
-      mothers_day: "🌸",
-      fathers_day: "👔",
-      friends_day: "🤝",
-      loyalty: "⭐",
-    };
-    return emojis[occ] || "🎁";
-  };
-
-  const getDeliveryLabel = (method) => {
-    const labels = {
-      whatsapp: "📱 WhatsApp",
-      physical: "🏪 En présentiel",
-      presentielle: "🏪 En présentiel",
-      email: "📧 Par email",
-    };
-    return labels[method] || method || "—";
-  };
-
-  const primaryColor = tenant_primary_color || "#ec4899";
-  const bg = `radial-gradient(120% 120% at 0% 0%, ${primaryColor}66 0%, transparent 42%), radial-gradient(130% 130% at 100% 100%, ${primaryColor}55 0%, transparent 45%), linear-gradient(135deg, #1c1030 0%, #0b0616 100%)`;
-  const goldText = {
-    backgroundImage:
-      "linear-gradient(135deg,#f9e08a,#e0a53c 45%,#fff6cf 60%,#c98a2b)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-  };
-  const qrValue = code ? `CARTE-CADEAU:${code}` : "CARTE-CADEAU";
-  const occasionLabel = getOccasionLabel(occasion).replace(/^\S+\s/, "");
-
-  return (
-    <div id="gift-card-preview" style={{ width: "100%" }}>
-      <div
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          color: "#ffffff",
-          background: bg,
-          border: "1px solid rgba(255,255,255,0.14)",
-          borderRadius: "26px",
-          padding: "20px",
-          width: "100%",
-          minHeight: "240px",
-          boxShadow: `0 24px 70px ${primaryColor}33, 0 4px 20px rgba(0,0,0,0.2)`,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          gap: "14px",
-        }}
-      >
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: "-60%",
-            left: "-10%",
-            width: "55%",
-            height: "220%",
-            background:
-              "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
-            transform: "rotate(18deg)",
-            pointerEvents: "none",
-          }}
-        />
-
-        <div className="flex items-center justify-between gap-2 relative z-10">
-          <div className="flex items-center gap-3 min-w-0">
-            {tenant_logo ? (
-              <img
-                src={tenant_logo}
-                alt={tenant_name}
-                className="w-10 h-10 rounded-xl object-cover border-2 border-white/50 flex-shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 flex-shrink-0">
-                <Gift className="h-5 w-5" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-bold truncate">
-                {tenant_name || "SalonApp"}
-              </p>
-              <p
-                className="text-[9px] uppercase tracking-[0.25em] font-semibold"
-                style={goldText}
-              >
-                ✦ Carte cadeau
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 flex-shrink-0">
-            <span className="text-base leading-none">
-              {getOccasionEmoji(occasion)}
-            </span>
-            <span className="text-[10px] font-medium truncate max-w-[110px]">
-              {occasionLabel}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-start justify-between gap-3 relative z-10">
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
-              Offert à
-            </p>
-            <p className="text-lg font-bold truncate">
-              {recipient_name || "Non attribué"}
-            </p>
-            {recipient_phone && (
-              <p className="text-[11px] opacity-70 truncate">
-                {recipient_phone}
-              </p>
-            )}
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
-              Valeur
-            </p>
-            <p
-              className="text-3xl font-extrabold tracking-tight"
-              style={goldText}
-            >
-              {amount?.toLocaleString()} FCFA
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-end justify-between gap-3 relative z-10">
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70">
-              De la part de
-            </p>
-            <p className="text-sm font-bold truncate">
-              {sender_name || "Anonyme"}
-            </p>
-            {message && (
-              <p className="text-[11px] italic opacity-80 mt-1 line-clamp-2 max-w-[240px]">
-                “{message}”
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="text-right">
-              <p className="text-[10px] opacity-70">
-                {getDeliveryLabel(delivery_method)}
-              </p>
-              <p className="text-[10px] opacity-70">
-                {created_at ? format(new Date(created_at), "dd/MM/yyyy") : ""}
-              </p>
-              {code && (
-                <p className="font-mono text-[10px] tracking-widest mt-0.5 bg-white/10 px-1.5 py-0.5 rounded">
-                  {code}
-                </p>
-              )}
-            </div>
-            <div className="bg-white p-1.5 rounded-lg">
-              <QRCodeCanvas
-                value={qrValue}
-                size={56}
-                bgColor="#ffffff"
-                fgColor="#0b0616"
-                level="M"
-              />
-            </div>
-          </div>
-        </div>
-
-        {isPending && onPay && (
-          <div className="relative z-10">
-            <Button
-              onClick={() => onPay(giftCard)}
-              className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
-              size="sm"
-            >
-              <Banknote className="h-4 w-4" />
-              Payer à la caisse
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
   );
 };
 
@@ -720,31 +491,18 @@ export default function GiftCards() {
 
   // ========== TÉLÉCHARGER LE PDF ==========
   const downloadPDF = async () => {
-    const previewElement = document.getElementById("gift-card-preview");
-    if (!previewElement) return;
+    if (!selectedCard) {
+      toast.error("Aucune carte à télécharger");
+      return;
+    }
 
     toast.loading("Génération du PDF...");
 
     try {
-      const canvas = await html2canvas(previewElement, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
+      await downloadGiftCardPdf({
+        card: selectedCard,
+        CardComponent: GiftCardPreview,
       });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a5",
-      });
-
-      const pdfWidth = 148;
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`carte-cadeau-${selectedCard?.code || 'gift'}.pdf`);
 
       toast.dismiss();
       toast.success("📄 PDF téléchargé avec succès !");
