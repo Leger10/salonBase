@@ -277,6 +277,7 @@ model Employee {
   isAvailable        Boolean?  @default(true) @map("is_available")
   createdAt          DateTime? @default(now()) @map("created_at") @db.DateTime(3)
   isActive           Boolean?  @default(true) @map("is_active")
+  archivedAt         DateTime? @map("archived_at") @db.DateTime(3)
   profile            Profile   @relation("employees_profile_id_fkey", fields: [profileId], references: [id], onDelete: Cascade)
   tenant             Tenant    @relation("employees_tenant_id_fkey", fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1236,4 +1237,108 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Fragment "notifications push" - NON genere par gen-schema.mjs (tables metier
+// ajoutees apres la migration Supabase -> MySQL). Voir gen-schema.mjs (il
+// concatene ce fichier apres auth.prisma, comme pour les modeles Better Auth).
+//
+// Regles de nommage alignees sur le reste du schema : table snake_case, champs
+// camelCase mappes sur les colonnes snake_case, MySQL/MariaDB utf8mb4.
+//
+// Ces 4 tables portent le systeme de notifications push FCM :
+//   push_devices     : jetons FCM par appareil (un profil peut avoir plusieurs
+//                      appareils), unique sur le jeton pour reagir a une
+//                      reinstallation sur le meme navigateur.
+//   push_outbox      : file d'attente transactionnelle (outbox). Une ligne est
+//                      ecrite DANS la transaction metier qui a reussi ; le
+//                      worker la transforme ensuite en push_reminders ou en
+//                      envoi immediat. Garantit qu'aucune notification n'est
+//                      perdue si l'envoi echoue apres le commit.
+//   push_reminders   : rappels programmes (24 h / 1 h avant un rendez-vous),
+//                      avec etat, tentatives, dates de traitement et
+//                      deduplication (appointment_id + user_id + scheduled_at).
+//   push_jobs        : verrou d'execution du worker (evite les executions
+//                      concurrentes du cron) + compteur de recuperation.
+
+model PushDevice {
+  id         String   @id @default(uuid()) @db.Char(36)
+  userId     String   @map("user_id") @db.Char(36)
+  token      String   @unique @db.VarChar(255)
+  platform   String   @default("web") @db.VarChar(20)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.DateTime(3)
+
+  @@index([userId], map: "idx_push_devices_user")
+  @@map("push_devices")
+}
+
+model PushOutbox {
+  id            String    @id @default(uuid()) @db.Char(36)
+  type          String    @db.VarChar(50)
+  eventKey      String?   @map("event_key") @db.VarChar(191)
+  tenantId      String?   @map("tenant_id") @db.Char(36)
+  targetUserId  String?   @map("target_user_id") @db.Char(36)
+  entityType    String?   @map("entity_type") @db.VarChar(50)
+  entityId      String?   @map("entity_id") @db.Char(36)
+  title         String    @db.Text
+  body          String    @db.Text
+  url           String?   @default("/") @db.Text
+  data          Json?     @db.Json
+  status        String    @default("pending") @db.VarChar(20)
+  attempts      Int       @default(0) @db.Int
+  lastError     String?   @map("last_error") @db.Text
+  scheduledAt   DateTime? @map("scheduled_at") @db.DateTime(3)
+  lockedAt      DateTime? @map("locked_at") @db.DateTime(3)
+  processedAt   DateTime? @map("processed_at") @db.DateTime(3)
+  sentAt        DateTime? @map("sent_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@unique([eventKey], map: "uq_push_outbox_event_key")
+  @@index([status, scheduledAt], map: "idx_push_outbox_status_scheduled")
+  @@index([status, lockedAt], map: "idx_push_outbox_status_locked")
+  @@index([tenantId], map: "idx_push_outbox_tenant")
+  @@map("push_outbox")
+}
+
+model PushReminder {
+  id            String    @id @default(uuid()) @db.Char(36)
+  appointmentId String    @map("appointment_id") @db.Char(36)
+  userId        String    @map("user_id") @db.Char(36)
+  tenantId      String?   @map("tenant_id") @db.Char(36)
+  kind          String    @default("appointment_reminder") @db.VarChar(40)
+  scheduledAt   DateTime  @map("scheduled_at") @db.DateTime(3)
+  title         String    @db.Text
+  body          String    @db.Text
+  url           String    @default("/rendez-vous") @db.Text
+  status        String    @default("pending") @db.VarChar(20)
+  lockedAt      DateTime? @map("locked_at") @db.DateTime(3)
+  attempts      Int       @default(0) @db.Int
+  lastError     String?   @map("last_error") @db.Text
+  sentAt        DateTime? @map("sent_at") @db.DateTime(3)
+  cancelledAt   DateTime? @map("cancelled_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@unique([appointmentId, userId, scheduledAt], name: "uniq_reminder_slot", map: "uq_push_reminders_slot")
+  @@index([status, scheduledAt], map: "idx_push_reminders_pending")
+  @@index([appointmentId], map: "idx_push_reminders_appointment")
+  @@map("push_reminders")
+}
+
+model PushJob {
+  id          String    @id @default(uuid()) @db.Char(36)
+  name        String    @unique @db.VarChar(50)
+  lockedUntil DateTime? @map("locked_until") @db.DateTime(3)
+  lockedBy    String?   @map("locked_by") @db.VarChar(100)
+  lastRunAt   DateTime? @map("last_run_at") @db.DateTime(3)
+  lastResult  String?   @map("last_result") @db.Text
+  runCount    Int       @default(0) @map("run_count") @db.Int
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
+
+  @@map("push_jobs")
 }

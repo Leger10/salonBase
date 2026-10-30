@@ -6,7 +6,7 @@
 
 // `?.` car ce module est aussi importe par les scripts de test Node, ou
 // `import.meta.env` n'existe pas.
-const BASE = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
+const BASE = (import.meta.env?.DEV ? '' : (import.meta.env?.VITE_API_URL ?? '')).replace(/\/$/, '');
 
 /** Appel JSON vers l'API, avec transmission du cookie de session. */
 export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}) {
@@ -21,7 +21,19 @@ export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}
   if (response.status === 204) return null;
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const error = new Error(
+        `L'API a renvoyé une réponse non JSON pour ${path} (HTTP ${response.status}).`
+      );
+      error.status = response.status;
+      error.code = 'INVALID_API_RESPONSE';
+      throw error;
+    }
+  }
 
   if (!response.ok) {
     const error = new Error(data?.message ?? data?.error ?? `Erreur ${response.status}`);

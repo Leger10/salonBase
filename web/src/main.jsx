@@ -71,6 +71,12 @@ const forceDisableServiceWorkers = () => {
       navigator.serviceWorker.getRegistrations()
         .then(registrations => {
           registrations.forEach(registration => {
+            // Ne pas désinscrire le service worker Firebase Messaging
+            // (nécessaire pour les notifications push en arrière-plan).
+            if (registration.scope?.includes('firebase-messaging-sw.js')) {
+              console.log('🔔 Conservation du service worker FCM:', registration.scope);
+              return;
+            }
             registration.unregister();
             console.log('✅ ServiceWorker désinscrit');
           });
@@ -78,9 +84,12 @@ const forceDisableServiceWorkers = () => {
         .catch(err => console.debug('SW cleanup error:', err));
       
       if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SKIP_WAITING'
-        });
+        const controllerUrl = navigator.serviceWorker.controller.scriptURL || '';
+        if (!controllerUrl.includes('firebase-messaging-sw.js')) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SKIP_WAITING'
+          });
+        }
       }
     }
     
@@ -88,6 +97,8 @@ const forceDisableServiceWorkers = () => {
       caches.keys()
         .then(keys => {
           keys.forEach(key => {
+            // Ne pas supprimer le cache éventuel lié à FCM si présent.
+            if (key.toLowerCase().includes('firebase')) return;
             caches.delete(key);
             console.log('✅ Cache supprimé:', key);
           });
@@ -104,7 +115,12 @@ const forceDisableServiceWorkers = () => {
 // ============================================
 const interceptSWErrors = () => {
   if (navigator.serviceWorker) {
-    navigator.serviceWorker.register = function(...args) {
+    const originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+    navigator.serviceWorker.register = function(scriptURL, options) {
+      // Autoriser uniquement le service worker Firebase Messaging.
+      if (typeof scriptURL === 'string' && scriptURL.includes('firebase-messaging-sw.js')) {
+        return originalRegister(scriptURL, options);
+      }
       console.warn('🚫 ServiceWorker registration blocked');
       return Promise.reject(new Error('ServiceWorker registration disabled'));
     };

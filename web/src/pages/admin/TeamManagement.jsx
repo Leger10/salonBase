@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import {
   Card,
@@ -988,29 +989,17 @@ export default function TeamManagement() {
       }
 
       if (editingMember) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
+        await apiFetch(`/api/admin/employees/${encodeURIComponent(editingMember.id)}`, {
+          method: "PATCH",
+          body: {
             full_name: formData.full_name,
             phone: formData.phone || null,
             is_active: formData.is_active,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editingMember.profile_id);
-
-        if (profileError) throw profileError;
-
-        const { error: employeeError } = await supabase
-          .from("employees")
-          .update({
             position: formData.position || null,
             commission_rate: parseFloat(formData.commission_rate) || 0,
             is_cashier: formData.is_cashier,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editingMember.id);
-
-        if (employeeError) throw employeeError;
+          },
+        });
 
         toast.success("Membre mis à jour avec succès");
         setIsModalOpen(false);
@@ -1033,71 +1022,28 @@ export default function TeamManagement() {
         const adminName = currentUser?.profile?.full_name;
         const adminId = currentUser?.id;
 
-        const { data: authData, error: authError } = await supabase.auth.signUp(
-          {
+        const authData = await apiFetch("/api/admin/users", {
+          method: "POST",
+          body: {
             email: formData.email,
             password: formData.password,
-            options: {
-              data: {
-                full_name: formData.full_name,
-                phone: formData.phone || null,
-              },
-            },
+            full_name: formData.full_name,
+            phone: formData.phone || null,
+            role: formData.role || "employee",
+            tenant_id: tenantId,
+            position: formData.position || null,
+            commission_rate: parseFloat(formData.commission_rate) || 0,
+            is_cashier: formData.is_cashier,
           },
-        );
+        });
 
-        if (authError) {
-          if (authError.message.includes("rate limit")) {
-            toast.error("Trop de tentatives. Veuillez patienter.");
-          } else {
-            toast.error("Erreur lors de la création: " + authError.message);
-          }
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (!authData?.user) {
+        if (!authData?.user?.id) {
           toast.error("Erreur lors de la création de l'utilisateur");
           setIsSubmitting(false);
           return;
         }
 
         const authUserId = authData.user.id;
-
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: authUserId,
-          tenant_id: tenantId,
-          email: formData.email,
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          role: formData.role || "employee",
-          is_active: true,
-          created_at: new Date().toISOString(),
-        });
-
-        if (profileError) {
-          console.error("Erreur création profil:", profileError);
-          throw profileError;
-        }
-
-        const { error: employeeError } = await supabase
-          .from("employees")
-          .insert({
-            tenant_id: tenantId,
-            profile_id: authUserId,
-            position: formData.position || null,
-            commission_rate: parseFloat(formData.commission_rate) || 0,
-            is_cashier: formData.is_cashier,
-            is_available: true,
-            created_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (employeeError) {
-          console.error("Erreur création employé:", employeeError);
-          throw employeeError;
-        }
 
         await logEmployeeCreation({
           employee_id: authUserId,
@@ -1168,18 +1114,13 @@ export default function TeamManagement() {
 
   const handleToggleStatus = async (member) => {
     try {
-      const newStatus = member.status === "active" ? false : true;
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          is_active: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", member.profile_id);
+      const action = member.status === "active" ? "deactivate" : "activate";
+      await apiFetch(`/api/admin/employees/${encodeURIComponent(member.id)}/lifecycle`, {
+        method: "PATCH",
+        body: { action },
+      });
 
-      if (error) throw error;
-
-      toast.success(`Membre ${newStatus ? "activé" : "désactivé"} avec succès`);
+      toast.success(`Membre ${action === "activate" ? "activé" : "désactivé"} avec succès`);
       fetchTeam();
     } catch (err) {
       console.error("Error toggling status:", err);
@@ -1194,7 +1135,6 @@ export default function TeamManagement() {
         .from("employees")
         .update({
           is_available: !member.is_available,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", member.id);
 

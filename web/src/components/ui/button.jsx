@@ -2,7 +2,7 @@
 import React from "react";
 
 // ✅ Exporter les variantes pour les autres composants
-export const buttonVariants = ({ variant = "default", size = "default", className = "" }) => {
+export const buttonVariants = ({ variant = "default", size = "default", className = "" } = {}) => {
   const variants = {
     default: "bg-primary text-primary-foreground hover:bg-primary/90",
     outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",

@@ -40,7 +40,7 @@ import {
 import { Badge } from "@/components/ui/badge.jsx";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { addDays, addMonths, addWeeks, format, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   CreditCard,
@@ -192,6 +192,9 @@ export default function CashierPage() {
   // Tickets archivés
   const [archivedTickets, setArchivedTickets] = useState([]);
   const [selectedArchivedTicket, setSelectedArchivedTicket] = useState(null);
+  const [employeeRevenue, setEmployeeRevenue] = useState([]);
+  const [employeeRevenuePeriod, setEmployeeRevenuePeriod] = useState("month");
+  const [employeeRevenueLoading, setEmployeeRevenueLoading] = useState(false);
 
   const [stats, setStats] = useState({
     todayRevenue: 0,
@@ -279,39 +282,44 @@ export default function CashierPage() {
     }
   };
 
-  // ✅ Récupérer les tickets archivés
+  // Récupérer les prestations terminées qui n'ont pas encore été encaissées.
   const fetchArchivedTickets = async () => {
     try {
       const tenantId = currentUser?.profile?.tenant_id;
       if (!tenantId) return;
 
-      const today = new Date().toISOString().split('T')[0];
-
-      const { data, error } = await supabase
+      const [{ data, error }, { data: employees, error: employeesError }] = await Promise.all([
+        supabase
         .from('tickets')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('status', 'archived')
-        .eq('date', today)
-        .order('ticket_number', { ascending: true });
+        .in('status', ['completed', 'archived'])
+        .not('completed_at', 'is', null)
+        .is('transaction_id', null)
+        .order('completed_at', { ascending: true })
+        .limit(1000),
+        supabase
+          .from('employees')
+          .select('id, profile:profile_id(full_name)')
+          .eq('tenant_id', tenantId),
+      ]);
 
       if (error) throw error;
+      if (employeesError) throw employeesError;
 
-      // ✅ Filtrer les tickets qui n'ont PAS été payés
-      const unpaidArchived = data?.filter(ticket => {
-        const hasTransaction = ticket.transaction_id && ticket.transaction_id !== null && ticket.transaction_id !== '';
-        const isCompleted = ticket.status === 'completed';
-        
-        if (hasTransaction || isCompleted) {
-          return false;
-        }
-        return true;
-      }) || [];
-
-      setArchivedTickets(unpaidArchived);
+      const employeeNames = new Map(
+        (employees || []).map((employee) => [employee.id, employee.profile?.full_name || "Employé"]),
+      );
+      setArchivedTickets((data || [])
+        .filter((ticket) => ticket.payment_status !== 'paid' && !ticket.transaction_id)
+        .map((ticket) => ({
+          ...ticket,
+          employee_name: employeeNames.get(ticket.assigned_employee_id) || "Non attribué",
+        })));
       
     } catch (error) {
-      console.error('Error fetching archived tickets:', error);
+      console.error('Error fetching completed tickets:', error);
+      toast.error("Erreur lors du chargement des prestations à encaisser");
     }
   };
 
@@ -331,6 +339,10 @@ export default function CashierPage() {
       }
 
       const amount = parseFloat(selectedArchivedTicket.service_price) || 0;
+      if (amount <= 0) {
+        toast.error("Le prix du service doit être renseigné avant l'encaissement.");
+        return;
+      }
       const receivedAmount = parseFloat(paymentForm.received_amount) || amount;
 
       if (receivedAmount < amount) {
@@ -346,7 +358,9 @@ export default function CashierPage() {
         .from("transactions")
         .insert({
           tenant_id: tenantId,
-          client_id: null,
+          client_id: selectedArchivedTicket.client_id || null,
+          ticket_id: selectedArchivedTicket.id,
+          employee_id: selectedArchivedTicket.assigned_employee_id || null,
           amount: amount,
           total_after_discount: amount,
           payment_method: paymentForm.payment_method,
@@ -354,10 +368,10 @@ export default function CashierPage() {
           status: "completed",
           transaction_date: new Date().toISOString(),
           transaction_type: "ticket_payment",
-          source: "ticket_archived",
+          source: "ticket_completed",
           customer_name: selectedArchivedTicket.client_name || "Client",
           customer_phone: selectedArchivedTicket.client_phone || "",
-          notes: `Ticket #${selectedArchivedTicket.ticket_number} - ${selectedArchivedTicket.service_type}`,
+          notes: `Ticket #${selectedArchivedTicket.ticket_number} - ${selectedArchivedTicket.service_type} - Employé: ${selectedArchivedTicket.employee_name}`,
         })
         .select()
         .single();
@@ -367,20 +381,14 @@ export default function CashierPage() {
       // 2. Mettre à jour le ticket
       const { error: updateError } = await supabase
         .from('tickets')
-        .update({ 
-          status: 'completed',
-          transaction_id: txData.id
+        .update({
+          payment_status: 'paid',
+          transaction_id: txData.id,
         })
         .eq('id', selectedArchivedTicket.id);
 
       if (updateError) {
-        console.error('❌ Erreur mise à jour ticket:', updateError);
-        await supabase
-          .from('tickets')
-          .update({ 
-            status: 'completed'
-          })
-          .eq('id', selectedArchivedTicket.id);
+        throw updateError;
       }
 
       toast.success(
@@ -414,6 +422,7 @@ export default function CashierPage() {
       });
       
       await fetchData();
+      await fetchEmployeeRevenue();
       
       setReceiptModal(true);
       
@@ -443,8 +452,9 @@ export default function CashierPage() {
           await supabase
             .from('tickets')
             .update({
-              status: 'completed'
-            })
+                status: 'completed',
+                payment_status: 'paid',
+              })
             .eq('id', ticket.id);
         }
       }
@@ -635,6 +645,69 @@ export default function CashierPage() {
     }
   };
 
+  const fetchEmployeeRevenue = async () => {
+    const tenantId = currentUser?.profile?.tenant_id;
+    if (!tenantId) {
+      setEmployeeRevenue([]);
+      return;
+    }
+
+    const now = new Date();
+    const start = employeeRevenuePeriod === "day"
+      ? startOfDay(now)
+      : employeeRevenuePeriod === "week"
+        ? startOfWeek(now, { weekStartsOn: 1 })
+        : startOfMonth(now);
+    const end = employeeRevenuePeriod === "day"
+      ? addDays(start, 1)
+      : employeeRevenuePeriod === "week"
+        ? addWeeks(start, 1)
+        : addMonths(start, 1);
+
+    setEmployeeRevenueLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select(`
+          employee_id,
+          amount,
+          total_after_discount,
+          employee:employee_id (
+            id,
+            profile:profile_id (full_name)
+          )
+        `)
+        .eq("tenant_id", tenantId)
+        .eq("status", "completed")
+        .gte("transaction_date", start.toISOString())
+        .lt("transaction_date", end.toISOString())
+        .not("employee_id", "is", null);
+
+      if (error) throw error;
+
+      const totals = new Map();
+      for (const transaction of data || []) {
+        if (!transaction.employee_id) continue;
+        const current = totals.get(transaction.employee_id) || {
+          employeeId: transaction.employee_id,
+          name: transaction.employee?.profile?.full_name || "Employé",
+          revenue: 0,
+          services: 0,
+        };
+        current.revenue += Number(transaction.total_after_discount || transaction.amount || 0);
+        current.services += 1;
+        totals.set(transaction.employee_id, current);
+      }
+
+      setEmployeeRevenue([...totals.values()].sort((a, b) => b.revenue - a.revenue));
+    } catch (error) {
+      console.error("Error fetching employee revenue:", error);
+      toast.error("Erreur lors du calcul du chiffre d'affaires par employé");
+    } finally {
+      setEmployeeRevenueLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -648,6 +721,10 @@ export default function CashierPage() {
       fetchData();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.profile?.tenant_id) fetchEmployeeRevenue();
+  }, [currentUser, employeeRevenuePeriod]);
 
   const calculateChange = (received, amount) => {
     const receivedNum = parseFloat(received) || 0;
@@ -1036,6 +1113,7 @@ export default function CashierPage() {
           tenant_id: tenantId,
           appointment_id: appointment.id,
           client_id: appointment.client_id,
+          employee_id: appointment.employee_id || null,
           amount: amount,
           total_after_discount: amount,
           payment_method: paymentForm.payment_method,
@@ -1199,7 +1277,7 @@ export default function CashierPage() {
 
         const sourceLabel = tx.source === "gallery_order" ? "🛒 Commande" :
                            tx.source === "cashier_sale" ? "🏪 Vente caisse" :
-                           tx.source === "ticket_archived" ? "📦 Ticket archivé" :
+                           tx.source === "ticket_archived" || tx.source === "ticket_completed" ? "🎫 Ticket" :
                            tx.transaction_type === "appointment" ? "📅 RDV" : "Autre";
 
         const finalAmount = tx.total_after_discount || tx.amount || 0;
@@ -1320,7 +1398,8 @@ export default function CashierPage() {
       'cashier_sale': '🏪 Vente caisse',
       'cashier_appointment': '📅 RDV caisse',
       'appointment': '📅 RDV',
-      'ticket_archived': '📦 Ticket archivé',
+      'ticket_archived': '📦 Ticket',
+      'ticket_completed': '🎫 Prestation terminée',
     };
     return labels[source] || source || 'Autre';
   };
@@ -1420,16 +1499,69 @@ export default function CashierPage() {
         </Card>
       </div>
 
-      {/* Tickets archivés à encaisser */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Chiffre d'affaires par employé</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Montants encaissés pour les services réalisés par chaque employé.
+            </p>
+          </div>
+          <Select value={employeeRevenuePeriod} onValueChange={setEmployeeRevenuePeriod}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Aujourd'hui</SelectItem>
+              <SelectItem value="week">Cette semaine</SelectItem>
+              <SelectItem value="month">Ce mois</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {employeeRevenueLoading ? (
+            <p className="text-sm text-muted-foreground">Calcul des recettes...</p>
+          ) : employeeRevenue.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucun service encaissé pour cette période.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employé</TableHead>
+                    <TableHead className="text-right">Services encaissés</TableHead>
+                    <TableHead className="text-right">Chiffre d'affaires</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employeeRevenue.map((employee) => (
+                    <TableRow key={employee.employeeId}>
+                      <TableCell className="font-medium">{employee.name}</TableCell>
+                      <TableCell className="text-right">{employee.services}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatAmount(employee.revenue)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Prestations terminées à encaisser */}
       {archivedTickets.length > 0 && (
         <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 shadow-sm">
           <CardHeader>
             <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center gap-2">
-              <Archive className="h-5 w-5" />
-              Tickets archivés à encaisser ({archivedTickets.length})
+              <CheckCircle className="h-5 w-5" />
+              Prestations terminées à encaisser ({archivedTickets.length})
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Ces tickets ont été archivés mais n'ont pas encore été payés
+              Ces clients ont terminé leur service, mais le paiement n'a pas encore été enregistré.
             </p>
           </CardHeader>
           <CardContent>
@@ -1441,12 +1573,13 @@ export default function CashierPage() {
                     <TableHead className="text-gray-700 dark:text-gray-300">Client</TableHead>
                     <TableHead className="text-gray-700 dark:text-gray-300">Téléphone</TableHead>
                     <TableHead className="text-gray-700 dark:text-gray-300">Service</TableHead>
+                    <TableHead className="text-gray-700 dark:text-gray-300">Employé</TableHead>
                     <TableHead className="text-gray-700 dark:text-gray-300">Prix</TableHead>
                     <TableHead className="text-right text-gray-700 dark:text-gray-300">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {archivedTickets.slice(0, 10).map((ticket) => (
+                  {archivedTickets.map((ticket) => (
                     <TableRow 
                       key={ticket.id} 
                       className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 dark:border-gray-700"
@@ -1462,6 +1595,9 @@ export default function CashierPage() {
                       </TableCell>
                       <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {ticket.service_type || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                        {ticket.employee_name}
                       </TableCell>
                       <TableCell>
                         {ticket.service_price > 0 ? (
@@ -1491,13 +1627,6 @@ export default function CashierPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {archivedTickets.length > 10 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500 dark:text-gray-400 text-sm">
-                        + {archivedTickets.length - 10} autres tickets archivés
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </div>
@@ -1701,6 +1830,7 @@ export default function CashierPage() {
                   <SelectItem value="cashier_sale">🏪 Ventes caisse</SelectItem>
                   <SelectItem value="cashier_appointment">📅 RDV caisse</SelectItem>
                   <SelectItem value="ticket_archived">📦 Ticket archivé</SelectItem>
+                  <SelectItem value="ticket_completed">🎫 Prestation terminée</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1835,11 +1965,11 @@ export default function CashierPage() {
                               ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700" 
                               : isCashierSale 
                               ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700"
-                              : tx.source === "ticket_archived"
+                              : tx.source === "ticket_archived" || tx.source === "ticket_completed"
                               ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700"
                               : "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-700"
                           }>
-                            {isGalleryOrder ? "🛒 Commande" : isCashierSale ? "🏪 Vente" : tx.source === "ticket_archived" ? "📦 Ticket" : "📅 RDV"}
+                            {isGalleryOrder ? "🛒 Commande" : isCashierSale ? "🏪 Vente" : tx.source === "ticket_archived" || tx.source === "ticket_completed" ? "📦 Ticket" : "📅 RDV"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1928,13 +2058,13 @@ export default function CashierPage() {
         </CardContent>
       </Card>
 
-      {/* ✅ Modal d'encaissement d'un ticket archivé */}
+      {/* Modal d'encaissement d'une prestation terminée */}
       <Dialog open={archivedTicketModal} onOpenChange={setArchivedTicketModal}>
         <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
               <Archive className="h-5 w-5" />
-              Encaisser un ticket archivé
+              Encaisser une prestation terminée
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleArchivedTicketPayment} className="space-y-4">

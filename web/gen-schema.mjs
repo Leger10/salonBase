@@ -489,7 +489,18 @@ const authFragment = fs.existsSync(authFragmentPath)
   ? `\n${fs.readFileSync(authFragmentPath, 'utf8').trim()}\n`
   : '';
 
-fs.writeFileSync(path.join(OUT, 'schema.prisma'), `${header}\n\n${body}${authFragment}`, 'utf8');
+// Fragment metier ajoute apres la migration Supabase -> MySQL : tables du
+// systeme de notifications push (meme mecanisme que auth.prisma).
+const pushFragmentPath = path.join(OUT, 'push.prisma');
+const pushFragment = fs.existsSync(pushFragmentPath)
+  ? `\n${fs.readFileSync(pushFragmentPath, 'utf8').trim()}\n`
+  : '';
+
+fs.writeFileSync(
+  path.join(OUT, 'schema.prisma'),
+  `${header}\n\n${body}${authFragment}${pushFragment}`,
+  'utf8'
+);
 fs.writeFileSync(
   path.join(OUT, 'migration-notes.json'),
   JSON.stringify(

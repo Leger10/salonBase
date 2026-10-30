@@ -20,6 +20,7 @@ import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
 import { getEmployeeClientStats } from './employee-stats.js';
 import { mountStorage, storageRoot } from './storage.js';
+import { mountPush } from './push/routes.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url)) + '/..';
 
@@ -65,6 +66,10 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 // --- Stockage de fichiers (images / videos) --------------------------------
 // `POST /api/storage/upload`, `POST /api/storage/remove`, `GET /api/storage/limits`.
 mountStorage(app, wrap);
+
+// --- Notifications push (FCM) ----------------------------------------------
+// `GET /api/push/config`, gestion des appareils, et `POST /api/push/cron`.
+mountPush(app, wrap);
 
 // --- Sante ----------------------------------------------------------------
 app.get(
@@ -149,6 +154,144 @@ app.patch(
   })
 );
 
+app.patch(
+  '/api/admin/employees/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+
+    if (!ctx.tenantId) {
+      throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+    }
+
+    const body = req.body ?? {};
+    const allowed = new Set([
+      'full_name',
+      'phone',
+      'is_active',
+      'position',
+      'commission_rate',
+      'is_cashier',
+    ]);
+    const keys = Object.keys(body);
+    if (!keys.length || keys.some((key) => !allowed.has(key))) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Champs employe invalides.');
+    }
+    if ('full_name' in body && (typeof body.full_name !== 'string' || !body.full_name.trim())) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Le nom est obligatoire.');
+    }
+    if ('phone' in body && body.phone !== null && typeof body.phone !== 'string') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Telephone invalide.');
+    }
+    if ('is_active' in body && typeof body.is_active !== 'boolean') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Statut employe invalide.');
+    }
+    if ('is_cashier' in body && typeof body.is_cashier !== 'boolean') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Statut caissier invalide.');
+    }
+    if (
+      'commission_rate' in body &&
+      (typeof body.commission_rate !== 'number' || !Number.isFinite(body.commission_rate))
+    ) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Taux de commission invalide.');
+    }
+    if ('position' in body && body.position !== null && typeof body.position !== 'string') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Poste invalide.');
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, tenantId: ctx.tenantId },
+      select: {
+        id: true,
+        profileId: true,
+        archivedAt: true,
+        profile: { select: { role: true } },
+      },
+    });
+    if (!employee) throw new HttpError(404, 'NOT_FOUND', 'Employe introuvable.');
+    if ((ROLES[employee.profile.role] ?? 0) > ctx.level) {
+      throw new HttpError(403, 'FORBIDDEN', 'Vous ne pouvez pas modifier un compte superieur.');
+    }
+    if (body.is_active === true && employee.archivedAt) {
+      throw new HttpError(409, 'EMPLOYEE_ARCHIVED', 'Restaurez cet employe avant de le reactiver.');
+    }
+
+    const profileData = {};
+    if ('full_name' in body) profileData.name = body.full_name.trim();
+    if ('phone' in body) profileData.phone = body.phone;
+    if ('is_active' in body) profileData.isActive = body.is_active;
+
+    const employeeData = {};
+    if ('position' in body) employeeData.position = body.position;
+    if ('commission_rate' in body) employeeData.commissionRate = body.commission_rate;
+    if ('is_cashier' in body) employeeData.isCashier = body.is_cashier;
+    if ('is_active' in body) {
+      employeeData.isActive = body.is_active;
+      employeeData.isAvailable = body.is_active;
+    }
+
+    await prisma.$transaction([
+      ...(Object.keys(profileData).length
+        ? [prisma.profile.update({ where: { id: employee.profileId }, data: profileData })]
+        : []),
+      ...(Object.keys(employeeData).length
+        ? [prisma.employee.update({ where: { id: employee.id }, data: employeeData })]
+        : []),
+    ]);
+
+    res.json({ success: true });
+  })
+);
+
+app.patch(
+  '/api/admin/employees/:id/lifecycle',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+
+    const { action } = req.body ?? {};
+    if (!['activate', 'deactivate', 'archive', 'restore'].includes(action)) {
+      throw new HttpError(400, 'INVALID_ACTION', 'Action employé invalide.');
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, tenantId: ctx.tenantId },
+      select: { id: true, profileId: true, archivedAt: true },
+    });
+    if (!employee) throw new HttpError(404, 'NOT_FOUND', 'Employé introuvable.');
+    if (action === 'activate' && employee.archivedAt) {
+      throw new HttpError(409, 'EMPLOYEE_ARCHIVED', 'Restaurez cet employé avant de le réactiver.');
+    }
+    const isArchived = Boolean(employee.archivedAt);
+    if ((action === 'archive' && isArchived) || (action === 'restore' && !isArchived)) {
+      throw new HttpError(409, 'INVALID_EMPLOYEE_STATE', 'Le statut historique de cet employé a changé.');
+    }
+
+    const active = action === 'activate' || action === 'restore';
+    const archivedAt = action === 'archive' ? new Date() : action === 'restore' ? null : undefined;
+    await prisma.$transaction([
+      prisma.employee.update({
+        where: { id: employee.id },
+        data: {
+          isActive: active,
+          isAvailable: active,
+          ...(archivedAt === undefined ? {} : { archivedAt }),
+        },
+      }),
+      prisma.profile.update({
+        where: { id: employee.profileId },
+        data: { isActive: active },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      is_active: active,
+      archived_at: archivedAt === undefined ? employee.archivedAt : archivedAt,
+    });
+  })
+);
+
 // --- Creation d'un utilisateur --------------------------------------------
 // Remplace `supabaseAdmin.auth.admin.createUser` de l'ancien frontend. La table
 // `profiles` EST la table user de Better Auth : on cree le profil ET le compte
@@ -167,6 +310,9 @@ app.post(
     const phone = body.phone ?? null;
     const role = body.role ?? 'client';
     const tenantId = body.tenant_id ?? body.tenantId ?? null;
+    const position = body.position ?? null;
+    const commissionRate = body.commission_rate ?? 0;
+    const isCashier = body.is_cashier ?? false;
 
     if (!email || !password) {
       throw new HttpError(400, 'INVALID_INPUT', 'Email et mot de passe requis.');
@@ -189,6 +335,17 @@ app.post(
     }
     if (role !== 'super_admin' && !tenantId) {
       throw new HttpError(400, 'TENANT_REQUIRED', 'Un role autre que super_admin exige un etablissement.');
+    }
+    if (role === 'employee') {
+      if (position !== null && typeof position !== 'string') {
+        throw new HttpError(400, 'INVALID_INPUT', 'Poste invalide.');
+      }
+      if (typeof commissionRate !== 'number' || !Number.isFinite(commissionRate)) {
+        throw new HttpError(400, 'INVALID_INPUT', 'Taux de commission invalide.');
+      }
+      if (typeof isCashier !== 'boolean') {
+        throw new HttpError(400, 'INVALID_INPUT', 'Statut caissier invalide.');
+      }
     }
 
     const existing = await prisma.profile.findUnique({ where: { email } });
@@ -218,6 +375,26 @@ app.post(
           password: hashed,
         },
       });
+      if (role === 'employee') {
+        await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
+        const latest = await tx.employee.aggregate({
+          where: { tenantId },
+          _max: { employeeNumber: true },
+        });
+        await tx.employee.create({
+          data: {
+            id: randomUUID(),
+            tenantId,
+            profileId: profile.id,
+            employeeNumber: (latest._max.employeeNumber ?? 0) + 1,
+            position,
+            commissionRate,
+            isCashier,
+            isAvailable: true,
+            isActive: true,
+          },
+        });
+      }
       return profile;
     });
 

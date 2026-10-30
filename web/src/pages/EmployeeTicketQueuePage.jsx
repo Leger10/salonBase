@@ -266,7 +266,8 @@ export default function EmployeeTicketQueuePage() {
         .from('tickets')
         .update({
           status: 'completed',
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
+          payment_status: 'pending'
         })
         .eq('id', ticketId)
         .eq('assigned_employee_id', employee.id);

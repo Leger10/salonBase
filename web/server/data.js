@@ -10,6 +10,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { HttpError } from './middleware/auth.js';
+import { afterDelete, afterInsert, afterUpdate, WATCHED } from './push/hooks.js';
 
 // Tables Better Auth : accessibles uniquement via /api/auth/*.
 const FORBIDDEN_TABLES = new Set(['account', 'session', 'verification']);
@@ -885,10 +886,15 @@ export async function runQuery(ctx, body) {
       const created = rows.length === 1
         ? await prisma[client].create({ data: rows[0] })
         : await prisma.$transaction(rows.map((data) => prisma[client].create({ data })));
+      const createdList = Array.isArray(created) ? created : [created];
+      const snake = toSnakeRows(table, createdList);
+      // Effets de bord (notifications push) : seulement APRES un commit reussi,
+      // et jamais bloquants (les erreurs sont captees dans hooks.js).
+      await afterInsert(table.table, snake);
       return {
-        data: toSnakeRows(table, Array.isArray(created) ? created : [created]),
+        data: snake,
         error: null,
-        count: Array.isArray(created) ? created.length : 1,
+        count: createdList.length,
       };
     }
 
@@ -915,13 +921,21 @@ export async function runQuery(ctx, body) {
     // Un update ne doit pas non plus deplacer une fiche vers un autre tenant.
     if (table.hasTenant && ctx.role !== 'super_admin') data.tenantId = ctx.tenantId;
     const where = buildWhere(table, body, ctx);
+    // Etat "avant" lu avant l'ecriture : sert a distinguer confirmation / report
+    // / annulation d'un rendez-vous cote notifications.
+    const watched = WATCHED.has(table.table);
+    const previous = watched ? await prisma[client].findMany({ where }) : [];
     const updated = await prisma[client].updateMany({ where, data });
+    if (watched && updated.count > 0) await afterUpdate(table.table, previous, body.payload);
     return { data: [], error: null, count: updated.count };
   }
 
   if (op === 'delete') {
     const where = buildWhere(table, body, ctx);
+    const watched = WATCHED.has(table.table);
+    const previous = watched ? await prisma[client].findMany({ where }) : [];
     const deleted = await prisma[client].deleteMany({ where });
+    if (watched && deleted.count > 0) await afterDelete(table.table, previous);
     return { data: [], error: null, count: deleted.count };
   }
 

@@ -532,6 +532,7 @@ function AdminTicketQueuePage() {
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
+          payment_status: "pending",
         })
         .eq("id", ticketId);
 

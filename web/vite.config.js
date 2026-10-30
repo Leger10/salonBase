@@ -26,9 +26,12 @@ const SERVER_ONLY = new Set([
 	'prisma',
 	'better-auth',
 	'mysql2',
+	'firebase-admin',
 ]);
 
-const clientDeps = allDeps.filter((d) => !SERVER_ONLY.has(d));
+const clientDeps = allDeps
+	.filter((d) => !SERVER_ONLY.has(d) && d !== 'firebase')
+	.concat(pkg.dependencies?.firebase ? ['firebase/app', 'firebase/messaging'] : []);
 
 const isDev = process.env.NODE_ENV !== 'production';
 

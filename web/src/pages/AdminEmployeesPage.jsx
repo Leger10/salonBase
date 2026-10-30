@@ -34,12 +34,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { apiFetch } from "@/lib/api";
 
 export default function AdminEmployeesPage() {
   const { currentUser } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showFormerEmployees, setShowFormerEmployees] = useState(false);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -85,35 +87,35 @@ export default function AdminEmployeesPage() {
     }
   }, [currentUser]);
 
-  const handleToggleStatus = async (employeeId, currentStatus, profileId) => {
+  const handleEmployeeAction = async (employee, action) => {
     try {
-      // Mettre à jour le profil
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ is_active: !currentStatus })
-        .eq("id", profileId);
+      const employeeName = employee.profile?.full_name || "cet employé";
+      if (action === "archive" && !window.confirm(`Archiver ${employeeName} ? Son dossier restera consultable dans l'historique.`)) {
+        return;
+      }
 
-      if (profileError) throw profileError;
+      await apiFetch(`/api/admin/employees/${employee.id}/lifecycle`, {
+        method: "PATCH",
+        body: { action },
+      });
 
-      // Mettre à jour l'employé
-      const { error: empError } = await supabase
-        .from("employees")
-        .update({ is_available: !currentStatus })
-        .eq("id", employeeId);
-
-      if (empError) throw empError;
-
-      toast.success(
-        `Employé ${!currentStatus ? "activé" : "désactivé"} avec succès`,
-      );
-      fetchEmployees();
+      const messages = {
+        activate: "Employé réactivé avec succès",
+        deactivate: "Employé désactivé avec succès",
+        archive: "Employé archivé dans l'historique",
+        restore: "Employé restauré avec succès",
+      };
+      toast.success(messages[action]);
+      await fetchEmployees();
     } catch (err) {
-      console.error("Error toggling status:", err);
-      toast.error("Erreur lors du changement de statut");
+      console.error("Error changing employee status:", err);
+      toast.error(err.message || "Erreur lors du changement de statut");
     }
   };
 
   const filteredEmployees = employees.filter((emp) => {
+    const isFormer = Boolean(emp.archived_at);
+    if (isFormer !== showFormerEmployees) return false;
     const name = emp.profile?.full_name || "";
     const email = emp.profile?.email || "";
     return (
@@ -180,9 +182,13 @@ export default function AdminEmployeesPage() {
             {filteredEmployees.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
                 <User className="h-12 w-12 mb-4 opacity-20" />
-                <p className="font-medium">Aucun employé trouvé.</p>
+                <p className="font-medium">
+                  {showFormerEmployees ? "Aucun ancien employé." : "Aucun employé trouvé."}
+                </p>
                 <p className="text-sm mt-1">
-                  Commencez par ajouter des membres à votre équipe.
+                  {showFormerEmployees
+                    ? "Les employés archivés apparaîtront ici."
+                    : "Commencez par ajouter des membres à votre équipe."}
                 </p>
               </div>
             ) : (
@@ -259,12 +265,16 @@ export default function AdminEmployeesPage() {
                         <TableCell>
                           <Badge
                             className={
-                              emp.profile?.is_active
+                              emp.is_active !== false && emp.profile?.is_active
                                 ? "bg-green-100 text-green-800"
                                 : "bg-gray-100 text-gray-800"
                             }
                           >
-                            {emp.profile?.is_active ? "Actif" : "Inactif"}
+                            {emp.archived_at
+                              ? "Ancien"
+                              : emp.is_active !== false && emp.profile?.is_active
+                                ? "Actif"
+                                : "Inactif"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -280,24 +290,43 @@ export default function AdminEmployeesPage() {
                                 <Edit className="h-4 w-4" />
                               </Link>
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                handleToggleStatus(
-                                  emp.id,
-                                  emp.profile?.is_active,
-                                  emp.profile_id,
-                                )
-                              }
-                              className="text-destructive hover:text-destructive"
-                            >
-                              {emp.profile?.is_active ? (
-                                <XCircle className="h-4 w-4" />
-                              ) : (
+                            {showFormerEmployees ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Restaurer cet employé"
+                                onClick={() => handleEmployeeAction(emp, "restore")}
+                              >
                                 <CheckCircle className="h-4 w-4" />
-                              )}
-                            </Button>
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title={emp.is_active !== false && emp.profile?.is_active ? "Désactiver" : "Réactiver"}
+                                  onClick={() => handleEmployeeAction(
+                                    emp,
+                                    emp.is_active !== false && emp.profile?.is_active ? "deactivate" : "activate",
+                                  )}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  {emp.is_active !== false && emp.profile?.is_active ? (
+                                    <XCircle className="h-4 w-4" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Archiver et conserver dans l'historique"
+                                  onClick={() => handleEmployeeAction(emp, "archive")}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -309,6 +338,21 @@ export default function AdminEmployeesPage() {
           </CardContent>
         </Card>
 
+        <div className="flex gap-2">
+          <Button
+            variant={showFormerEmployees ? "outline" : "default"}
+            onClick={() => setShowFormerEmployees(false)}
+          >
+            Employés ({employees.filter((employee) => !employee.archived_at).length})
+          </Button>
+          <Button
+            variant={showFormerEmployees ? "default" : "outline"}
+            onClick={() => setShowFormerEmployees(true)}
+          >
+            Historique ({employees.filter((employee) => employee.archived_at).length})
+          </Button>
+        </div>
+
         {/* Statistiques rapides */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-none shadow-sm">
@@ -318,7 +362,9 @@ export default function AdminEmployeesPage() {
                   <p className="text-sm text-muted-foreground">
                     Total employés
                   </p>
-                  <p className="text-2xl font-bold">{employees.length}</p>
+                  <p className="text-2xl font-bold">
+                    {employees.filter((employee) => !employee.archived_at).length}
+                  </p>
                 </div>
                 <User className="h-8 w-8 text-primary opacity-60" />
               </div>
@@ -331,10 +377,10 @@ export default function AdminEmployeesPage() {
                   <p className="text-sm text-muted-foreground">Note moyenne</p>
                   <p className="text-2xl font-bold">
                     {(
-                      employees.reduce(
+                      employees.filter((employee) => !employee.archived_at).reduce(
                         (sum, e) => sum + (e.average_rating || 0),
                         0,
-                      ) / (employees.length || 1)
+                      ) / (employees.filter((employee) => !employee.archived_at).length || 1)
                     ).toFixed(1)}
                   </p>
                 </div>
@@ -351,10 +397,10 @@ export default function AdminEmployeesPage() {
                   </p>
                   <p className="text-2xl font-bold">
                     {(
-                      employees.reduce(
+                      employees.filter((employee) => !employee.archived_at).reduce(
                         (sum, e) => sum + (e.commission_rate || 0),
                         0,
-                      ) / (employees.length || 1)
+                      ) / (employees.filter((employee) => !employee.archived_at).length || 1)
                     ).toFixed(1)}
                     %
                   </p>
@@ -369,7 +415,7 @@ export default function AdminEmployeesPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Actifs</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {employees.filter((e) => e.profile?.is_active).length}
+                    {employees.filter((e) => !e.archived_at && e.is_active !== false && e.profile?.is_active).length}
                   </p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-500 opacity-60" />

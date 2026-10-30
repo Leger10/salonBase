@@ -1,6 +1,7 @@
 ﻿// Lance l'API Node et le serveur Vite cote a cote, avec un Ctrl+C unique.
 // L'API demarre en premier : Vite peut proxy /api des la premiere requete.
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -74,5 +75,6 @@ run('api', process.execPath, ['server/index.js'], '36');
 
 // On appelle le binaire de Vite directement : sous Windows, spawn d'un `.cmd`
 // (npx.cmd) avec shell:false echoue en EINVAL.
-const VITE_BIN = path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
+const require = createRequire(import.meta.url);
+const VITE_BIN = path.resolve(path.dirname(require.resolve('vite')), '../../bin/vite.js');
 run('web', process.execPath, [VITE_BIN, '--host', '--port', '3000'], '35');
