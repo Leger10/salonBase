@@ -47,7 +47,8 @@ export async function requireAuth(req) {
   const session = await requireSession(req);
   const user = session.user;
 
-  // Le tenant est porte par le profil : source de verite pour l'isolation.
+  // Le profil porte le salon par defaut. Un admin peut choisir un autre salon
+  // uniquement s'il possede une appartenance explicite a ce tenant.
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },
     select: { id: true, tenantId: true, role: true, isActive: true },
@@ -55,11 +56,34 @@ export async function requireAuth(req) {
   if (!profile) throw new HttpError(401, 'PROFILE_MISSING', 'Profil introuvable.');
 
   const role = profile.role ?? user.role ?? 'client';
+  const requestedTenantId = req.get('x-tenant-id');
+  let tenantId = profile.tenantId ?? user.tenantId ?? null;
+
+  if (requestedTenantId && requestedTenantId !== tenantId) {
+    if (role !== 'admin') {
+      throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous ne pouvez pas changer d'etablissement.");
+    }
+
+    const membership = await prisma.userTenant.findFirst({
+      where: {
+        userId: user.id,
+        tenantId: requestedTenantId,
+        role: 'admin',
+        tenant: { isActive: true },
+      },
+      select: { tenantId: true },
+    });
+    if (!membership) {
+      throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous n'administrez pas cet etablissement.");
+    }
+    tenantId = membership.tenantId;
+  }
+
   return {
     user,
-    profile,
+    profile: { ...profile, tenantId },
     role,
-    tenantId: profile.tenantId ?? user.tenantId ?? null,
+    tenantId,
     level: ROLES[role] ?? 0,
   };
 }

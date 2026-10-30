@@ -6,7 +6,54 @@
 
 // `?.` car ce module est aussi importe par les scripts de test Node, ou
 // `import.meta.env` n'existe pas.
-const BASE = (import.meta.env?.DEV ? '' : (import.meta.env?.VITE_API_URL ?? '')).replace(/\/$/, '');
+const env = import.meta.env;
+const hostname = typeof window === 'undefined' ? '' : window.location.hostname;
+const isPrivateIpv4 = (() => {
+  const octets = hostname.split('.').map(Number);
+  if (
+    octets.length !== 4
+    || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
+  ) {
+    return false;
+  }
+  return octets[0] === 10
+    || (octets[0] === 192 && octets[1] === 168)
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+    || (octets[0] === 169 && octets[1] === 254);
+})();
+const isLocalHost = hostname === 'localhost'
+  || hostname === '127.0.0.1'
+  || hostname === '::1'
+  || hostname === '[::1]'
+  || hostname.endsWith('.localhost')
+  || isPrivateIpv4;
+const BASE = (env?.DEV || isLocalHost ? '' : (env?.VITE_API_URL ?? '')).replace(/\/$/, '');
+const ACTIVE_TENANT_STORAGE_KEY = 'salonstore.activeTenantId';
+
+export function getActiveTenantId() {
+  try {
+    return window.localStorage.getItem(ACTIVE_TENANT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveTenantId(tenantId) {
+  try {
+    if (tenantId) window.localStorage.setItem(ACTIVE_TENANT_STORAGE_KEY, tenantId);
+    else window.localStorage.removeItem(ACTIVE_TENANT_STORAGE_KEY);
+  } catch (error) {
+    console.error('Impossible de mémoriser le salon actif:', error);
+    throw error;
+  }
+}
+
+function apiHeaders(headers = {}) {
+  const result = { ...headers };
+  const tenantId = getActiveTenantId();
+  if (tenantId) result['X-Tenant-Id'] = tenantId;
+  return result;
+}
 
 /** Appel JSON vers l'API, avec transmission du cookie de session. */
 export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}) {
@@ -14,7 +61,9 @@ export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}
     method,
     // Indispensable : la session Better Auth vit dans un cookie HttpOnly.
     credentials: 'include',
-    headers: body === undefined ? headers : { 'Content-Type': 'application/json', ...headers },
+    headers: apiHeaders(
+      body === undefined ? headers : { 'Content-Type': 'application/json', ...headers }
+    ),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
@@ -52,7 +101,7 @@ export async function apiUpload(path, body, { method = 'POST', contentType } = {
   const response = await fetch(`${BASE}${path}`, {
     method,
     credentials: 'include',
-    headers: { 'Content-Type': contentType || 'application/octet-stream' },
+    headers: apiHeaders({ 'Content-Type': contentType || 'application/octet-stream' }),
     body,
   });
 

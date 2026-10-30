@@ -1006,7 +1006,10 @@ model Tenant {
   showOnHome            Boolean?  @default(true) @map("show_on_home")
   city                  String?   @db.VarChar(100)
   rating                Decimal?  @default(0) @db.Decimal(3, 2)
+  parentTenantId        String?   @map("parent_tenant_id") @db.Char(36)
 
+  parentTenant        Tenant?              @relation("tenant_branches", fields: [parentTenantId], references: [id], onDelete: SetNull)
+  childTenants        Tenant[]             @relation("tenant_branches")
   activityLogs        ActivityLog[]        @relation("activity_logs_tenant_id_fkey")
   appointments        Appointment[]        @relation("appointments_tenant_id_fkey")
   bookingSequences    BookingSequence[]    @relation("booking_sequences_tenant_id_fkey")

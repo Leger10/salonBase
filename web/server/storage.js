@@ -17,6 +17,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { HttpError, requireAuth, requireRole } from './middleware/auth.js';
+import { assertSubscriptionActive } from './subscription-entitlement.js';
 import {
   VIDEO_EXTENSIONS as CLOUDINARY_VIDEO_EXTENSIONS,
   cloudinaryCloudName,
@@ -167,6 +168,7 @@ function writeBody(req, absolutePath, maxBytes) {
 async function handleUpload(req, res) {
   const ctx = await requireAuth(req);
   requireRole(ctx, 'employee');
+  await assertSubscriptionActive(ctx);
 
   const { absolute, objectPath } = resolveObjectPath(req.query.path);
   const { max, kind } = limitFor(absolute);
@@ -223,6 +225,7 @@ async function handleUpload(req, res) {
 async function handleRemove(req, res) {
   const ctx = await requireAuth(req);
   requireRole(ctx, 'employee');
+  await assertSubscriptionActive(ctx);
 
   const list = Array.isArray(req.body?.paths) ? req.body.paths : [];
   if (!list.length || list.length > 50) {

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api.js";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2456,14 +2457,9 @@ export default function TenantShowcase() {
     setLoading(true);
     try {
       // 1. Récupérer le tenant
-      const { data: tenantData, error: tenantError } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("slug", slug)
-        .eq("subscription_status", "active")
-        .single();
-
-      if (tenantError) throw tenantError;
+      const { tenant: tenantData } = await apiFetch(
+        `/api/public/tenants/${encodeURIComponent(slug)}`
+      );
       if (!tenantData) {
         toast.error("Salon non trouvé");
         setLoading(false);

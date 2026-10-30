@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from "@/lib/api.js";
 import {
   Card,
   CardContent,
@@ -257,7 +258,8 @@ export default function AdminDashboard() {
       const tenantId = currentUser.profile.tenant_id;
       console.log("🏢 Tenant ID:", tenantId);
 
-      // 1. Vérifier l'abonnement et récupérer le slug
+      // 1. Vérifier l'abonnement actif réel, puis récupérer les infos du salon.
+      const entitlement = await apiFetch("/api/admin/subscription/status");
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
         .select(
@@ -270,12 +272,22 @@ export default function AdminDashboard() {
         console.error("❌ Erreur tenant:", tenantError);
         throw tenantError;
       }
-      setSubscriptionStatus(tenant);
+      const subscription = {
+        ...tenant,
+        subscription_status: entitlement.isActive ? "active" : entitlement.status,
+        subscription_plan: entitlement.currentSubscription?.plan ?? entitlement.plan ?? tenant.subscription_plan,
+        subscription_end: entitlement.endDate ?? tenant.subscription_end,
+      };
+      setSubscriptionStatus(subscription);
       setTenantSlug(tenant?.slug || tenantId);
-      console.log("✅ Tenant:", tenant);
+      console.log("✅ Tenant subscription:", {
+        status: subscription.subscription_status,
+        plan: subscription.subscription_plan,
+        endDate: subscription.subscription_end,
+      });
 
-      if (tenant.subscription_status !== "active") {
-        console.warn("⚠️ Abonnement non actif:", tenant.subscription_status);
+      if (!entitlement.isActive) {
+        console.warn("⚠️ Abonnement non actif:", entitlement.status);
         setLoading(false);
         return;
       }
@@ -303,8 +315,29 @@ export default function AdminDashboard() {
       }
 
       const appointmentsData = appointments || [];
-      const totalRevenue =
+
+      // 3bis. Chiffre d'affaires réellement encaissé (caisse). Les prestations
+      // de la file d'attente payées à la caisse créent une transaction : elles
+      // doivent donc compter dans le chiffre d'affaires du salon.
+      const { data: transactions, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("amount, total_after_discount, transaction_date, status")
+        .eq("tenant_id", tenantId)
+        .eq("status", "completed");
+
+      if (transactionsError) {
+        console.error("❌ Erreur transactions:", transactionsError);
+      }
+      const transactionsData = transactions || [];
+
+      const appointmentsRevenue =
         appointmentsData.reduce((sum, a) => sum + (a.total_price || 0), 0) || 0;
+      const paidRevenue = transactionsData.reduce(
+        (sum, t) => sum + Number(t.total_after_discount || t.amount || 0),
+        0,
+      );
+      const totalRevenue =
+        transactionsData.length > 0 ? paidRevenue : appointmentsRevenue;
       const totalAppointments = appointmentsData.length;
       const completedAppointments =
         appointmentsData.filter((a) => a.status === "completed").length || 0;
@@ -407,25 +440,43 @@ export default function AdminDashboard() {
         .slice(0, 5);
       setTopEmployees(topRated);
 
-      // 8. Revenus par mois
-      const revenueByMonth = appointmentsData.reduce((acc, apt) => {
-        if (
-          apt.status === "completed" &&
-          apt.total_price &&
-          apt.appointment_date
-        ) {
-          try {
-            const month = new Date(apt.appointment_date).toLocaleString(
-              "fr-FR",
-              { month: "short" },
-            );
-            acc[month] = (acc[month] || 0) + apt.total_price;
-          } catch (e) {
-            console.warn("Date invalide:", apt.appointment_date);
-          }
-        }
-        return acc;
-      }, {});
+      // 8. Revenus par mois (caisse si disponible, sinon RDV terminés)
+      const revenueByMonth =
+        transactionsData.length > 0
+          ? transactionsData.reduce((acc, tx) => {
+              if (tx.transaction_date) {
+                try {
+                  const month = new Date(tx.transaction_date).toLocaleString(
+                    "fr-FR",
+                    { month: "short" },
+                  );
+                  acc[month] =
+                    (acc[month] || 0) +
+                    Number(tx.total_after_discount || tx.amount || 0);
+                } catch (e) {
+                  console.warn("Date invalide:", tx.transaction_date);
+                }
+              }
+              return acc;
+            }, {})
+          : appointmentsData.reduce((acc, apt) => {
+              if (
+                apt.status === "completed" &&
+                apt.total_price &&
+                apt.appointment_date
+              ) {
+                try {
+                  const month = new Date(apt.appointment_date).toLocaleString(
+                    "fr-FR",
+                    { month: "short" },
+                  );
+                  acc[month] = (acc[month] || 0) + apt.total_price;
+                } catch (e) {
+                  console.warn("Date invalide:", apt.appointment_date);
+                }
+              }
+              return acc;
+            }, {});
       const chartData = Object.entries(revenueByMonth || {}).map(
         ([name, revenue]) => ({ name, revenue }),
       );
@@ -515,7 +566,12 @@ export default function AdminDashboard() {
             Plan: {subscriptionStatus?.subscription_plan || "Starter"} - Expiré
           </Badge>
           <div className="mt-6 text-sm text-muted-foreground">
-            <p>Contactez le support pour toute question.</p>
+            <p>
+              Contactez le support pour toute question.{" "}
+              <Link to="/admin/support" className="font-medium text-primary underline underline-offset-4">
+                Ouvrir le support
+              </Link>
+            </p>
           </div>
         </div>
       </div>

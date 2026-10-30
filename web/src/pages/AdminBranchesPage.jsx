@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
-import { supabase } from '@/lib/supabase';
+import { apiFetch, getActiveTenantId, setActiveTenantId } from "@/lib/api.js";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -31,7 +32,7 @@ import {
   Building2,
   Plus,
   Edit,
-  Trash2,
+  ArrowRightLeft,
   MapPin,
   Phone,
   Mail,
@@ -41,8 +42,10 @@ import {
 import { toast } from "sonner";
 
 export default function AdminBranchesPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, refresh } = useAuth();
+  const navigate = useNavigate();
   const [branches, setBranches] = useState([]);
+  const [entitlement, setEntitlement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +55,7 @@ export default function AdminBranchesPage() {
     address: "",
     phone: "",
     email: "",
-    is_main: false,
+    city: "",
     is_active: true,
   });
 
@@ -75,15 +78,9 @@ export default function AdminBranchesPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("branches")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("is_main", { ascending: false });
-
-      if (error) throw error;
-
+      const { data, entitlement: subscription } = await apiFetch("/api/admin/branches");
       setBranches(data || []);
+      setEntitlement(subscription);
     } catch (err) {
       console.error("Error fetching branches:", err);
       setError(err.message || "Erreur lors du chargement");
@@ -103,44 +100,33 @@ export default function AdminBranchesPage() {
         return;
       }
 
-      if (formData.is_main) {
-        await supabase
-          .from("branches")
-          .update({ is_main: false })
-          .eq("tenant_id", tenantId);
-      }
-
       const payload = {
-        tenant_id: tenantId,
         name: formData.name,
         address: formData.address || null,
         phone: formData.phone || null,
         email: formData.email || null,
-        is_main: formData.is_main,
-        is_active: formData.is_active,
-        updated_at: new Date().toISOString(),
+        city: formData.city || null,
       };
 
       if (editingBranch) {
-        const { error } = await supabase
-          .from("branches")
-          .update(payload)
-          .eq("id", editingBranch.id);
-
-        if (error) throw error;
+        if (!editingBranch.is_main) payload.isActive = formData.is_active;
+        await apiFetch(`/api/admin/branches/${encodeURIComponent(editingBranch.id)}`, {
+          method: "PATCH",
+          body: payload,
+        });
         toast.success("Succursale mise à jour");
       } else {
-        payload.created_at = new Date().toISOString();
-        const { error } = await supabase.from("branches").insert([payload]);
-
-        if (error) throw error;
-        toast.success("Succursale ajoutée");
+        const { branch } = await apiFetch("/api/admin/branches", {
+          method: "POST",
+          body: payload,
+        });
+        toast.success(`Le salon « ${branch.name} » a été ajouté`);
       }
 
       setModalOpen(false);
       setEditingBranch(null);
       resetForm();
-      fetchBranches();
+      await fetchBranches();
     } catch (error) {
       console.error("Error saving branch:", error);
       toast.error(error.message || "Erreur lors de la sauvegarde");
@@ -153,7 +139,7 @@ export default function AdminBranchesPage() {
       address: "",
       phone: "",
       email: "",
-      is_main: false,
+      city: "",
       is_active: true,
     });
   };
@@ -165,39 +151,41 @@ export default function AdminBranchesPage() {
       address: branch.address || "",
       phone: branch.phone || "",
       email: branch.email || "",
-      is_main: branch.is_main || false,
+      city: branch.city || "",
       is_active: branch.is_active !== false,
     });
     setModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Supprimer cette succursale ?")) return;
+  const handleManage = async (branch) => {
+    const previousTenantId = getActiveTenantId();
     try {
-      const { error } = await supabase.from("branches").delete().eq("id", id);
-
-      if (error) throw error;
-      toast.success("Succursale supprimée");
-      fetchBranches();
+      setActiveTenantId(branch.is_main ? null : branch.id);
+      const user = await refresh();
+      if (!user) throw new Error("Session introuvable. Veuillez vous reconnecter.");
+      toast.success(`Vous gérez maintenant « ${branch.name} »`);
+      navigate("/admin/dashboard");
     } catch (error) {
-      console.error("Error deleting branch:", error);
-      toast.error(error.message || "Erreur lors de la suppression");
+      setActiveTenantId(previousTenantId);
+      await refresh();
+      console.error("Error switching salon:", error);
+      toast.error(error.message || "Impossible de changer de salon");
     }
   };
 
   const handleToggleStatus = async (branchId, currentStatus) => {
     try {
-      const { error } = await supabase
-        .from("branches")
-        .update({
-          is_active: !currentStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", branchId);
-
-      if (error) throw error;
+      if (currentStatus && currentUser?.profile?.tenant_id === branchId) {
+        setActiveTenantId(null);
+        const user = await refresh();
+        if (!user) throw new Error("Impossible de revenir au salon principal.");
+      }
+      await apiFetch(`/api/admin/branches/${encodeURIComponent(branchId)}`, {
+        method: "PATCH",
+        body: { isActive: !currentStatus },
+      });
       toast.success(`Succursale ${!currentStatus ? "activée" : "désactivée"}`);
-      fetchBranches();
+      await fetchBranches();
     } catch (error) {
       console.error("Error toggling status:", error);
       toast.error("Erreur lors du changement de statut");
@@ -219,10 +207,14 @@ export default function AdminBranchesPage() {
           <div>
             <h1 className="text-2xl font-bold">Multi-établissement</h1>
             <p className="text-muted-foreground mt-1">
-              Gestion des succursales
+              Gérez plusieurs salons avec leurs propres équipes et leurs propres données.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Les salons partagent l’abonnement du salon principal.
             </p>
           </div>
           <Button
+            disabled={!entitlement?.isActive || entitlement.remainingBranches <= 0}
             onClick={() => {
               setEditingBranch(null);
               resetForm();
@@ -230,13 +222,41 @@ export default function AdminBranchesPage() {
             }}
             className="gap-2"
           >
-            <Plus className="h-4 w-4" /> Ajouter une succursale
+            <Plus className="h-4 w-4" /> Ajouter un salon
           </Button>
         </div>
 
+        {entitlement && (
+          <Card className={!entitlement.isActive ? "border-destructive/40 bg-destructive/5" : ""}>
+            <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">
+                  Succursales : {entitlement.branchesCount} / {entitlement.branchLimit}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Votre abonnement autorise {entitlement.branchLimit} succursale(s) supplémentaire(s)
+                  {entitlement.remainingBranches > 0
+                    ? `, dont ${entitlement.remainingBranches} encore disponible(s).`
+                    : "."}
+                </p>
+                {!entitlement.isActive && (
+                  <p className="mt-1 text-sm font-medium text-destructive">
+                    Abonnement expiré : la gestion des salons est suspendue jusqu’au renouvellement.
+                  </p>
+                )}
+              </div>
+              {(!entitlement.isActive || entitlement.remainingBranches <= 0) && (
+                <Button variant="outline" asChild>
+                  <Link to="/admin/subscription">Voir les abonnements</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
-            <CardTitle>Liste des succursales</CardTitle>
+            <CardTitle>Salons associés</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -258,7 +278,7 @@ export default function AdminBranchesPage() {
                         className="text-center text-muted-foreground py-8"
                       >
                         <Building2 className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                        Aucune succursale trouvée
+                        Aucun salon secondaire. Ajoutez un salon pour commencer.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -317,38 +337,46 @@ export default function AdminBranchesPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(branch)}
+                              variant={currentUser?.profile?.tenant_id === branch.id ? "outline" : "default"}
+                              size="sm"
+                              disabled={!branch.is_active || !entitlement?.isActive}
+                              onClick={() => handleManage(branch)}
+                              className="gap-2"
                             >
-                              <Edit className="h-4 w-4" />
+                              <ArrowRightLeft className="h-4 w-4" />
+                              {currentUser?.profile?.tenant_id === branch.id ? "Salon actif" : "Gérer"}
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={
-                                branch.is_active
-                                  ? "text-destructive hover:text-destructive"
-                                  : "text-green-600 hover:text-green-600"
-                              }
-                              onClick={() =>
-                                handleToggleStatus(branch.id, branch.is_active)
-                              }
-                            >
-                              {branch.is_active ? (
-                                <XCircle className="h-4 w-4" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDelete(branch.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!branch.is_main && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Modifier ${branch.name}`}
+                                  disabled={!entitlement?.isActive}
+                                  onClick={() => handleEdit(branch)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={branch.is_active ? `Désactiver ${branch.name}` : `Activer ${branch.name}`}
+                                  disabled={!entitlement?.isActive}
+                                  className={
+                                    branch.is_active
+                                      ? "text-destructive hover:text-destructive"
+                                      : "text-green-600 hover:text-green-600"
+                                  }
+                                  onClick={() => handleToggleStatus(branch.id, branch.is_active)}
+                                >
+                                  {branch.is_active ? (
+                                    <XCircle className="h-4 w-4" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -367,19 +395,19 @@ export default function AdminBranchesPage() {
             <DialogTitle>
               {editingBranch
                 ? "Modifier la succursale"
-                : "Ajouter une succursale"}
+                : "Ajouter un salon"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nom de la succursale *</Label>
+              <Label>Nom du salon *</Label>
               <Input
                 required
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="Succursale Centre-ville"
+                placeholder="Salon Centre-ville"
                 className="bg-background"
               />
             </div>
@@ -392,6 +420,16 @@ export default function AdminBranchesPage() {
                   setFormData({ ...formData, address: e.target.value })
                 }
                 placeholder="123 Avenue de la Liberté"
+                className="bg-background"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ville</Label>
+              <Input
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                placeholder="Ouagadougou"
                 className="bg-background"
               />
             </div>
@@ -422,22 +460,8 @@ export default function AdminBranchesPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-3 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_main"
-                  checked={formData.is_main}
-                  onChange={(e) =>
-                    setFormData({ ...formData, is_main: e.target.checked })
-                  }
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="is_main" className="cursor-pointer">
-                  Succursale principale
-                </Label>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
+            {editingBranch && (
+              <div className="flex items-center gap-2 p-3 border rounded-lg">
                 <input
                   type="checkbox"
                   id="is_active"
@@ -448,10 +472,10 @@ export default function AdminBranchesPage() {
                   className="rounded border-gray-300"
                 />
                 <Label htmlFor="is_active" className="cursor-pointer">
-                  Active
+                  Salon actif
                 </Label>
               </div>
-            </div>
+            )}
 
             <DialogFooter>
               <Button

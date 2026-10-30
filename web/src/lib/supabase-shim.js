@@ -154,7 +154,22 @@ class Query {
   ilike(col, value) { return this._push('ilike', col, value); }
   in(col, values) { return this._push('in', col, Array.isArray(values) ? values : [values]); }
   is(col, value) { return this._push('is', col, value === 'not_null' ? 'not_null' : 'null'); }
-  not(col, op, value) { return this.filters.push({ op, col, value }), this; }
+
+  /**
+   * `.not(col, op, value)` = negation de `col op value`.
+   * Le cas utilise partout dans l'app est `.not(col, 'is', null)` (=> IS NOT NULL)
+   * mais on couvre aussi eq/neq pour rester fidele a PostgREST.
+   */
+  not(col, op, value) {
+    const normalized = String(op ?? 'eq').toLowerCase();
+    if (normalized === 'is') {
+      const isNull = value === null || value === undefined || value === 'null';
+      return this._push('is', col, isNull ? 'not_null' : 'null');
+    }
+    if (normalized === 'eq') return this._push('neq', col, value);
+    if (normalized === 'neq') return this._push('eq', col, value);
+    return this._push(normalized, col, value);
+  }
 
   /** `.match({ a: 1, b: 2 })` : une suite d'egalites. */
   match(object) {

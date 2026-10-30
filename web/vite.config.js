@@ -333,16 +333,16 @@ export default defineConfig({
 		// session en same-origin). En prod, CORS_ORIGINS configure l'API.
 		proxy: {
 			'/api': {
-				target: process.env.API_URL || 'http://localhost:4000',
+				target: 'http://localhost:4000',
 				changeOrigin: true,
 			},
 			// Fichiers uploades (images/videos), servis par l'API Node.
 			'/storage': {
-				target: process.env.API_URL || 'http://localhost:4000',
+				target: 'http://localhost:4000',
 				changeOrigin: true,
 			},
 			'/files': {
-				target: process.env.API_URL || 'http://localhost:4000',
+				target: 'http://localhost:4000',
 				changeOrigin: true,
 			},
 		},

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite --host --port 3000",
+    "dev": "node scripts/dev-all.mjs",
     "build": "prisma generate --schema prisma/schema.prisma && vite build",
     "preview": "vite preview --host --port 3000",
     "api": "node server/index.js",
@@ -13,6 +13,7 @@
     "test:auth": "node scripts/test-auth.mjs",
     "test:api": "node scripts/test-api.mjs",
     "test:data": "node scripts/test-data-query.mjs",
+    "test:ticket-payment": "node scripts/test-ticket-payment.mjs",
     "test:front": "node scripts/test-frontend-auth.mjs",
     "test:login": "node scripts/test-login-default.mjs",
     "db:import": "node scripts/import-business-data.mjs",

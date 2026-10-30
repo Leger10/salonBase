@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from '@/lib/supabase';
 import { useAuth } from "@/contexts/AuthContext.jsx";
+import { apiFetch } from "@/lib/api.js";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
@@ -13,7 +14,7 @@ import {
   Loader2, Sparkles, Clock, Zap, Star, Gem,
   AlertCircle, CheckCircle, XCircle, TrendingUp,
   HelpCircle, RefreshCw, Info, Headphones, Shield,
-  Award, Rocket, Target, Gift, Flame, Heart,
+  Award, Rocket, Target, Gift, Flame, Heart, Building2,
   Coffee, Sun, Moon, Cloud, Smile, ThumbsUp
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ export default function AdminSubscription() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [branchEntitlement, setBranchEntitlement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -451,17 +453,10 @@ export default function AdminSubscription() {
 
       if (tenantError) throw tenantError;
 
-      // 2. Récupérer l'abonnement actuel
-      const { data: subData, error: subError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (subError && subError.code !== 'PGRST116') throw subError;
-      setCurrentSubscription(subData || null);
+      // L'abonnement est commun au salon principal et à toutes ses succursales.
+      const entitlement = await apiFetch("/api/admin/subscription/status");
+      setBranchEntitlement(entitlement);
+      setCurrentSubscription(entitlement.currentSubscription || null);
 
       // 3. Essayer de récupérer les plans depuis la DB, sinon utiliser les defaults
       const { data: plansData, error: plansError } = await supabase
@@ -602,19 +597,6 @@ export default function AdminSubscription() {
 
       if (error) throw error;
 
-      // Mettre à jour le tenant
-      const { error: tenantUpdateError } = await supabase
-        .from('tenants')
-        .update({
-          subscription_status: 'pending',
-          subscription_plan: `${plan.name}`,
-          subscription_start: startDate.toISOString().split('T')[0],
-          subscription_end: endDate.toISOString().split('T')[0]
-        })
-        .eq('id', tenantId);
-
-      if (tenantUpdateError) throw tenantUpdateError;
-
       toast.success(`Demande d'abonnement "${plan.name}" envoyée avec succès !`);
       
       navigate('/admin/subscription/success');
@@ -638,11 +620,23 @@ export default function AdminSubscription() {
     return statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800', icon: Info };
   };
 
-  const daysRemaining = currentSubscription?.end_date ? 
-    Math.ceil((new Date(currentSubscription.end_date) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+  const daysRemaining = branchEntitlement?.daysRemaining ?? (currentSubscription?.end_date
+    ? Math.ceil((new Date(currentSubscription.end_date) - new Date()) / (1000 * 60 * 60 * 24))
+    : 0);
   const isSubscribed = currentSubscription && ['active', 'trial'].includes(currentSubscription.status);
   const statusInfo = currentSubscription ? getStatusBadge(currentSubscription.status) : null;
   const StatusIcon = statusInfo?.icon || Info;
+  const getPlanDurationMonths = (plan) => {
+    const namedDuration = String(plan.name || "").match(/\b(\d+)\s*(?:mois|months?)\b/i);
+    return Math.max(1, Number(namedDuration?.[1] || plan.duration_months) || 1);
+  };
+  const maxMonthlyPlanPrice = plans.length
+    ? Math.max(...plans.map((plan) => Number(plan.price) / getPlanDurationMonths(plan)))
+    : 30000;
+  const getPlanBranchLimit = (plan) => Math.min(
+    Math.floor(maxMonthlyPlanPrice / 10000) * 2,
+    Math.floor((Number(plan.price) / getPlanDurationMonths(plan)) / 10000) * 2
+  );
 
   // Filtrer les plans selon la durée
   const filteredPlans = durationFilter === 'all' 
@@ -727,6 +721,27 @@ export default function AdminSubscription() {
         </div>
       )}
 
+      {branchEntitlement?.daysRemaining > 0 && branchEntitlement.daysRemaining <= 7 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">
+              Votre abonnement expire dans {branchEntitlement.daysRemaining} jour{branchEntitlement.daysRemaining > 1 ? "s" : ""}.
+            </p>
+            <p className="text-sm">
+              Renouvelez-le à temps pour conserver l’accès à tous vos salons et leurs données.
+            </p>
+            <Link
+              to="/admin/support"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4"
+            >
+              <Headphones className="h-4 w-4" />
+              Contacter le support
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Abonnement actuel */}
       {currentSubscription && (
         <Card className={`border-2 ${isSubscribed ? 'border-green-500/30' : 'border-red-500/30'} shadow-lg`}>
@@ -766,6 +781,15 @@ export default function AdminSubscription() {
                       </span>
                     </div>
                     <Progress value={(daysRemaining / 30) * 100} className="h-2 mt-1" />
+                  </div>
+                )}
+                {branchEntitlement && (
+                  <div className="mt-4 rounded-lg border bg-muted/40 p-3 text-sm">
+                    <div className="font-medium">Succursales autorisées</div>
+                    <div className="text-muted-foreground">
+                      {branchEntitlement.branchesCount} / {branchEntitlement.branchLimit}
+                      {" "}succursale(s) utilisée(s) — jusqu'à {branchEntitlement.maxBranches} selon le dernier abonnement.
+                    </div>
                   </div>
                 )}
                 <div className="mt-4 space-y-2">
@@ -1012,6 +1036,12 @@ export default function AdminSubscription() {
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-primary" />
                         <span>Jusqu'à {plan.max_products} produits</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span>
+                          {getPlanBranchLimit(plan)} succursale{getPlanBranchLimit(plan) === 1 ? "" : "s"} supplémentaire{getPlanBranchLimit(plan) === 1 ? "" : "s"}
+                        </span>
                       </div>
                     </div>
 

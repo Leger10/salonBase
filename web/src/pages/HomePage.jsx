@@ -7,7 +7,8 @@ import { useTenant } from "@/contexts/TenantContext.jsx";
 import { useTheme } from "@/contexts/ThemeContext.jsx";
 import { useActiveTenant } from "@/contexts/ActiveTenantContext.jsx";
 import { usePlatformConfig } from "@/contexts/PlatformConfigContext.jsx";
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api.js";
 import PublicHeader from "@/components/PublicHeader.jsx";
 import PublicFooter from "@/components/PublicFooter.jsx";
 import ProductsList from "@/components/ProductsList.jsx";
@@ -147,13 +148,13 @@ export default function HomePage() {
           city
         `)
         .eq('id', tenantId)
-        .eq('subscription_status', 'active')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
       setUserTenant(data);
       setTenants(data ? [data] : []);
+      if (!data) setError("Aucun salon n’est associé à ce compte.");
     } catch (error) {
       console.error('Error fetching user tenant:', error);
       setError('Impossible de charger votre salon');
@@ -168,33 +169,7 @@ export default function HomePage() {
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select(`
-          id, 
-          name, 
-          slug, 
-          description, 
-          address, 
-          phone, 
-          email, 
-          logo_url, 
-          cover_image, 
-          primary_color, 
-          secondary_color, 
-          subscription_plan, 
-          subscription_status, 
-          created_at,
-          show_on_home,
-          rating,
-          city
-        `)
-        .eq('subscription_status', 'active')
-        .eq('show_on_home', true)
-        .order('name');
-
-      if (error) throw error;
-
+      const { data } = await apiFetch("/api/public/tenants");
       setTenants(data || []);
     } catch (error) {
       console.error('Error fetching tenants:', error);

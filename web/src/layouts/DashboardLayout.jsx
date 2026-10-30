@@ -2,7 +2,19 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext.jsx";
+import {
+  apiFetch,
+  getActiveTenantId,
+  setActiveTenantId,
+} from "@/lib/api.js";
 import { Button } from "@/components/ui/button.jsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.jsx";
 import {
   Avatar,
   AvatarFallback,
@@ -710,9 +722,12 @@ function ClientFeaturesSidebar({ location }) {
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const { currentUser, isAuthenticated, logout } = useAuth();
+  const { currentUser, isAuthenticated, logout, refresh } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [managedSalons, setManagedSalons] = useState([]);
+  const [switchingSalon, setSwitchingSalon] = useState(false);
+  const [salonSwitchError, setSalonSwitchError] = useState("");
 
   // Détection des appareils mobiles
   const [isMobile, setIsMobile] = useState(false);
@@ -725,6 +740,7 @@ export default function DashboardLayout() {
   const isEmployee = userRole === "employee";
   const isClient = userRole === "client";
   const isVisitor = !isAuthenticated;
+  const currentTenantId = currentUser?.profile?.tenant_id;
 
   const displayName = currentUser?.profile?.full_name || currentUser?.full_name || "Utilisateur";
   const displayEmail = currentUser?.profile?.email || currentUser?.email || "";
@@ -732,6 +748,85 @@ export default function DashboardLayout() {
   const [globalAlertCount, setGlobalAlertCount] = useState(0);
   const [tenantId, setTenantId] = useState(null);
   const [tenantName, setTenantName] = useState("BeautyFlow"); // État pour le nom du tenant
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isAdmin || !currentTenantId) {
+      setManagedSalons([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    apiFetch("/api/admin/branches")
+      .then(({ data }) => {
+        if (!cancelled) setManagedSalons(data ?? []);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Erreur de chargement des salons administrés:", error);
+          setManagedSalons([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, currentTenantId]);
+
+  const handleSalonChange = async (tenantId) => {
+    if (!tenantId || tenantId === currentTenantId || switchingSalon) return;
+    const previousTenantId = getActiveTenantId();
+    setSwitchingSalon(true);
+    setSalonSwitchError("");
+    try {
+      const selectedSalon = managedSalons.find((salon) => salon.id === tenantId);
+      setActiveTenantId(selectedSalon?.is_main ? null : tenantId);
+      const user = await refresh();
+      if (user?.profile?.tenant_id !== tenantId) {
+        throw new Error("Le changement de salon n’a pas pu être confirmé.");
+      }
+      setSidebarOpen(false);
+      navigate("/admin/dashboard");
+    } catch (error) {
+      setActiveTenantId(previousTenantId);
+      await refresh();
+      console.error("Erreur de changement de salon:", error);
+      setSalonSwitchError(error.message || "Impossible de changer de salon.");
+    } finally {
+      setSwitchingSalon(false);
+    }
+  };
+
+  const salonSwitcher = managedSalons.length > 1 ? (
+    <div className="space-y-1 px-3 py-3">
+      <label className="text-xs font-medium text-muted-foreground" htmlFor="managed-salon">
+        Salon géré
+      </label>
+      <Select
+        value={currentTenantId}
+        onValueChange={handleSalonChange}
+        disabled={switchingSalon}
+      >
+        <SelectTrigger id="managed-salon" className="bg-background">
+          <SelectValue placeholder="Choisir un salon" />
+        </SelectTrigger>
+        <SelectContent>
+          {managedSalons.map((salon) => (
+            <SelectItem key={salon.id} value={salon.id} disabled={!salon.is_active}>
+              {salon.name}{salon.is_main ? " (principal)" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {switchingSalon && (
+        <p className="text-xs text-muted-foreground">Changement de salon...</p>
+      )}
+      {salonSwitchError && (
+        <p role="alert" className="text-xs text-destructive">{salonSwitchError}</p>
+      )}
+    </div>
+  ) : null;
 
   useEffect(() => {
     const checkDevice = () => {
@@ -1090,6 +1185,7 @@ export default function DashboardLayout() {
       <ScrollArea className={`flex-1 px-2 md:px-3 py-3 md:py-4 ${
         isMobile ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-140px)]'
       }`}>
+        {salonSwitcher}
         <nav className="space-y-0.5 md:space-y-1">
           {navLinks.map((link) => {
             const isActive = location.pathname === link.path || location.pathname.startsWith(link.path + "/");

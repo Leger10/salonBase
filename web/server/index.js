@@ -18,6 +18,7 @@ import { prisma } from './prisma.js';
 import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
 import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
+import { assertSubscriptionActive, getSubscriptionEntitlement } from './subscription-entitlement.js';
 import { getEmployeeClientStats } from './employee-stats.js';
 import { mountStorage, storageRoot } from './storage.js';
 import { mountPush } from './push/routes.js';
@@ -50,7 +51,7 @@ app.use((req, res, next) => {
   }
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Tenant-Id');
     res.setHeader('Access-Control-Max-Age', '86400');
     return res.sendStatus(204);
   }
@@ -92,7 +93,10 @@ app.get(
     const tenant = ctx.tenantId
       ? await prisma.tenant.findUnique({ where: { id: ctx.tenantId } })
       : null;
-    const dto = profileDto(profile, tenant);
+    const dto = profileDto(
+      profile ? { ...profile, tenantId: ctx.tenantId } : null,
+      tenant
+    );
 
     res.json({
       id: ctx.user.id,
@@ -111,6 +115,256 @@ app.get(
   })
 );
 
+app.get(
+  '/api/public/tenants',
+  wrap(async (_req, res) => {
+    const tenants = await prisma.tenant.findMany({
+      where: { isActive: true, showOnHome: true },
+      orderBy: { name: 'asc' },
+      take: 200,
+    });
+    const eligible = [];
+    const entitlements = new Map();
+    for (const tenant of tenants) {
+      const rootId = tenant.parentTenantId ?? tenant.id;
+      let entitlement = entitlements.get(rootId);
+      if (!entitlement) {
+        entitlement = await getSubscriptionEntitlement(tenant.id);
+        entitlements.set(rootId, entitlement);
+      }
+      if (entitlement.isActive) eligible.push(tenantDto(tenant));
+    }
+    res.json({ data: eligible });
+  })
+);
+
+app.get(
+  '/api/public/tenants/:slug',
+  wrap(async (req, res) => {
+    const tenant = await prisma.tenant.findFirst({
+      where: { slug: req.params.slug, isActive: true },
+    });
+    if (!tenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Salon non trouvé.');
+
+    const entitlement = await getSubscriptionEntitlement(tenant.id);
+    if (!entitlement.isActive) {
+      throw new HttpError(404, 'TENANT_NOT_FOUND', 'Salon non trouvé.');
+    }
+    res.json({ tenant: tenantDto(tenant) });
+  })
+);
+
+app.get(
+  '/api/admin/branches',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    if (!ctx.tenantId) throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+
+    const activeTenant = await prisma.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { id: true, parentTenantId: true },
+    });
+    if (!activeTenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement introuvable.');
+    const rootId = activeTenant.parentTenantId ?? activeTenant.id;
+
+    const [tenants, memberships] = await Promise.all([
+      prisma.tenant.findMany({
+        where: { OR: [{ id: rootId }, { parentTenantId: rootId }] },
+        orderBy: [{ parentTenantId: 'asc' }, { createdAt: 'asc' }],
+      }),
+      prisma.userTenant.findMany({
+        where: { userId: ctx.user.id, role: 'admin' },
+        select: { tenantId: true },
+      }),
+    ]);
+    const accessibleIds = new Set(memberships.map(({ tenantId }) => tenantId));
+    accessibleIds.add(ctx.profile.tenantId);
+
+    const entitlement = await getSubscriptionEntitlement(ctx.tenantId);
+    res.json({
+      data: tenants
+        .filter((tenant) => accessibleIds.has(tenant.id))
+        .map((tenant) => ({
+          ...tenantDto(tenant),
+          is_main: tenant.id === rootId,
+          is_active: Boolean(tenant.isActive),
+        })),
+      entitlement,
+    });
+  })
+);
+
+app.get(
+  '/api/admin/subscription/status',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    if (!ctx.tenantId) throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+    res.json(await getSubscriptionEntitlement(ctx.tenantId));
+  })
+);
+
+app.post(
+  '/api/admin/branches',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    if (!ctx.tenantId) throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const address = typeof req.body?.address === 'string' ? req.body.address.trim() : '';
+    const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    const city = typeof req.body?.city === 'string' ? req.body.city.trim() : '';
+    if (!name || name.length > 255) {
+      throw new HttpError(400, 'INVALID_NAME', 'Le nom du salon est requis (255 caracteres maximum).');
+    }
+    if (email.length > 255 || phone.length > 50 || city.length > 100) {
+      throw new HttpError(400, 'INVALID_CONTACT', 'Les coordonnees saisies sont trop longues.');
+    }
+
+    const activeTenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
+    if (!activeTenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement introuvable.');
+    const rootId = activeTenant.parentTenantId ?? activeTenant.id;
+    const root = await prisma.tenant.findUnique({ where: { id: rootId } });
+    if (!root) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement principal introuvable.');
+    const entitlement = await assertSubscriptionActive(ctx);
+    if (entitlement.remainingBranches <= 0) {
+      throw new HttpError(
+        403,
+        'BRANCH_LIMIT_REACHED',
+        `Votre abonnement autorise ${entitlement.branchLimit} succursale(s). Choisissez un abonnement supérieur pour en ajouter.`
+      );
+    }
+
+    const groupTenants = await prisma.tenant.findMany({
+      where: { OR: [{ id: rootId }, { parentTenantId: rootId }] },
+      select: { id: true },
+    });
+    const groupIds = groupTenants.map(({ id }) => id);
+    const groupAdminMemberships = await prisma.userTenant.findMany({
+      where: { tenantId: { in: groupIds }, role: 'admin' },
+      select: { userId: true },
+    });
+    const adminIds = [...new Set([ctx.user.id, ...groupAdminMemberships.map(({ userId }) => userId)])]
+      .filter(Boolean);
+
+    const baseSlug = name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 70) || 'salon';
+    const slug = `${baseSlug}-${randomUUID().slice(0, 8)}`;
+    const created = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${rootId} FOR UPDATE`;
+      const currentBranchCount = await tx.tenant.count({ where: { parentTenantId: rootId } });
+      if (currentBranchCount >= entitlement.branchLimit) {
+        throw new HttpError(
+          403,
+          'BRANCH_LIMIT_REACHED',
+          `Votre abonnement autorise ${entitlement.branchLimit} succursale(s). Choisissez un abonnement supérieur pour en ajouter.`
+        );
+      }
+      const branch = await tx.tenant.create({
+        data: {
+          id: randomUUID(),
+          parentTenantId: rootId,
+          name,
+          slug,
+          address: address || null,
+          phone: phone || null,
+          email: email || null,
+          city: city || null,
+          subscriptionPlan: root.subscriptionPlan,
+          subscriptionStatus: root.subscriptionStatus,
+          subscriptionStart: root.subscriptionStart,
+          subscriptionEnd: root.subscriptionEnd,
+          subscriptionMode: root.subscriptionMode,
+          externalPaymentRef: root.externalPaymentRef,
+          externalPaymentDate: root.externalPaymentDate,
+          externalPaymentExpiry: root.externalPaymentExpiry,
+          isActive: true,
+        },
+      });
+
+      await tx.userTenant.createMany({
+        data: [...new Set([...groupIds, branch.id])].flatMap((tenantId) =>
+          adminIds.map((userId) => ({ userId, tenantId, role: 'admin' }))
+        ),
+        skipDuplicates: true,
+      });
+      return branch;
+    });
+
+    res.status(201).json({
+      branch: { ...tenantDto(created), is_main: false, is_active: true },
+    });
+  })
+);
+
+app.patch(
+  '/api/admin/branches/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    if (!ctx.tenantId) throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+    await assertSubscriptionActive(ctx);
+
+    const activeTenant = await prisma.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { id: true, parentTenantId: true },
+    });
+    if (!activeTenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement introuvable.');
+    const rootId = activeTenant.parentTenantId ?? activeTenant.id;
+    const target = await prisma.tenant.findFirst({
+      where: { id: req.params.id, parentTenantId: rootId },
+      select: { id: true },
+    });
+    if (!target) throw new HttpError(404, 'BRANCH_NOT_FOUND', 'Succursale introuvable.');
+
+    const membership = await prisma.userTenant.findFirst({
+      where: { userId: ctx.user.id, tenantId: target.id, role: 'admin' },
+      select: { id: true },
+    });
+    if (!membership) throw new HttpError(403, 'TENANT_FORBIDDEN', "Vous n'administrez pas cette succursale.");
+
+    const body = req.body ?? {};
+    const data = {};
+    const maxLengths = { name: 255, phone: 50, email: 255, city: 100 };
+    for (const field of ['name', 'address', 'phone', 'email', 'city']) {
+      if (!(field in body)) continue;
+      if (body[field] !== null && typeof body[field] !== 'string') {
+        throw new HttpError(400, 'INVALID_INPUT', `Champ ${field} invalide.`);
+      }
+      const value = typeof body[field] === 'string' ? body[field].trim() : '';
+      if (field === 'name' && !value) {
+        throw new HttpError(400, 'INVALID_NAME', 'Le nom du salon est requis.');
+      }
+      if (value.length > (maxLengths[field] ?? 10000)) {
+        throw new HttpError(400, 'INVALID_INPUT', `Le champ ${field} est trop long.`);
+      }
+      data[field] = value || null;
+    }
+    if ('isActive' in body) {
+      if (typeof body.isActive !== 'boolean') {
+        throw new HttpError(400, 'INVALID_INPUT', 'Statut du salon invalide.');
+      }
+      data.isActive = body.isActive;
+    }
+    if (Object.keys(data).length === 0) {
+      throw new HttpError(400, 'EMPTY_UPDATE', 'Aucune modification fournie.');
+    }
+    const updated = await prisma.tenant.update({
+      where: { id: target.id },
+      data,
+    });
+    res.json({ branch: { ...tenantDto(updated), is_main: false, is_active: Boolean(updated.isActive) } });
+  })
+);
+
 // --- Promotion / changement de role ---------------------------------------
 // Remplace les appels `supabase.from('profiles').update({ role })` de l'ancien
 // frontend. Regles : un admin ne touche que son propre tenant et ne peut pas
@@ -120,6 +374,7 @@ app.patch(
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
     requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
 
     const { role, tenant_id: tenantId = null } = req.body ?? {};
     if (!role || !Object.hasOwn(ROLES, role)) {
@@ -159,6 +414,7 @@ app.patch(
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
     requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
 
     if (!ctx.tenantId) {
       throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
@@ -248,6 +504,7 @@ app.patch(
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
     requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
 
     const { action } = req.body ?? {};
     if (!['activate', 'deactivate', 'archive', 'restore'].includes(action)) {
@@ -292,6 +549,213 @@ app.patch(
   })
 );
 
+app.get(
+  '/api/admin/cashier/summary',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    if (!ctx.tenantId) {
+      throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+    }
+
+    const parseBoundary = (value, name) => {
+      if (typeof value !== 'string' || !value) {
+        throw new HttpError(400, 'INVALID_DATE', `Date ${name} requise.`);
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        throw new HttpError(400, 'INVALID_DATE', `Date ${name} invalide.`);
+      }
+      return date;
+    };
+
+    const todayStart = parseBoundary(req.query.todayStart, 'todayStart');
+    const tomorrowStart = parseBoundary(req.query.tomorrowStart, 'tomorrowStart');
+    const monthStart = parseBoundary(req.query.monthStart, 'monthStart');
+    if (todayStart >= tomorrowStart || monthStart > todayStart) {
+      throw new HttpError(400, 'INVALID_DATE_RANGE', 'Periode de caisse invalide.');
+    }
+
+    const [rows] = await prisma.$queryRaw`
+      SELECT
+        COALESCE(SUM(CASE
+          WHEN transaction_date >= ${todayStart} AND transaction_date < ${tomorrowStart}
+          THEN CASE WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END
+          ELSE 0
+        END), 0) AS todayRevenue,
+        COUNT(CASE WHEN transaction_date >= ${monthStart} THEN 1 END) AS monthlyTransactions,
+        COALESCE(SUM(CASE
+          WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END
+        ), 0) AS totalRevenue,
+        COUNT(*) AS completedTransactions,
+        COALESCE(SUM(CASE WHEN transaction_type = 'product_sale' OR source = 'cashier_sale'
+          THEN CASE WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END ELSE 0 END), 0) AS productRevenue,
+        COALESCE(SUM(CASE WHEN transaction_type = 'appointment' OR source = 'cashier_appointment'
+          THEN CASE WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END ELSE 0 END), 0) AS appointmentRevenue,
+        COALESCE(SUM(CASE WHEN source = 'gallery_order'
+          THEN CASE WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END ELSE 0 END), 0) AS galleryRevenue,
+        COALESCE(SUM(CASE WHEN transaction_type = 'ticket_payment' OR source = 'ticket_completed'
+          THEN CASE WHEN total_after_discount IS NULL OR total_after_discount = 0
+            THEN amount ELSE total_after_discount END ELSE 0 END), 0) AS ticketRevenue
+      FROM transactions
+      WHERE tenant_id = ${ctx.tenantId} AND status = 'completed' AND amount > 0
+    `;
+
+    const revenue = Number(rows.totalRevenue);
+    const count = Number(rows.completedTransactions);
+    res.json({
+      todayRevenue: Number(rows.todayRevenue),
+      monthlyTransactions: Number(rows.monthlyTransactions),
+      totalRevenue: revenue,
+      averageValue: count ? revenue / count : 0,
+      productRevenue: Number(rows.productRevenue),
+      appointmentRevenue: Number(rows.appointmentRevenue),
+      galleryRevenue: Number(rows.galleryRevenue),
+      ticketRevenue: Number(rows.ticketRevenue),
+    });
+  })
+);
+
+app.post(
+  '/api/admin/tickets/:id/payment',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
+    if (!ctx.tenantId) {
+      throw new HttpError(403, 'TENANT_REQUIRED', 'Un etablissement est requis.');
+    }
+
+    const { amount, receivedAmount, paymentMethod, receiptNumber } = req.body ?? {};
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 99999999.99) {
+      throw new HttpError(400, 'INVALID_AMOUNT', 'Montant a encaisser invalide.');
+    }
+    if (typeof receivedAmount !== 'number' || !Number.isFinite(receivedAmount) || receivedAmount < amount) {
+      throw new HttpError(400, 'INSUFFICIENT_PAYMENT', 'Le montant recu est inferieur au montant a payer.');
+    }
+    if (!['cash', 'card', 'orange_money', 'moov_money', 'wave'].includes(paymentMethod)) {
+      throw new HttpError(400, 'INVALID_PAYMENT_METHOD', 'Methode de paiement invalide.');
+    }
+    if (typeof receiptNumber !== 'string' || !receiptNumber.trim() || receiptNumber.length > 100) {
+      throw new HttpError(400, 'INVALID_RECEIPT', 'Numero de recu invalide.');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM tickets
+        WHERE id = ${req.params.id} AND tenant_id = ${ctx.tenantId}
+        FOR UPDATE
+      `;
+      const ticket = await tx.ticket.findFirst({
+        where: { id: req.params.id, tenantId: ctx.tenantId },
+      });
+      if (!ticket) throw new HttpError(404, 'NOT_FOUND', 'Ticket introuvable.');
+
+      const existing = await tx.transaction.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          OR: [{ ticketId: ticket.id }, ...(ticket.transactionId ? [{ id: ticket.transactionId }] : [])],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (ticket.paymentStatus === 'paid' || ticket.transactionId || existing) {
+        if (!existing || existing.status !== 'completed') {
+          throw new HttpError(409, 'TICKET_PAYMENT_CONFLICT', 'Le paiement de ce ticket necessite une verification.');
+        }
+        if (ticket.paymentStatus !== 'paid' || ticket.transactionId !== existing.id) {
+          await tx.ticket.update({
+            where: { id: ticket.id },
+            data: {
+              paymentStatus: 'paid',
+              transactionId: existing.id,
+              servicePrice: existing.amount,
+            },
+          });
+        }
+        return { transaction: existing, alreadyPaid: true };
+      }
+
+      if (!['completed', 'archived'].includes(ticket.status ?? '') || !ticket.completedAt) {
+        throw new HttpError(409, 'TICKET_NOT_COMPLETED', 'Le service doit etre termine avant encaissement.');
+      }
+
+      let cashierId = null;
+      const cashier = await tx.employee.findFirst({
+        where: { tenantId: ctx.tenantId, profileId: ctx.user.id },
+        select: { id: true },
+      });
+      if (cashier) cashierId = cashier.id;
+
+      let finalReceiptNumber = receiptNumber.trim();
+      if (await tx.transaction.findUnique({ where: { receiptNumber: finalReceiptNumber } })) {
+        finalReceiptNumber = `RCP-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      }
+
+      const transaction = await tx.transaction.create({
+        data: {
+          tenantId: ctx.tenantId,
+          clientId: ticket.clientId,
+          cashierId,
+          employeeId: ticket.assignedEmployeeId,
+          ticketId: ticket.id,
+          amount,
+          totalAfterDiscount: amount,
+          paymentMethod,
+          receiptNumber: finalReceiptNumber,
+          status: 'completed',
+          transactionType: 'ticket_payment',
+          source: 'ticket_completed',
+          customerName: ticket.clientName || 'Client',
+          customerPhone: ticket.clientPhone || '',
+          notes: `Ticket #${ticket.ticketNumber} - ${ticket.serviceType || 'Service'}`,
+        },
+      });
+
+      await tx.ticket.update({
+        where: { id: ticket.id },
+        data: {
+          paymentStatus: 'paid',
+          transactionId: transaction.id,
+          servicePrice: amount,
+        },
+      });
+
+      return { transaction, alreadyPaid: false };
+    });
+
+    const transaction = result.transaction;
+    const amountPaid = Number(transaction.amount);
+    res.json({
+      already_paid: result.alreadyPaid,
+      change: Math.max(0, receivedAmount - amountPaid),
+      transaction: {
+        id: transaction.id,
+        tenant_id: transaction.tenantId,
+        client_id: transaction.clientId,
+        ticket_id: transaction.ticketId,
+        employee_id: transaction.employeeId,
+        amount: amountPaid,
+        total_after_discount: Number(transaction.totalAfterDiscount ?? transaction.amount),
+        payment_method: transaction.paymentMethod,
+        receipt_number: transaction.receiptNumber,
+        status: transaction.status,
+        transaction_date: transaction.transactionDate?.toISOString() ?? null,
+        transaction_type: transaction.transactionType,
+        source: transaction.source,
+        customer_name: transaction.customerName,
+        customer_phone: transaction.customerPhone,
+        notes: transaction.notes,
+      },
+    });
+  })
+);
+
 // --- Creation d'un utilisateur --------------------------------------------
 // Remplace `supabaseAdmin.auth.admin.createUser` de l'ancien frontend. La table
 // `profiles` EST la table user de Better Auth : on cree le profil ET le compte
@@ -302,6 +766,7 @@ app.post(
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
     requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
 
     const body = req.body ?? {};
     const email = String(body.email ?? '').trim().toLowerCase();
@@ -415,6 +880,7 @@ app.delete(
   wrap(async (req, res) => {
     const ctx = await requireAuth(req);
     requireRole(ctx, 'admin');
+    await assertSubscriptionActive(ctx);
 
     const target = await prisma.profile.findUnique({ where: { id: req.params.id } });
     if (!target) return res.json({ success: true, deleted: 0 });

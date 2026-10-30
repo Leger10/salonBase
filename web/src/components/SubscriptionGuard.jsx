@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from "@/lib/api.js";
 import { Card, CardContent } from "@/components/ui/card.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
@@ -42,6 +43,7 @@ export default function SubscriptionGuard({ children }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(false);
+  const [shownExpiryWarning, setShownExpiryWarning] = useState(null);
 
   // ✅ Exclure certaines routes du guard
   const excludedRoutes = ['/admin/subscription/success', '/admin/subscription'];
@@ -96,17 +98,7 @@ export default function SubscriptionGuard({ children }) {
       if (tenantError) throw tenantError;
       setTenant(tenantData);
 
-      // Récupérer l'abonnement actif
-      const { data: subData, error: subError } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (subError && subError.code !== "PGRST116") throw subError;
+      const entitlement = await apiFetch("/api/admin/subscription/status");
 
       // Récupérer les plans disponibles
       const { data: plansData, error: plansError } = await supabase
@@ -118,56 +110,36 @@ export default function SubscriptionGuard({ children }) {
       if (plansError) throw plansError;
       setPlans(plansData || []);
 
-      // Vérifier le statut
-      const hasActiveSub = subData !== null && subData?.status === "active";
-
-      let isActive = false;
-      let daysRemaining = 0;
-
-      if (hasActiveSub && subData?.end_date) {
-        const endDate = new Date(subData.end_date);
-        const now = new Date();
-        daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
-        isActive = endDate > now;
-      }
-
-      if (
-        tenantData?.subscription_mode === "external" &&
-        tenantData?.external_payment_expiry
-      ) {
-        const expiryDate = new Date(tenantData.external_payment_expiry);
-        const now = new Date();
-        daysRemaining = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-        isActive = expiryDate > now;
-      }
-
-      if (tenantData?.subscription_mode === "free") {
-        isActive = true;
-        daysRemaining = 30;
-      }
-
-      if (tenantData?.subscription_status === "active" && !hasActiveSub) {
-        if (
-          tenantData?.subscription_mode === "external" &&
-          tenantData?.external_payment_expiry
-        ) {
-          const expiryDate = new Date(tenantData.external_payment_expiry);
-          const now = new Date();
-          daysRemaining = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-          isActive = expiryDate > now;
-        } else {
-          isActive = false;
-        }
-      }
+      const isActive = entitlement.isActive;
+      const daysRemaining = entitlement.daysRemaining;
+      const subData = entitlement.currentSubscription;
 
       setSubscriptionStatus({
         status: isActive ? "active" : "inactive",
         subscription: subData,
         tenant: tenantData,
-        endDate: subData?.end_date || tenantData?.external_payment_expiry,
-        mode: tenantData?.subscription_mode || "subscription",
+        endDate: entitlement.endDate,
+        mode: entitlement.mode,
         daysRemaining: daysRemaining,
       });
+
+      if (daysRemaining > 0 && daysRemaining <= 7) {
+        const warningKey = `subscription-expiry:${entitlement.rootTenantId}:${entitlement.endDate}`;
+        if (shownExpiryWarning !== warningKey) {
+          setShownExpiryWarning(warningKey);
+          toast.warning(
+            `Votre abonnement expire dans ${daysRemaining} jour${daysRemaining > 1 ? "s" : ""}.`,
+            {
+              description: "Renouvelez-le pour garder l'accès à tous vos salons.",
+              action: {
+                label: "Contacter le support",
+                onClick: () => navigate("/admin/support"),
+              },
+              duration: 10000,
+            }
+          );
+        }
+      }
 
       // ✅ Ne pas afficher le modal sur les routes exclues
       if (!isActive && !isExcludedRoute) {

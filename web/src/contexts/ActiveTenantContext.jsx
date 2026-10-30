@@ -1,7 +1,7 @@
 // /src/contexts/ActiveTenantContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { apiFetch } from '@/lib/api.js';
 
 const ActiveTenantContext = createContext();
 
@@ -30,24 +30,11 @@ export function ActiveTenantProvider({ children }) {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('slug', slug)
-        .eq('subscription_status', 'active')
-        .maybeSingle();
-
-      if (error) throw error;
-      
-      if (data) {
-        setActiveTenant(data);
-        setIsShowcase(true);
-      } else {
-        setActiveTenant(null);
-        setIsShowcase(false);
-      }
+      const { tenant } = await apiFetch(`/api/public/tenants/${encodeURIComponent(slug)}`);
+      setActiveTenant(tenant);
+      setIsShowcase(true);
     } catch (error) {
-      console.error('Error fetching tenant:', error);
+      if (error.status !== 404) console.error('Error fetching tenant:', error);
       setActiveTenant(null);
       setIsShowcase(false);
     } finally {

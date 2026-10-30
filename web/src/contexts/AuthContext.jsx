@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { apiFetch, authApi, fetchMe, toCurrentUser } from "@/lib/api";
+import { apiFetch, authApi, fetchMe, setActiveTenantId, toCurrentUser } from "@/lib/api";
 
 const AuthContext = createContext(null);
 
@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(
     async (email, password) => {
       try {
+        setActiveTenantId(null);
         await authApi.signIn(email, password);
         const user = await refresh();
         if (!user) throw new Error("Session invalide apres connexion.");
@@ -109,6 +110,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Erreur déconnexion:", error);
     } finally {
+      setActiveTenantId(null);
       setCurrentUser(null);
       setIsAuthenticated(false);
       navigate("/");

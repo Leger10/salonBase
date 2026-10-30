@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ReceiptPDF } from '@/components/ReceiptPDF';
@@ -204,6 +205,7 @@ export default function CashierPage() {
     productRevenue: 0,
     appointmentRevenue: 0,
     galleryRevenue: 0,
+    ticketRevenue: 0,
     pendingOrdersCount: 0,
   });
 
@@ -338,9 +340,12 @@ export default function CashierPage() {
         return;
       }
 
-      const amount = parseFloat(selectedArchivedTicket.service_price) || 0;
+      // Le montant est pre-rempli avec le prix du service mais reste modifiable :
+      // certains tickets de file d'attente sont pris sans service (prix a 0) et
+      // doivent malgre tout pouvoir etre encaisses.
+      const amount = parseFloat(paymentForm.amount) || 0;
       if (amount <= 0) {
-        toast.error("Le prix du service doit être renseigné avant l'encaissement.");
+        toast.error("Renseignez le montant à encaisser avant de valider.");
         return;
       }
       const receivedAmount = parseFloat(paymentForm.received_amount) || amount;
@@ -352,59 +357,38 @@ export default function CashierPage() {
 
       const change = receivedAmount - amount;
       const receiptNumber = await generateReceiptNumber(tenantId);
-
-      // 1. Créer la transaction
-      const { data: txData, error: txError } = await supabase
-        .from("transactions")
-        .insert({
-          tenant_id: tenantId,
-          client_id: selectedArchivedTicket.client_id || null,
-          ticket_id: selectedArchivedTicket.id,
-          employee_id: selectedArchivedTicket.assigned_employee_id || null,
-          amount: amount,
-          total_after_discount: amount,
-          payment_method: paymentForm.payment_method,
-          receipt_number: receiptNumber,
-          status: "completed",
-          transaction_date: new Date().toISOString(),
-          transaction_type: "ticket_payment",
-          source: "ticket_completed",
-          customer_name: selectedArchivedTicket.client_name || "Client",
-          customer_phone: selectedArchivedTicket.client_phone || "",
-          notes: `Ticket #${selectedArchivedTicket.ticket_number} - ${selectedArchivedTicket.service_type} - Employé: ${selectedArchivedTicket.employee_name}`,
-        })
-        .select()
-        .single();
-
-      if (txError) throw txError;
-
-      // 2. Mettre à jour le ticket
-      const { error: updateError } = await supabase
-        .from('tickets')
-        .update({
-          payment_status: 'paid',
-          transaction_id: txData.id,
-        })
-        .eq('id', selectedArchivedTicket.id);
-
-      if (updateError) {
-        throw updateError;
-      }
+      const payment = await apiFetch(
+        `/api/admin/tickets/${encodeURIComponent(selectedArchivedTicket.id)}/payment`,
+        {
+          method: "POST",
+          body: {
+            amount,
+            receivedAmount,
+            paymentMethod: paymentForm.payment_method,
+            receiptNumber,
+          },
+        }
+      );
+      const txData = payment.transaction;
+      const settledAmount = Number(txData.amount);
+      const settledChange = Number(payment.change) || 0;
 
       toast.success(
-        `💰 Ticket #${selectedArchivedTicket.ticket_number} encaissé - Total: ${amount.toLocaleString()} FCFA${change > 0 ? ` - Monnaie: ${change.toLocaleString()} FCFA` : ''}`
+        payment.already_paid
+          ? `Le ticket #${selectedArchivedTicket.ticket_number} est déjà encaissé.`
+          : `💰 Ticket #${selectedArchivedTicket.ticket_number} encaissé - Total: ${settledAmount.toLocaleString()} FCFA${settledChange > 0 ? ` - Monnaie: ${settledChange.toLocaleString()} FCFA` : ''}`
       );
 
       // Créer l'objet transaction pour le reçu
       setCurrentTransaction({
         ...txData,
-        change: change,
-        received_amount: receivedAmount,
+        change: settledChange,
+        received_amount: settledAmount + settledChange,
         cart_items: [{
           name: selectedArchivedTicket.service_type || 'Service',
           quantity: 1,
-          price: amount,
-          total: amount
+          price: settledAmount,
+          total: settledAmount
         }],
         customer_name: selectedArchivedTicket.client_name || 'Client',
         customer_phone: selectedArchivedTicket.client_phone || '',
@@ -482,6 +466,7 @@ export default function CashierPage() {
           productRevenue: 0,
           appointmentRevenue: 0,
           galleryRevenue: 0,
+          ticketRevenue: 0,
           pendingOrdersCount: 0,
         });
         setLoading(false);
@@ -573,58 +558,25 @@ export default function CashierPage() {
       setPendingOrders(pending);
       setAppointments(unpaidAppointments);
 
-      // Calcul des statistiques
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const completedTransactions = completed.filter(t => 
-        t.status === 'completed' && t.amount > 0
-      );
-
-      const todayRevenue = completedTransactions
-        .filter(t => {
-          const txDate = new Date(t.transaction_date);
-          return txDate >= today && txDate < tomorrow;
-        })
-        .reduce((sum, t) => sum + (t.total_after_discount || t.amount), 0);
-
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const monthlyTransactions = completedTransactions
-        .filter(t => new Date(t.transaction_date) >= startOfMonth)
-        .length;
-
-      const totalRevenue = completedTransactions
-        .reduce((sum, t) => sum + (t.total_after_discount || t.amount), 0);
-
-      let productRevenue = 0;
-      let appointmentRevenue = 0;
-      let galleryRevenue = 0;
-
-      completedTransactions.forEach(t => {
-        const amount = t.total_after_discount || t.amount || 0;
-        if (t.transaction_type === 'product_sale' || t.source === 'cashier_sale') {
-          productRevenue += amount;
-        } else if (t.transaction_type === 'appointment' || t.source === 'cashier_appointment') {
-          appointmentRevenue += amount;
-        } else if (t.source === 'gallery_order') {
-          galleryRevenue += amount;
-        }
+      const todayStart = startOfDay(new Date());
+      const tomorrowStart = addDays(todayStart, 1);
+      const monthStart = startOfMonth(todayStart);
+      const summaryParams = new URLSearchParams({
+        todayStart: todayStart.toISOString(),
+        tomorrowStart: tomorrowStart.toISOString(),
+        monthStart: monthStart.toISOString(),
       });
-
-      const averageValue = completedTransactions.length > 0 
-        ? totalRevenue / completedTransactions.length 
-        : 0;
+      const summary = await apiFetch(`/api/admin/cashier/summary?${summaryParams}`);
 
       setStats({
-        todayRevenue: todayRevenue,
-        monthlyTransactions: monthlyTransactions,
-        averageValue: averageValue,
-        totalRevenue: totalRevenue,
-        productRevenue: productRevenue,
-        appointmentRevenue: appointmentRevenue,
-        galleryRevenue: galleryRevenue,
+        todayRevenue: summary.todayRevenue,
+        monthlyTransactions: summary.monthlyTransactions,
+        averageValue: summary.averageValue,
+        totalRevenue: summary.totalRevenue,
+        productRevenue: summary.productRevenue,
+        appointmentRevenue: summary.appointmentRevenue,
+        galleryRevenue: summary.galleryRevenue,
+        ticketRevenue: summary.ticketRevenue,
         pendingOrdersCount: pending.length,
       });
 
@@ -694,7 +646,7 @@ export default function CashierPage() {
           revenue: 0,
           services: 0,
         };
-        current.revenue += Number(transaction.total_after_discount || transaction.amount || 0);
+        current.revenue += Number(transaction.total_after_discount) || Number(transaction.amount) || 0;
         current.services += 1;
         totals.set(transaction.employee_id, current);
       }
@@ -1454,7 +1406,7 @@ export default function CashierPage() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-8 gap-4">
         <Card className="border-none shadow-sm bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Recettes du jour</p>
@@ -1489,6 +1441,12 @@ export default function CashierPage() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Commandes</p>
             <p className="text-xl font-bold text-orange-600 dark:text-orange-400">{formatAmount(stats.galleryRevenue)}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/30 dark:to-cyan-900/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Tickets encaissés</p>
+            <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">{formatAmount(stats.ticketRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20">
@@ -2087,9 +2045,32 @@ export default function CashierPage() {
                     <span className="text-muted-foreground">Service</span>
                     <span className="font-medium text-foreground">{selectedArchivedTicket.service_type || '-'}</span>
                   </div>
-                  <div className="flex justify-between border-t pt-2 dark:border-gray-600">
-                    <span className="font-bold text-foreground">Total à payer</span>
-                    <span className="font-bold text-blue-600 dark:text-blue-400">{formatAmount(selectedArchivedTicket.service_price || 0)}</span>
+                  <div className="space-y-2 border-t pt-2 dark:border-gray-600">
+                    <Label htmlFor="archived-ticket-amount" className="flex items-center gap-2 font-bold text-foreground">
+                      <Banknote className="h-4 w-4 text-blue-500" /> Montant à encaisser (FCFA) *
+                    </Label>
+                    <Input
+                      id="archived-ticket-amount"
+                      type="number"
+                      min="0"
+                      step="100"
+                      required
+                      value={paymentForm.amount}
+                      onChange={(e) => {
+                        const amount = e.target.value;
+                        const change = calculateChange(paymentForm.received_amount, amount);
+                        setPaymentForm({
+                          ...paymentForm,
+                          amount,
+                          change,
+                        });
+                      }}
+                      className="bg-background border-2 border-blue-200 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="Montant à encaisser"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Prix du service : {formatAmount(selectedArchivedTicket.service_price || 0)} (modifiable)
+                    </p>
                   </div>
                 </div>
 
@@ -2104,12 +2085,11 @@ export default function CashierPage() {
                     value={paymentForm.received_amount}
                     onChange={(e) => {
                       const received = e.target.value;
-                      const change = calculateChange(received, selectedArchivedTicket.service_price || 0);
+                      const change = calculateChange(received, paymentForm.amount);
                       setPaymentForm({
                         ...paymentForm,
                         received_amount: received,
                         change: change,
-                        amount: (selectedArchivedTicket.service_price || 0).toString(),
                       });
                     }}
                     className="bg-background border-2 border-blue-200 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -2130,10 +2110,10 @@ export default function CashierPage() {
                   </div>
                 )}
 
-                {paymentForm.received_amount && parseFloat(paymentForm.received_amount) > 0 && parseFloat(paymentForm.received_amount) < (selectedArchivedTicket.service_price || 0) && (
+                {paymentForm.received_amount && parseFloat(paymentForm.received_amount) > 0 && parseFloat(paymentForm.received_amount) < (parseFloat(paymentForm.amount) || 0) && (
                   <div className="p-3 bg-red-50 border border-red-300 rounded-lg dark:bg-red-950/30 dark:border-red-800">
                     <p className="text-sm text-red-600 dark:text-red-400">
-                      ⚠️ Le montant reçu ({formatAmount(parseFloat(paymentForm.received_amount))}) est inférieur au total ({formatAmount(selectedArchivedTicket.service_price || 0)})
+                      ⚠️ Le montant reçu ({formatAmount(parseFloat(paymentForm.received_amount))}) est inférieur au total ({formatAmount(parseFloat(paymentForm.amount) || 0)})
                     </p>
                   </div>
                 )}
@@ -2174,7 +2154,7 @@ export default function CashierPage() {
               <Button
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-800"
-                disabled={!selectedArchivedTicket || !paymentForm.received_amount || parseFloat(paymentForm.received_amount) < (selectedArchivedTicket?.service_price || 0)}
+                disabled={!selectedArchivedTicket || !(parseFloat(paymentForm.amount) > 0) || !paymentForm.received_amount || parseFloat(paymentForm.received_amount) < (parseFloat(paymentForm.amount) || 0)}
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Valider l'encaissement

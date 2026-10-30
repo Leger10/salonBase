@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { HttpError } from './middleware/auth.js';
 import { afterDelete, afterInsert, afterUpdate, WATCHED } from './push/hooks.js';
+import { assertSubscriptionActive } from './subscription-entitlement.js';
 
 // Tables Better Auth : accessibles uniquement via /api/auth/*.
 const FORBIDDEN_TABLES = new Set(['account', 'session', 'verification']);
@@ -73,6 +74,46 @@ function isAdminTenantSelfUpdate(tableName, op, body, ctx) {
   const keys = Object.keys(body.payload ?? {});
   if (!keys.length) return false;
   return keys.every((key) => TENANT_ADMIN_SELF_COLUMNS.has(key.toLowerCase()));
+}
+
+function isSubscriptionRequestWrite(tableName, op, body, ctx) {
+  if (ctx.role !== 'admin') return false;
+  const payloads = Array.isArray(body.payload) ? body.payload : [body.payload];
+  if (tableName === 'subscriptions' && op === 'insert') {
+    const requestColumns = new Set([
+      'tenant_id',
+      'plan',
+      'duration',
+      'amount',
+      'payment_method',
+      'payment_reference',
+      'start_date',
+      'end_date',
+      'status',
+      'auto_renew',
+      'max_employees',
+      'max_services',
+      'max_products',
+      'features',
+      'created_at',
+    ]);
+    return payloads.length > 0 && payloads.every((payload) =>
+      payload?.status === 'pending'
+      && Object.keys(payload).every((key) => requestColumns.has(key.toLowerCase()))
+    );
+  }
+  if (tableName !== 'tenants' || op !== 'update' || !isAdminTenantSelfUpdate(tableName, op, body, ctx)) {
+    return false;
+  }
+  const allowed = new Set([
+    'subscription_status',
+    'subscription_plan',
+    'subscription_start',
+    'subscription_end',
+    'updated_at',
+  ]);
+  return body.payload?.subscription_status === 'pending'
+    && Object.keys(body.payload).every((key) => allowed.has(key.toLowerCase()));
 }
 
 // Roles par defaut quand la table n'est pas listee. Un employe peut supprimer
@@ -805,11 +846,14 @@ export async function runQuery(ctx, body) {
 
   const levels = { super_admin: 4, admin: 3, employee: 2, client: 1 };
   const needed = levels[requiredLevel(body.table, op)];
+  const adminTenantSelfUpdate = !isPublic
+    && isAdminTenantSelfUpdate(table.table, op, body, ctx);
+  const subscriptionRequestWrite = isSubscriptionRequestWrite(table.table, op, body, ctx);
   if (op !== 'select' && !isPublic) {
-    const adminTenantSelfUpdate = isAdminTenantSelfUpdate(table.table, op, body, ctx);
     if (!adminTenantSelfUpdate && (levels[ctx.role] ?? 0) < needed) {
       throw new HttpError(403, 'FORBIDDEN', `Droits insuffisants pour ${op} sur ${body.table}.`);
     }
+    if (!subscriptionRequestWrite) await assertSubscriptionActive(ctx);
   }
 
   if (op === 'select') {
@@ -851,6 +895,22 @@ export async function runQuery(ctx, body) {
 
   if (op === 'insert' || op === 'upsert') {
     const payload = Array.isArray(body.payload) ? body.payload : [body.payload];
+    let subscriptionRootId = null;
+    if (table.table === 'subscriptions' && ctx.role === 'admin') {
+      const activeTenant = await prisma.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { id: true, parentTenantId: true },
+      });
+      if (!activeTenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement introuvable.');
+      subscriptionRootId = activeTenant.parentTenantId ?? activeTenant.id;
+      if (payload.some((row) => row?.status === 'pending')) {
+        const pending = await prisma.subscription.findFirst({
+          where: { tenantId: subscriptionRootId, status: 'pending' },
+          select: { id: true },
+        });
+        if (pending) throw new HttpError(409, 'SUBSCRIPTION_PENDING', 'Une demande d’abonnement est déjà en attente.');
+      }
+    }
     const rows = payload.map((row) => {
       assertWritable(table, row, ctx);
       const data = toPrismaData(table, row);
@@ -860,6 +920,7 @@ export async function runQuery(ctx, body) {
       // tenant, peut ecrire sans tenant ou en choisir un. Pour le public, le
       // tenant fourni est conserve puis valide par assertPublicTenant.
       if (table.hasTenant && !isPublic && ctx.role !== 'super_admin') data.tenantId = ctx.tenantId;
+      if (table.table === 'subscriptions' && subscriptionRootId) data.tenantId = subscriptionRootId;
       return data;
     });
 
@@ -925,7 +986,40 @@ export async function runQuery(ctx, body) {
     // / annulation d'un rendez-vous cote notifications.
     const watched = WATCHED.has(table.table);
     const previous = watched ? await prisma[client].findMany({ where }) : [];
-    const updated = await prisma[client].updateMany({ where, data });
+    const sharedSubscriptionFields = [
+      'subscriptionPlan',
+      'subscriptionStatus',
+      'subscriptionStart',
+      'subscriptionEnd',
+    ];
+    const sharedSubscription = table.table === 'tenants' && adminTenantSelfUpdate
+      ? Object.fromEntries(
+          sharedSubscriptionFields
+            .filter((field) => Object.hasOwn(data, field))
+            .map((field) => [field, data[field]])
+        )
+      : {};
+    let updated;
+    if (Object.keys(sharedSubscription).length) {
+      const activeTenant = await prisma.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { id: true, parentTenantId: true },
+      });
+      if (!activeTenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Etablissement introuvable.');
+      const rootId = activeTenant.parentTenantId ?? activeTenant.id;
+      updated = await prisma.$transaction(async (tx) => {
+        const result = await tx[client].updateMany({ where, data });
+        if (result.count > 0) {
+          await tx.tenant.updateMany({
+            where: { OR: [{ id: rootId }, { parentTenantId: rootId }] },
+            data: sharedSubscription,
+          });
+        }
+        return result;
+      });
+    } else {
+      updated = await prisma[client].updateMany({ where, data });
+    }
     if (watched && updated.count > 0) await afterUpdate(table.table, previous, body.payload);
     return { data: [], error: null, count: updated.count };
   }
