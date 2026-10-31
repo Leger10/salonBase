@@ -14,6 +14,7 @@ import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
 import { hashPassword } from 'better-auth/crypto';
 import { auth, authOrigins } from './auth.js';
+import { ensureSchemaReady, schemaStatus } from './db-bootstrap.js';
 import { prisma } from './prisma.js';
 import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
 import { profileDto, tenantDto } from './dto.js';
@@ -59,7 +60,29 @@ app.use((req, res, next) => {
 });
 
 // --- Better Auth ----------------------------------------------------------
-app.all('/api/auth/*splat', toNodeHandler(auth));
+// Le schema (tables account/session/verification, colonnes et comptes
+// "credential" manquants, migrations recentes) est mis a niveau
+// automatiquement au demarrage. En production la base avait ete importee sans
+// ces tables/colonnes : la connexion d'un utilisateur existant et plusieurs
+// endpoints (/api/me, /api/public/tenants) echouaient alors en 500.
+ensureSchemaReady();
+
+const authNodeHandler = toNodeHandler(auth);
+app.all('/api/auth/*splat', (req, res) => {
+  ensureSchemaReady()
+    .then(() => authNodeHandler(req, res))
+    .catch((error) => {
+      console.error(`[auth] ${req.method} ${req.originalUrl}`, error);
+      if (res.headersSent) {
+        res.end();
+        return;
+      }
+      res.status(500).json({
+        error: 'AUTH_INTERNAL_ERROR',
+        message: "Service d'authentification momentanement indisponible.",
+      });
+    });
+});
 
 // Enveloppe les handlers async pour router leurs exceptions vers next().
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -78,7 +101,11 @@ app.get(
   wrap(async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     const [{ n }] = await prisma.$queryRaw`SELECT COUNT(*) n FROM profiles`;
-    res.json({ ok: true, profiles: Number(n), origins: authOrigins });
+    // Diagnostic public : aucun secret, uniquement la presence des tables
+    // d'authentification et le nombre de comptes. Permet de verifier le
+    // deploiement sans acces aux logs de l'hebergeur.
+    const schema = await schemaStatus();
+    res.json({ ok: true, profiles: Number(n), origins: authOrigins, schema });
   })
 );
 
