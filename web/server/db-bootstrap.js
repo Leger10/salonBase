@@ -430,7 +430,45 @@ export async function schemaStatus() {
       employeesArchiveColumn = (await columnNames('employees')).has('archived_at');
     }
 
+    // Sondes de lecture : detectent les incompatibilites de type entre la base
+    // importee et le client Prisma (colonnes absentes, types non convertibles).
+    const probes = {};
+    const probe = async (name, run) => {
+      try {
+        await run();
+        probes[name] = { ok: true };
+      } catch (error) {
+        probes[name] = {
+          ok: false,
+          code: error?.code ?? null,
+          message: String(error?.message ?? error).slice(0, 300),
+        };
+      }
+    };
+    await probe('tenant', () => prisma.tenant.findFirst({ where: { isActive: true } }));
+    await probe('profile', () => prisma.profile.findFirst());
+    await probe('subscription', () => prisma.subscription.findFirst());
+    await probe('subscriptionPlan', () => prisma.subscriptionPlan.findFirst());
+    await probe('employee', () => prisma.employee.findFirst());
+
+    const columnTypes = {};
+    for (const table of ['tenants', 'subscriptions', 'subscription_plans', 'profiles']) {
+      if (!tables[table] && !(await tableExists(table))) continue;
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable
+           FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+          ORDER BY ORDINAL_POSITION`,
+        table
+      );
+      columnTypes[table] = Object.fromEntries(
+        rows.map((row) => [String(row.name), `${row.type}${row.nullable === 'YES' ? '?' : ''}`])
+      );
+    }
+
     return {
+      probes,
+      columnTypes,
       ok: Boolean(
         tables.profiles &&
           tables.account &&
