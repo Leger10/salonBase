@@ -68,6 +68,54 @@ const CREATE_TABLES = {
     INDEX \`verification_identifier_idx\`(\`identifier\`)
   ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
 
+  // --- Abonnements (absents de la base de production importee) -----------
+  subscription_plans: `CREATE TABLE IF NOT EXISTS \`subscription_plans\` (
+    \`id\` CHAR(36) NOT NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`description\` TEXT NULL,
+    \`price\` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    \`currency\` VARCHAR(10) NULL DEFAULT 'FCFA',
+    \`duration_months\` INTEGER NOT NULL DEFAULT 1,
+    \`max_employees\` INTEGER NULL DEFAULT 5,
+    \`max_services\` INTEGER NULL DEFAULT 20,
+    \`max_products\` INTEGER NULL DEFAULT 50,
+    \`features\` JSON NULL,
+    \`is_active\` BOOLEAN NULL DEFAULT true,
+    \`created_at\` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    \`updated_at\` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_subscription_plans_is_active\`(\`is_active\`),
+    INDEX \`idx_subscription_plans_name\`(\`name\`),
+    INDEX \`idx_subscription_plans_price\`(\`price\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  subscriptions: `CREATE TABLE IF NOT EXISTS \`subscriptions\` (
+    \`id\` CHAR(36) NOT NULL,
+    \`tenant_id\` CHAR(36) NOT NULL,
+    \`plan\` VARCHAR(50) NOT NULL,
+    \`duration\` VARCHAR(20) NOT NULL,
+    \`amount\` DECIMAL(10, 2) NOT NULL,
+    \`payment_method\` VARCHAR(50) NULL,
+    \`payment_reference\` VARCHAR(255) NULL,
+    \`start_date\` DATE NOT NULL,
+    \`end_date\` DATE NOT NULL,
+    \`status\` VARCHAR(50) NULL DEFAULT 'pending',
+    \`created_at\` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    \`validated_by\` CHAR(36) NULL,
+    \`auto_renew\` BOOLEAN NULL DEFAULT false,
+    \`max_employees\` INTEGER NULL DEFAULT 5,
+    \`max_services\` INTEGER NULL DEFAULT 20,
+    \`max_products\` INTEGER NULL DEFAULT 50,
+    \`features\` JSON NULL,
+    \`updated_at\` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    \`validated_at\` DATETIME(3) NULL,
+    \`rejected_at\` DATETIME(3) NULL,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_subscriptions_status\`(\`status\`),
+    INDEX \`idx_subscriptions_tenant_id\`(\`tenant_id\`),
+    INDEX \`idx_subscriptions_validated_at\`(\`validated_at\`),
+    INDEX \`idx_subscriptions_validated_by\`(\`validated_by\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+
   // --- Notifications push (migration 20261020120000) ---------------------
   push_devices: `CREATE TABLE IF NOT EXISTS \`push_devices\` (
     \`id\` CHAR(36) NOT NULL,
@@ -451,24 +499,8 @@ export async function schemaStatus() {
     await probe('subscriptionPlan', () => prisma.subscriptionPlan.findFirst());
     await probe('employee', () => prisma.employee.findFirst());
 
-    const columnTypes = {};
-    for (const table of ['tenants', 'subscriptions', 'subscription_plans', 'profiles']) {
-      if (!tables[table] && !(await tableExists(table))) continue;
-      const rows = await prisma.$queryRawUnsafe(
-        `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable
-           FROM information_schema.COLUMNS
-          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
-          ORDER BY ORDINAL_POSITION`,
-        table
-      );
-      columnTypes[table] = Object.fromEntries(
-        rows.map((row) => [String(row.name), `${row.type}${row.nullable === 'YES' ? '?' : ''}`])
-      );
-    }
-
     return {
       probes,
-      columnTypes,
       ok: Boolean(
         tables.profiles &&
           tables.account &&

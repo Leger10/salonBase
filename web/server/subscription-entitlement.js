@@ -30,6 +30,15 @@ export function branchCountForMonthlyPrice(monthlyPrice) {
   return Math.floor(Math.max(0, monthlyPrice) / PRICE_PER_TIER) * BRANCHES_PER_TIER;
 }
 
+function ignoreMissingSubscriptionTable(error) {
+  // Base de production importee sans les tables d'abonnements.
+  if (error?.code === 'P2021') {
+    console.warn('[subscriptions] table absente : repli sur les champs de l etablissement');
+    return null;
+  }
+  throw error;
+}
+
 export async function getSubscriptionEntitlement(tenantId) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -63,7 +72,7 @@ export async function getSubscriptionEntitlement(tenantId) {
       });
   if (!root) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Salon principal introuvable.');
 
-  const [latestSubscription, activeSubscription, plans, branchesCount] = await Promise.all([
+  const [latestSubscription, activeSubscription, plansResult, branchesCount] = await Promise.all([
     prisma.subscription.findFirst({
       where: { tenantId: rootTenantId },
       orderBy: [{ createdAt: 'desc' }],
@@ -83,7 +92,7 @@ export async function getSubscriptionEntitlement(tenantId) {
         features: true,
         createdAt: true,
       },
-    }),
+    }).catch(ignoreMissingSubscriptionTable),
     prisma.subscription.findFirst({
       where: { tenantId: rootTenantId, status: 'active' },
       orderBy: [{ endDate: 'desc' }, { createdAt: 'desc' }],
@@ -103,27 +112,33 @@ export async function getSubscriptionEntitlement(tenantId) {
         features: true,
         createdAt: true,
       },
-    }),
+    }).catch(ignoreMissingSubscriptionTable),
     prisma.subscriptionPlan.findMany({
       where: { isActive: true },
       select: { name: true, price: true, durationMonths: true },
-    }),
+    }).catch(ignoreMissingSubscriptionTable),
     prisma.tenant.count({ where: { parentTenantId: rootTenantId } }),
   ]);
 
   const mode = root.subscriptionMode ?? 'subscription';
+  const plans = plansResult ?? [];
   const endDate = activeSubscription
     ? dateAtEndOfDay(activeSubscription.endDate)
     : mode === 'external'
       ? dateAtEndOfDay(root.externalPaymentExpiry)
       : dateAtEndOfDay(root.subscriptionEnd);
   const now = new Date();
+  // Base importee sans historique d'abonnements (tables absentes ou vides) :
+  // on retombe sur les dates portees par l'etablissement lui-meme.
+  const legacyActive = !latestSubscription
+    && Boolean(endDate && endDate > now);
+  const isActive = mode === 'free'
+    || Boolean(activeSubscription && endDate && endDate > now)
+    || (mode === 'external' && Boolean(endDate && endDate > now))
+    || legacyActive;
   const daysRemaining = endDate
     ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000)
     : 0;
-  const isActive = mode === 'free'
-    || Boolean(activeSubscription && endDate && endDate > now)
-    || (mode === 'external' && Boolean(endDate && endDate > now));
 
   const maxMonthlyPrice = plans.length
     ? Math.max(...plans.map((plan) =>
@@ -136,14 +151,16 @@ export async function getSubscriptionEntitlement(tenantId) {
     ? await prisma.subscriptionPlan.findFirst({
         where: { name: activeSubscription.plan, isActive: true },
           select: { name: true, price: true, durationMonths: true },
-      })
+      }).catch(ignoreMissingSubscriptionTable)
     : null;
   const monthlyPrice = matchingPlan
     ? Number(matchingPlan.price) / planDurationInMonths(matchingPlan)
     : activeSubscription
       ? Number(activeSubscription.amount) / durationInMonths(activeSubscription.duration)
       : 0;
-  const branchLimit = Math.min(maxBranches, branchCountForMonthlyPrice(monthlyPrice));
+  const branchLimit = legacyActive
+    ? maxBranches
+    : Math.min(maxBranches, branchCountForMonthlyPrice(monthlyPrice));
   const selectedSubscription = isActive && activeSubscription ? activeSubscription : latestSubscription;
   const currentSubscription = selectedSubscription
     ? {
