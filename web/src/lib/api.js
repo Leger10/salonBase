@@ -1,8 +1,8 @@
 // Client HTTP de l'API Node (MariaDB + Better Auth).
 //
 // En developpement Vite proxifie `/api` vers le port 4000, donc BASE est vide.
-// En production (front Netlify + API Hostinger), renseigner VITE_API_URL avec
-// l'URL publique de l'API.
+// En production, laisser VITE_API_URL vide quand le front et l'API partagent le
+// meme domaine (cas de salonafrique.net) : les appels restent relatifs.
 
 // `?.` car ce module est aussi importe par les scripts de test Node, ou
 // `import.meta.env` n'existe pas.
@@ -27,7 +27,26 @@ const isLocalHost = hostname === 'localhost'
   || hostname === '[::1]'
   || hostname.endsWith('.localhost')
   || isPrivateIpv4;
-const BASE = (env?.DEV || isLocalHost ? '' : (env?.VITE_API_URL ?? '')).replace(/\/$/, '');
+
+// Une ancienne configuration peut pointer vers `api.<domaine>` alors que le
+// domaine principal sert deja l'API (Hostinger) : ce sous-domaine n'existe pas
+// forcement et le navigateur echoue en ERR_NAME_NOT_RESOLVED. Dans ce cas on
+// reste sur l'origine courante.
+function pointsToSameDomainApi(configuredUrl) {
+  if (!configuredUrl || !hostname) return false;
+  try {
+    const apiHost = new URL(configuredUrl).hostname.replace(/^www\./, '').toLowerCase();
+    const pageHost = hostname.replace(/^www\./, '').toLowerCase();
+    return apiHost === `api.${pageHost}`;
+  } catch {
+    return false;
+  }
+}
+
+const configuredApiUrl = String(env?.VITE_API_URL ?? '').trim();
+const BASE = (env?.DEV || isLocalHost || pointsToSameDomainApi(configuredApiUrl)
+  ? ''
+  : configuredApiUrl).replace(/\/$/, '');
 const ACTIVE_TENANT_STORAGE_KEY = 'salonstore.activeTenantId';
 
 export function getActiveTenantId() {
