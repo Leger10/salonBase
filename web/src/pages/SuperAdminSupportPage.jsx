@@ -155,11 +155,17 @@ export default function SuperAdminSupportPage() {
     return matchesFilter && matchesSearch;
   });
 
-  const MessageCard = ({ message }) => {
+  // Fonction de rendu (et non composant) : un composant declare dans le corps
+  // du parent est recree a chaque rendu, ce qui demonte la boite de dialogue
+  // des qu'on tape une reponse.
+  const renderMessageCard = (message) => {
     const isUnread = !message.is_read;
 
     return (
-      <Card className={`hover:shadow-md transition-all ${isUnread ? 'border-l-4 border-l-primary' : ''}`}>
+      <Card
+        key={message.id}
+        className={`hover:shadow-md transition-all ${isUnread ? 'border-l-4 border-l-primary' : ''}`}
+      >
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
@@ -377,9 +383,7 @@ export default function SuperAdminSupportPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredMessages.map((message) => (
-            <MessageCard key={message.id} message={message} />
-          ))
+          filteredMessages.map((message) => renderMessageCard(message))
         )}
       </div>
     </div>
