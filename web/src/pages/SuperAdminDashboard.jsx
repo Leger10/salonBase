@@ -114,21 +114,38 @@ export default function SuperAdminDashboard() {
       const cancelledAppointments = appointments?.filter(a => a.status === 'cancelled').length || 0;
 
       // ✅ REVENUS À PARTIR DES ABONNEMENTS DES SALONS
-      // Calculer les revenus totaux à partir des abonnements actifs
+      // Calculer les revenus totaux à partir des abonnements actifs. Si aucun
+      // abonnement n'est enregistre (base importee avant les abonnements), on
+      // retombe sur les encaissements reels des salons pour ne pas afficher 0.
       const activeSubscriptions = subscriptions?.filter(s => s.status === 'active') || [];
-      const totalRevenue = activeSubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0);
+      const subscriptionRevenue = activeSubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0);
+      const transactionRevenue = (transactions || [])
+        .filter(t => t.status === 'completed')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      const totalRevenue = subscriptionRevenue > 0 ? subscriptionRevenue : transactionRevenue;
 
       // Revenus du mois à partir des abonnements actifs
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      
+
+      const completedTransactions = (transactions || []).filter(t => t.status === 'completed');
+      const transactionMonthRevenue = (start, end) => completedTransactions
+        .filter(t => {
+          const date = new Date(t.transaction_date || t.created_at);
+          return !Number.isNaN(date.getTime()) && date >= start && date <= end;
+        })
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+
       // Filtrer les abonnements actifs du mois en cours
       const monthlySubscriptions = activeSubscriptions.filter(s => {
         if (!s.start_date) return false;
         const startDate = new Date(s.start_date);
         return startDate >= firstDayOfMonth;
       });
-      const monthlyRevenue = monthlySubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0);
+      const monthlySubscriptionRevenue = monthlySubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0);
+      const monthlyRevenue = monthlySubscriptionRevenue > 0
+        ? monthlySubscriptionRevenue
+        : transactionMonthRevenue(firstDayOfMonth, now);
 
       // Croissance des revenus (mois précédent vs mois en cours)
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -165,8 +182,10 @@ export default function SuperAdminDashboard() {
           const startDate = new Date(s.start_date);
           return startDate >= monthStart && startDate <= monthEnd;
         });
-        
-        const monthRevenue = monthSubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+        const monthRevenue = monthSubscriptions.length > 0
+          ? monthSubscriptions.reduce((sum, s) => sum + (s.amount || 0), 0)
+          : transactionMonthRevenue(monthStart, monthEnd);
         revenueByMonth.push({ month: monthName, revenue: monthRevenue });
       }
       setRevenueChart(revenueByMonth);
@@ -199,13 +218,20 @@ export default function SuperAdminDashboard() {
         value 
       })));
 
-      // ✅ Top 5 salons par revenus d'abonnements
+      // ✅ Top 5 salons par revenus (abonnements, sinon encaissements)
       const tenantRevenue = {};
       activeSubscriptions.forEach(s => {
         if (s.tenant_id) {
           tenantRevenue[s.tenant_id] = (tenantRevenue[s.tenant_id] || 0) + (s.amount || 0);
         }
       });
+      if (Object.keys(tenantRevenue).length === 0) {
+        completedTransactions.forEach(t => {
+          if (t.tenant_id) {
+            tenantRevenue[t.tenant_id] = (tenantRevenue[t.tenant_id] || 0) + (t.amount || 0);
+          }
+        });
+      }
       
       const sortedTenants = Object.entries(tenantRevenue)
         .sort((a, b) => b[1] - a[1])
@@ -340,7 +366,7 @@ export default function SuperAdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Revenus des abonnements</p>
+                <p className="text-sm text-muted-foreground">Revenus de la plateforme</p>
                 <p className="text-3xl font-bold text-green-600">
                   {Math.round(stats.totalRevenue).toLocaleString()} FCFA
                 </p>

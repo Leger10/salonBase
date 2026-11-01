@@ -70,6 +70,10 @@ import SuperAdminSupportPage from "@/pages/SuperAdminSupportPage.jsx";
 import SuperAdminUsers from "@/pages/SuperAdminUsers.jsx";
 import SuperAdminSubscriptionValidation from "@/pages/SuperAdminSubscriptionValidation.jsx";
 import SuperAdminServicesPage from "@/pages/SuperAdminServicesPage.jsx";
+import SuperAdminProductsPage from "@/pages/SuperAdminProductsPage.jsx";
+import SuperAdminPaymentsPage from "@/pages/SuperAdminPaymentsPage.jsx";
+import SuperAdminPromotionsPage from "@/pages/SuperAdminPromotionsPage.jsx";
+import SuperAdminMarketingPage from "@/pages/SuperAdminMarketingPage.jsx";
 
 // ========== DETAIL/FORM PAGES ==========
 import SuperAdminTenantDetailPage from "@/pages/SuperAdminTenantDetailPage.jsx";
@@ -414,6 +418,22 @@ function App() {
                       <Route
                         path="subscriptions/validation"
                         element={<SuperAdminSubscriptionValidation />}
+                      />
+                      <Route
+                        path="subscriptions/payments"
+                        element={<SuperAdminPaymentsPage />}
+                      />
+                      <Route
+                        path="promotions"
+                        element={<SuperAdminPromotionsPage />}
+                      />
+                      <Route
+                        path="marketing"
+                        element={<SuperAdminMarketingPage />}
+                      />
+                      <Route
+                        path="products"
+                        element={<SuperAdminProductsPage />}
                       />
                       <Route path="users" element={<SuperAdminUsers />} />
                       <Route

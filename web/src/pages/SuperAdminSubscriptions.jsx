@@ -6,11 +6,28 @@ import { toast } from "sonner";
 import { 
   DollarSign, TrendingUp, AlertCircle, Calendar, RefreshCw, 
   Plus, Eye, Edit, Crown, Users, Building2, CreditCard,
-  CheckCircle, XCircle, Clock, ArrowRight
+  CheckCircle, XCircle, Clock, ArrowRight, Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.jsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog.jsx";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer, PieChart, Pie, Cell
@@ -19,8 +36,22 @@ import {
 export default function SuperAdminSubscriptions() {
   const [stats, setStats] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    tenant_id: '',
+    plan: '',
+    amount: '',
+    duration: '1',
+    payment_method: 'cash',
+    payment_reference: '',
+    status: 'active',
+    start_date: new Date().toISOString().slice(0, 10),
+  });
 
   useEffect(() => {
     fetchData();
@@ -30,21 +61,29 @@ export default function SuperAdminSubscriptions() {
     setLoading(true);
     try {
       // 1. Récupérer tous les abonnements avec les infos des salons
-      const { data: subs, error: subsError } = await supabase
-        .from('subscriptions')
-        .select(`
-          *,
-          tenants:tenant_id (
-            id,
-            name,
-            email,
-            subscription_status,
-            subscription_plan
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const [subsResult, tenantsResult, plansResult] = await Promise.all([
+        supabase
+          .from('subscriptions')
+          .select(`
+            *,
+            tenants:tenant_id (
+              id,
+              name,
+              email,
+              subscription_status,
+              subscription_plan
+            )
+          `)
+          .order('created_at', { ascending: false }),
+        supabase.from('tenants').select('id, name, email').order('name', { ascending: true }),
+        supabase.from('subscription_plans').select('*').order('price', { ascending: true }),
+      ]);
 
+      const { data: subs, error: subsError } = subsResult;
       if (subsError) throw subsError;
+      if (!tenantsResult.error) setTenants(tenantsResult.data ?? []);
+      if (!plansResult.error) setPlans(plansResult.data ?? []);
+
       setSubscriptions(subs || []);
 
       // 2. Calculer les statistiques à partir des abonnements
@@ -128,6 +167,93 @@ export default function SuperAdminSubscriptions() {
     }
   };
 
+  const handleCreateSubscription = async () => {
+    if (!createForm.tenant_id) {
+      toast.error("Sélectionnez un établissement");
+      return;
+    }
+    if (!createForm.plan.trim()) {
+      toast.error("Le plan est obligatoire");
+      return;
+    }
+    if (createForm.amount === "") {
+      toast.error("Le montant est obligatoire");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const start = new Date(createForm.start_date || Date.now());
+      const months = Number(createForm.duration) || 1;
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + months);
+
+      const payload = {
+        tenant_id: createForm.tenant_id,
+        plan: createForm.plan.trim(),
+        duration: `${months} mois`,
+        amount: Number(createForm.amount) || 0,
+        payment_method: createForm.payment_method || null,
+        payment_reference: createForm.payment_reference?.trim() || null,
+        start_date: start.toISOString().slice(0, 10),
+        end_date: end.toISOString().slice(0, 10),
+        status: createForm.status,
+        validated_at: createForm.status === 'active' ? new Date().toISOString() : null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from('subscriptions').insert(payload);
+      if (error) throw error;
+
+      if (createForm.status === 'active') {
+        const { error: tenantError } = await supabase
+          .from('tenants')
+          .update({
+            subscription_status: 'active',
+            subscription_plan: payload.plan,
+            subscription_start: payload.start_date,
+            subscription_end: payload.end_date,
+          })
+          .eq('id', createForm.tenant_id);
+        if (tenantError) throw tenantError;
+      }
+
+      toast.success("Abonnement créé avec succès");
+      setCreateOpen(false);
+      setCreateForm({
+        tenant_id: '',
+        plan: '',
+        amount: '',
+        duration: '1',
+        payment_method: 'cash',
+        payment_reference: '',
+        status: 'active',
+        start_date: new Date().toISOString().slice(0, 10),
+      });
+      await fetchData();
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      toast.error(error.message || "Impossible de créer l'abonnement");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const applyPlan = (planId) => {
+    const plan = plans.find((item) => item.id === planId);
+    if (!plan) {
+      setCreateForm((prev) => ({ ...prev, plan: planId }));
+      return;
+    }
+    setCreateForm((prev) => ({
+      ...prev,
+      plan: plan.name,
+      amount: String(plan.price ?? ''),
+      duration: String(plan.duration_months ?? 1),
+    }));
+  };
+
   const getStatusBadge = (status) => {
     const statusMap = {
       active: { label: 'Actif', className: 'bg-green-100 text-green-800' },
@@ -174,9 +300,13 @@ export default function SuperAdminSubscriptions() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="default">
+          <Button variant="default" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvel abonnement
+          </Button>
+          <Button asChild variant="outline">
             <Link to="/super-admin/subscriptions/plans">
-              <Plus className="h-4 w-4 mr-2" />
+              <Crown className="h-4 w-4 mr-2" />
               Gérer les plans
             </Link>
           </Button>
@@ -446,6 +576,177 @@ export default function SuperAdminSubscriptions() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nouvel abonnement</DialogTitle>
+            <DialogDescription>
+              Enregistrez un abonnement pour un établissement. Le statut « Actif »
+              met aussi à jour la fiche du salon.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label>Établissement *</Label>
+              <Select
+                value={createForm.tenant_id || undefined}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, tenant_id: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un établissement" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {plans.length > 0 && (
+              <div className="sm:col-span-2">
+                <Label>Pré-remplir depuis un plan</Label>
+                <Select value={undefined} onValueChange={applyPlan}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un plan existant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name} · {Number(plan.price || 0).toLocaleString()} FCFA /{" "}
+                        {plan.duration_months} mois
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="sub-plan">Plan *</Label>
+              <Input
+                id="sub-plan"
+                value={createForm.plan}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, plan: event.target.value }))
+                }
+                placeholder="Ex: Starter"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sub-amount">Montant (FCFA) *</Label>
+              <Input
+                id="sub-amount"
+                type="number"
+                min="0"
+                value={createForm.amount}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, amount: event.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Durée (mois)</Label>
+              <Select
+                value={createForm.duration}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, duration: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 mois</SelectItem>
+                  <SelectItem value="3">3 mois</SelectItem>
+                  <SelectItem value="6">6 mois</SelectItem>
+                  <SelectItem value="12">12 mois</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="sub-start">Date de début</Label>
+              <Input
+                id="sub-start"
+                type="date"
+                value={createForm.start_date}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, start_date: event.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Moyen de paiement</Label>
+              <Select
+                value={createForm.payment_method}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, payment_method: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Espèces</SelectItem>
+                  <SelectItem value="wave">Wave</SelectItem>
+                  <SelectItem value="orange_money">Orange Money</SelectItem>
+                  <SelectItem value="moov_money">Moov Money</SelectItem>
+                  <SelectItem value="bank">Virement bancaire</SelectItem>
+                  <SelectItem value="other">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Statut</Label>
+              <Select
+                value={createForm.status}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Actif (payé)</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="trial">Essai</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="sub-reference">Référence de paiement</Label>
+              <Input
+                id="sub-reference"
+                value={createForm.payment_reference}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    payment_reference: event.target.value,
+                  }))
+                }
+                placeholder="N° de transaction, reçu..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Annuler
+            </Button>
+            <Button onClick={handleCreateSubscription} disabled={creating}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Créer l'abonnement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

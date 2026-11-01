@@ -31,6 +31,7 @@ import { toast } from "sonner";
 
 export default function SuperAdminLogsPage() {
   const [logs, setLogs] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,24 +46,32 @@ export default function SuperAdminLogsPage() {
     fetchLogs();
   }, [currentPage, searchTerm, filterType, dateRange]);
 
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .then(({ data }) => setProfiles(data || []))
+      .catch(() => setProfiles([]));
+  }, []);
+
   const fetchLogs = async () => {
     setLoading(true);
     setError(null);
     try {
       console.log("📋 Récupération des logs...");
 
-      // ✅ Utiliser activity_logs au lieu de audit_logs
+      // Table activity_logs : action, entity_type, entity_id, user_id, metadata.
       let query = supabase.from("activity_logs").select("*", { count: "exact" });
 
       // Filtres
       if (searchTerm) {
         query = query.or(
-          `action.ilike.%${searchTerm}%,user_email.ilike.%${searchTerm}%`,
+          `action.ilike.%${searchTerm}%,entity_type.ilike.%${searchTerm}%`,
         );
       }
 
       if (filterType !== "all") {
-        query = query.eq("action_type", filterType);
+        query = query.ilike("action", `%${filterType}%`);
       }
 
       if (dateRange.start) {
@@ -70,7 +79,7 @@ export default function SuperAdminLogsPage() {
       }
 
       if (dateRange.end) {
-        query = query.lte("created_at", dateRange.end);
+        query = query.lte("created_at", `${dateRange.end}T23:59:59.999`);
       }
 
       const from = (currentPage - 1) * itemsPerPage;
@@ -84,7 +93,7 @@ export default function SuperAdminLogsPage() {
 
       setLogs(data || []);
       setTotalLogs(count || 0);
-      setTotalPages(Math.ceil((count || 0) / itemsPerPage));
+      setTotalPages(Math.max(1, Math.ceil((count || 0) / itemsPerPage)));
 
       console.log(
         `✅ ${data?.length || 0} logs chargés sur ${count || 0} total`,
@@ -95,6 +104,42 @@ export default function SuperAdminLogsPage() {
       toast.error("Erreur lors du chargement des logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const profileNames = React.useMemo(
+    () =>
+      new Map(
+        profiles.map((profile) => [
+          profile.id,
+          profile.full_name || profile.email || "Utilisateur",
+        ]),
+      ),
+    [profiles],
+  );
+
+  const logType = (log) => {
+    const action = String(log.action || "").toLowerCase();
+    if (action.includes("login") || action.includes("connexion")) return "login";
+    if (action.includes("delete") || action.includes("supprim")) return "delete";
+    if (action.includes("update") || action.includes("modif")) return "update";
+    if (action.includes("create") || action.includes("ajout")) return "create";
+    if (action.includes("error") || action.includes("erreur")) return "error";
+    return "info";
+  };
+
+  const formatDetails = (log) => {
+    if (!log.metadata) return "-";
+    if (typeof log.metadata === "string") return log.metadata;
+    try {
+      const entries = Object.entries(log.metadata);
+      if (entries.length === 0) return "-";
+      return entries
+        .slice(0, 4)
+        .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`)
+        .join(" · ");
+    } catch {
+      return "-";
     }
   };
 
@@ -153,7 +198,7 @@ export default function SuperAdminLogsPage() {
         "Date",
         "Utilisateur",
         "Action",
-        "Type",
+        "Entité",
         "Détails",
         "IP",
       ];
@@ -162,10 +207,10 @@ export default function SuperAdminLogsPage() {
         ...logs.map((log) =>
           [
             new Date(log.created_at).toISOString(),
-            log.user_email || "Système",
+            profileNames.get(log.user_id) || "Système",
             log.action || "",
-            log.action_type || "",
-            (log.details || "").replace(/,/g, ";"),
+            log.entity_type || "",
+            formatDetails(log).replace(/,/g, ";"),
             log.ip_address || "",
           ].join(","),
         ),
@@ -341,7 +386,7 @@ export default function SuperAdminLogsPage() {
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3">Utilisateur</th>
                   <th className="px-6 py-3">Action</th>
-                  <th className="px-6 py-3">Type</th>
+                  <th className="px-6 py-3">Entité</th>
                   <th className="px-6 py-3">Détails</th>
                   <th className="px-6 py-3">IP</th>
                 </tr>
@@ -358,10 +403,12 @@ export default function SuperAdminLogsPage() {
                     </td>
                   </tr>
                 ) : (
-                  logs.map((log) => (
+                  logs.map((log) => {
+                    const type = logType(log);
+                    return (
                     <tr
                       key={log.id}
-                      className={`border-l-4 ${getLogColor(log.action_type)} hover:bg-muted/30 transition-colors`}
+                      className={`border-l-4 ${getLogColor(type)} hover:bg-muted/30 transition-colors`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -375,7 +422,7 @@ export default function SuperAdminLogsPage() {
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-muted-foreground" />
                           <span className="text-sm font-medium">
-                            {log.user_email || "Système"}
+                            {profileNames.get(log.user_id) || "Système"}
                           </span>
                         </div>
                       </td>
@@ -385,26 +432,26 @@ export default function SuperAdminLogsPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                            log.action_type === "login"
+                            type === "login"
                               ? "bg-blue-100 text-blue-700"
-                              : log.action_type === "create"
+                              : type === "create"
                                 ? "bg-green-100 text-green-700"
-                                : log.action_type === "update"
+                                : type === "update"
                                   ? "bg-yellow-100 text-yellow-700"
-                                  : log.action_type === "delete"
+                                  : type === "delete"
                                     ? "bg-red-100 text-red-700"
-                                    : log.action_type === "error"
+                                    : type === "error"
                                       ? "bg-red-100 text-red-700"
                                       : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {getLogIcon(log.action_type)}
-                          {getLogLabel(log.action_type)}
+                          {getLogIcon(type)}
+                          {log.entity_type || getLogLabel(type)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
-                          {log.details || "-"}
+                          {formatDetails(log)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -413,7 +460,8 @@ export default function SuperAdminLogsPage() {
                         </span>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
