@@ -16,6 +16,10 @@
 //   AUTH_DEFAULT_PASSWORD=00000000   mot de passe des comptes crees/repares
 //   AUTH_AUTO_PROVISION=false        desactive la creation automatique des comptes
 import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Prisma } from '@prisma/client';
 import { hashPassword } from 'better-auth/crypto';
 import { prisma } from './prisma.js';
 
@@ -254,6 +258,228 @@ const INDEXES = {
 };
 
 const firstValue = (row) => (row ? Object.values(row)[0] : undefined);
+
+// --- Schema de reference (migrations Prisma) -------------------------------
+//
+// La base de production a ete importee partiellement : certaines tables du
+// schema n'existent pas (platform_settings, activity_logs, ...), ce qui fait
+// echouer toutes les pages qui les lisent. Plutot que de maintenir une seconde
+// liste de DDL a la main, on relit les migrations versionnees et on rejoue
+// uniquement les CREATE TABLE des tables absentes, puis on complete les
+// colonnes/index manquants. Tout est idempotent et strictement additif.
+const EXPECTED_TABLES = new Set(
+  Prisma.dmmf.datamodel.models.map((model) => String(model.dbName ?? model.name).toLowerCase())
+);
+
+let migrationSchemaCache = null;
+
+/**
+ * Repertoire des migrations. En production le processus tourne depuis web/,
+ * mais on couvre aussi le cas ou le depot entier est deploye.
+ */
+function migrationsDirectory() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.SCHEMA_MIGRATIONS_DIR,
+    resolve(here, '../prisma/migrations'),
+    resolve(process.cwd(), 'prisma/migrations'),
+    resolve(process.cwd(), 'web/prisma/migrations'),
+  ].filter(Boolean);
+  return candidates.find((dir) => existsSync(dir)) ?? null;
+}
+
+/** Extrait les CREATE TABLE / index / cles etrangeres des fichiers .sql. */
+function loadMigrationSchema() {
+  if (migrationSchemaCache) return migrationSchemaCache;
+
+  const schema = { tables: new Map(), foreignKeys: [], directory: null };
+  const directory = migrationsDirectory();
+  schema.directory = directory;
+  if (!directory) {
+    migrationSchemaCache = schema;
+    return schema;
+  }
+
+  const files = readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const seenTables = new Set();
+
+  for (const name of files) {
+    const file = resolve(directory, name, 'migration.sql');
+    if (!existsSync(file)) continue;
+    const sql = readFileSync(file, 'utf8');
+
+    // Bloc complet CREATE TABLE ... DEFAULT CHARACTER SET ...;
+    const createRe = /CREATE TABLE\s+`([^`]+)`\s*\(([\s\S]*?)\n\)\s*DEFAULT CHARACTER SET[^;]*;/g;
+    for (const match of sql.matchAll(createRe)) {
+      const table = match[1].toLowerCase();
+      if (seenTables.has(table)) continue;
+      seenTables.add(table);
+
+      const columns = new Map();
+      const indexes = [];
+      for (const rawLine of match[2].split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('--')) continue;
+
+        const column = /^`([^`]+)`\s+(.+)$/.exec(line);
+        if (column) {
+          columns.set(column[1].toLowerCase(), column[2].replace(/,\s*$/, ''));
+          continue;
+        }
+        const index = /^(UNIQUE\s+)?INDEX\s+`([^`]+)`\s*\((.+)\)\s*,?$/i.exec(line);
+        if (index) {
+          indexes.push({
+            name: index[2],
+            unique: Boolean(index[1]),
+            columns: index[3],
+          });
+        }
+      }
+
+      schema.tables.set(table, {
+        sql: match[0].replace(/^CREATE TABLE /, 'CREATE TABLE IF NOT EXISTS '),
+        columns,
+        indexes,
+      });
+    }
+
+    const fkRe = /ALTER TABLE\s+`([^`]+)`\s+ADD CONSTRAINT\s+`([^`]+)`\s+FOREIGN KEY[\s\S]*?;/g;
+    for (const match of sql.matchAll(fkRe)) {
+      schema.foreignKeys.push({ table: match[1].toLowerCase(), name: match[2], sql: match[0] });
+    }
+  }
+
+  migrationSchemaCache = schema;
+  return schema;
+}
+
+async function existingTables() {
+  const rows = await prisma.$queryRawUnsafe(
+    'SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()'
+  );
+  return new Set(rows.map((row) => String(firstValue(row)).toLowerCase()));
+}
+
+async function allColumns() {
+  const rows = await prisma.$queryRawUnsafe(
+    'SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()'
+  );
+  const map = new Map();
+  for (const row of rows) {
+    const table = String(row.TABLE_NAME ?? Object.values(row)[0]).toLowerCase();
+    const column = String(row.COLUMN_NAME ?? Object.values(row)[1]).toLowerCase();
+    if (!map.has(table)) map.set(table, new Set());
+    map.get(table).add(column);
+  }
+  return map;
+}
+
+async function allForeignKeys() {
+  const rows = await prisma.$queryRawUnsafe(
+    "SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND CONSTRAINT_TYPE = 'FOREIGN KEY'"
+  );
+  return new Set(
+    rows.map((row) => {
+      const table = String(row.TABLE_NAME ?? Object.values(row)[0]).toLowerCase();
+      const constraint = String(row.CONSTRAINT_NAME ?? Object.values(row)[1]).toLowerCase();
+      return `${table}.${constraint}`;
+    })
+  );
+}
+
+/** Cree les tables du schema Prisma absentes (DDL des migrations). */
+async function ensureMigrationTables(report) {
+  const schema = loadMigrationSchema();
+  const existing = await existingTables();
+  for (const [table, definition] of schema.tables) {
+    if (existing.has(table)) continue;
+    try {
+      await prisma.$executeRawUnsafe(definition.sql);
+      report.createdTables.push(table);
+      console.log(`[db] table \`${table}\` creee (migration)`);
+    } catch (error) {
+      console.error(`[db] impossible de creer la table \`${table}\` :`, error.message);
+    }
+  }
+}
+
+/**
+ * Ajoute les colonnes manquantes des tables existantes. Une colonne NOT NULL
+ * sans valeur par defaut est creee NULL : la table contient deja des lignes,
+ * et Prisma fournit toujours une valeur a l'ecriture.
+ */
+async function ensureMigrationColumns(report) {
+  const schema = loadMigrationSchema();
+  const columnsByTable = await allColumns();
+  for (const [table, definition] of schema.tables) {
+    const existing = columnsByTable.get(table);
+    if (!existing) continue;
+    for (const [column, rawDefinition] of definition.columns) {
+      if (existing.has(column)) continue;
+      const requiresValue = /NOT NULL/i.test(rawDefinition);
+      const hasDefault = /DEFAULT|AUTO_INCREMENT/i.test(rawDefinition);
+      const safeDefinition = requiresValue && !hasDefault
+        ? rawDefinition.replace(/NOT NULL/i, 'NULL')
+        : rawDefinition;
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${safeDefinition}`
+        );
+        report.addedColumns.push(`${table}.${column}`);
+        console.log(`[db] colonne \`${table}.${column}\` ajoutee (migration)`);
+      } catch (error) {
+        console.error(`[db] impossible d'ajouter \`${table}.${column}\` :`, error.message);
+      }
+    }
+  }
+}
+
+/** Ajoute les index declares dans les migrations et absents en base. */
+async function ensureMigrationIndexes(report) {
+  const schema = loadMigrationSchema();
+  const existingTablesSet = await existingTables();
+  for (const [table, definition] of schema.tables) {
+    if (!existingTablesSet.has(table) || definition.indexes.length === 0) continue;
+    const existing = await indexNames(table);
+    for (const index of definition.indexes) {
+      if (existing.has(index.name.toLowerCase())) continue;
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE \`${table}\` ADD ${index.unique ? 'UNIQUE ' : ''}INDEX \`${index.name}\` (${index.columns})`
+        );
+        report.addedIndexes.push(`${table}.${index.name}`);
+        console.log(`[db] index \`${table}.${index.name}\` ajoute (migration)`);
+      } catch (error) {
+        console.error(`[db] impossible d'ajouter l'index \`${table}.${index.name}\` :`, error.message);
+      }
+    }
+  }
+}
+
+/** Rejoue les cles etrangeres manquantes (integrite et cascades). */
+async function ensureMigrationForeignKeys(report) {
+  const schema = loadMigrationSchema();
+  if (schema.foreignKeys.length === 0) return;
+  const existing = await allForeignKeys();
+  for (const foreignKey of schema.foreignKeys) {
+    if (existing.has(`${foreignKey.table}.${foreignKey.name.toLowerCase()}`)) continue;
+    try {
+      await prisma.$executeRawUnsafe(foreignKey.sql);
+      report.addedConstraints.push(`${foreignKey.table}.${foreignKey.name}`);
+    } catch (error) {
+      // Donnees orphelines dans un import partiel : la contrainte n'est pas
+      // indispensable au fonctionnement (Prisma joint explicitement), on
+      // journalise sans bloquer le demarrage.
+      console.warn(
+        `[db] cle etrangere \`${foreignKey.table}.${foreignKey.name}\` non ajoutee :`,
+        error.message
+      );
+    }
+  }
+}
 
 async function tableExists(table) {
   const rows = await prisma.$queryRawUnsafe(
@@ -499,6 +725,24 @@ export async function schemaStatus() {
     await probe('subscriptionPlan', () => prisma.subscriptionPlan.findFirst());
     await probe('employee', () => prisma.employee.findFirst());
 
+    // Diagnostic complet : tables/colonnes du schema absentes en base.
+    // Une seule requete par information_schema, quel que soit le nombre de
+    // tables, pour ne pas ralentir /api/health.
+    const schemaDefinition = loadMigrationSchema();
+    const presentTables = await existingTables();
+    const missingTables = [...EXPECTED_TABLES]
+      .filter((table) => !presentTables.has(table))
+      .sort();
+    const columnsByTable = await allColumns();
+    const missingColumns = [];
+    for (const [table, definition] of schemaDefinition.tables) {
+      const presentColumns = columnsByTable.get(table);
+      if (!presentColumns) continue;
+      for (const column of definition.columns.keys()) {
+        if (!presentColumns.has(column)) missingColumns.push(`${table}.${column}`);
+      }
+    }
+
     return {
       probes,
       ok: Boolean(
@@ -506,7 +750,9 @@ export async function schemaStatus() {
           tables.account &&
           tables.session &&
           tenantsParentColumn !== false &&
-          employeesArchiveColumn !== false
+          employeesArchiveColumn !== false &&
+          missingTables.length === 0 &&
+          missingColumns.length === 0
       ),
       tables,
       counts,
@@ -515,6 +761,10 @@ export async function schemaStatus() {
       invalidPasswords,
       tenantsParentColumn,
       employeesArchiveColumn,
+      migrationsAvailable: Boolean(schemaDefinition.directory),
+      migrationTables: schemaDefinition.tables.size,
+      missingTables,
+      missingColumns: missingColumns.sort(),
     };
   } catch (error) {
     return { ok: false, error: error.message };
@@ -526,14 +776,19 @@ async function run() {
     createdTables: [],
     addedColumns: [],
     addedIndexes: [],
+    addedConstraints: [],
     provisionedAccounts: 0,
     repairedPasswords: 0,
     normalizedAccountIds: 0,
   };
 
   await ensureTables(report);
+  await ensureMigrationTables(report);
   await ensureColumns(report);
+  await ensureMigrationColumns(report);
   await ensureIndexes(report);
+  await ensureMigrationIndexes(report);
+  await ensureMigrationForeignKeys(report);
   await repairPasswordHashes(report);
   await provisionAccounts(report);
 
@@ -541,6 +796,7 @@ async function run() {
     report.createdTables.length +
     report.addedColumns.length +
     report.addedIndexes.length +
+    report.addedConstraints.length +
     report.provisionedAccounts +
     report.repairedPasswords +
     report.normalizedAccountIds;
@@ -549,7 +805,7 @@ async function run() {
     console.log('[db] schema deja a jour');
   } else {
     console.log(
-      `[db] schema mis a niveau (tables: ${report.createdTables.length}, colonnes: ${report.addedColumns.length}, index: ${report.addedIndexes.length}, comptes: ${report.provisionedAccounts}, mots de passe: ${report.repairedPasswords})`
+      `[db] schema mis a niveau (tables: ${report.createdTables.length}, colonnes: ${report.addedColumns.length}, index: ${report.addedIndexes.length}, contraintes: ${report.addedConstraints.length}, comptes: ${report.provisionedAccounts}, mots de passe: ${report.repairedPasswords})`
     );
   }
   return report;
