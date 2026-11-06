@@ -6,19 +6,40 @@ class AudioService {
     this.audioCache = {};
     this.voices = [];
     this.synth = null;
+    this.notificationBuffer = null;
+    this.isSpeaking = false;
   }
 
   async initialize() {
     if (this.isInitialized) return;
-    
+
     try {
       if ('speechSynthesis' in window) {
         this.synth = window.speechSynthesis;
-        this.voices = await this.getVoices();
+        // ✅ Timeout pour éviter un blocage si onvoiceschanged ne se déclenche jamais
+        this.voices = await Promise.race([
+          this.getVoices(),
+          new Promise((resolve) =>
+            setTimeout(() => resolve(this.synth.getVoices() || []), 1500)
+          ),
+        ]);
       }
-      
+
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // ✅ Débloquer l'AudioContext (Chrome/Safari le suspendent sans geste utilisateur)
+      if (this.audioContext.state === 'suspended') {
+        try {
+          await this.audioContext.resume();
+        } catch (e) {
+          console.debug('Impossible de reprendre AudioContext:', e);
+        }
+      }
+
       this.isInitialized = true;
+
+      // ✅ Précharger la notification en tâche de fond
+      this.preloadNotification();
     } catch (error) {
       console.error('Erreur d\'initialisation audio:', error);
     }
@@ -26,14 +47,29 @@ class AudioService {
 
   getVoices() {
     return new Promise((resolve) => {
-      if (window.speechSynthesis.getVoices().length > 0) {
-        resolve(window.speechSynthesis.getVoices());
-      } else {
-        window.speechSynthesis.onvoiceschanged = () => {
-          resolve(window.speechSynthesis.getVoices());
-        };
+      const existing = window.speechSynthesis.getVoices();
+      if (existing && existing.length > 0) {
+        resolve(existing);
+        return;
       }
+      const handler = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.onvoiceschanged = handler;
     });
+  }
+
+  async preloadNotification() {
+    if (this.notificationBuffer || !this.audioContext) return;
+    try {
+      const response = await fetch('/notification.mp3');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const arrayBuffer = await response.arrayBuffer();
+      this.notificationBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    } catch (error) {
+      console.debug('Notification non préchargée:', error);
+    }
   }
 
   async loadAudio(url) {
@@ -53,19 +89,27 @@ class AudioService {
     }
   }
 
-  // ✅ Fonction pour jouer la notification et attendre la fin
+  // ✅ Notification via AudioBuffer (zéro latence réseau/décodage)
   playNotificationAudio() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       try {
+        if (this.audioContext && this.notificationBuffer) {
+          const src = this.audioContext.createBufferSource();
+          src.buffer = this.notificationBuffer;
+          src.connect(this.audioContext.destination);
+          src.onended = () => resolve();
+          src.start(0);
+          return;
+        }
+
+        // Fallback : fichier HTML5 (si le buffer n'a pas pu être chargé)
         const audio = new Audio('/notification.mp3');
         audio.onended = () => resolve();
         audio.onerror = () => {
-          // Fallback si le fichier n'existe pas
           this.playBeep();
           resolve();
         };
         audio.play().catch(() => {
-          // Fallback si la lecture échoue
           this.playBeep();
           resolve();
         });
@@ -79,7 +123,10 @@ class AudioService {
   async playNotification() {
     try {
       await this.initialize();
-      // ✅ Utiliser l'API Audio HTML5 pour un meilleur contrôle
+      // ✅ Si le buffer n'est pas prêt, tenter un chargement rapide
+      if (!this.notificationBuffer) {
+        await this.preloadNotification();
+      }
       await this.playNotificationAudio();
     } catch (error) {
       console.debug('Erreur notification:', error);
@@ -107,101 +154,97 @@ class AudioService {
     }
   }
 
-  // ✅ Version SANS AUCUNE PAUSE - Enchaînement parfait
+  // ✅ Construit l'utterance avec la meilleure voix française disponible
+  buildUtterance(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'fr-FR';
+    utterance.rate = 0.95;   // ✅ Plus naturel que 0.9 (perçu comme plus réactif)
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    const frenchVoices = this.voices.filter(
+      (voice) =>
+        voice.lang.startsWith('fr') ||
+        voice.name.toLowerCase().includes('french') ||
+        voice.name.toLowerCase().includes('fr')
+    );
+
+    const preferredVoice =
+      frenchVoices.find(
+        (voice) =>
+          voice.name.includes('Google') ||
+          voice.name.includes('Natural') ||
+          voice.name.includes('Samantha') ||
+          voice.name.includes('Thomas')
+      ) || frenchVoices[0];
+
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    return utterance;
+  }
+
+  // ✅ Announce avec démarrage de la voix PENDANT le bip (masque l'init du moteur TTS)
   async announceTicket(ticketNumber, employeeNumber) {
     try {
       await this.initialize();
-      
-      // 1. Jouer la notification et ATTENDRE sa fin
-      await this.playNotification();
-      
-      // 2. ✅ AUCUNE PAUSE - Lancement immédiat de l'annonce
-      // Dès que le son se termine, l'annonce commence
-      
-      if (this.synth) {
-        this.synth.cancel();
-        
-        const message = `Le ticket numéro ${ticketNumber} est appelé à la place numéro ${employeeNumber}. Merci de vous présenter à la place ${employeeNumber}`;
-        
-        const speakNaturally = (text) => {
-          return new Promise((resolve) => {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'fr-FR';
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            
-            const frenchVoices = this.voices.filter(voice => 
-              voice.lang.startsWith('fr') || 
-              voice.name.toLowerCase().includes('french') ||
-              voice.name.toLowerCase().includes('fr')
-            );
-            
-            const preferredVoice = frenchVoices.find(voice => 
-              voice.name.includes('Google') || 
-              voice.name.includes('Natural') ||
-              voice.name.includes('Samantha') ||
-              voice.name.includes('Thomas')
-            ) || frenchVoices[0];
-            
-            if (preferredVoice) {
-              utterance.voice = preferredVoice;
-            }
-            
-            utterance.onend = () => resolve();
-            utterance.onerror = () => resolve();
-            this.synth.speak(utterance);
-          });
-        };
+      if (!this.synth) return;
 
-        // ✅ Annonce unique : dès la fin du son, la voix appelle immédiatement
-        await speakNaturally(message);
+      // S'assurer que le buffer de notification est prêt avant de commencer
+      if (!this.notificationBuffer) {
+        await this.preloadNotification();
       }
+
+      const message = `Le ticket numéro ${ticketNumber} est appelé à la place numéro ${employeeNumber}. Merci de vous présenter à la place ${employeeNumber}`;
+
+      // ✅ Préparer l'utterance
+      const utterance = this.buildUtterance(message);
+
+      // ✅ Lancer speak() IMMÉDIATEMENT : le moteur TTS s'initialise
+      //    pendant que le bip joue → la voix démarre sans délai perceptible.
+      //    ⚠️ NE PAS appeler this.synth.cancel() ici : cancel() force un reset
+      //    asynchrone du moteur qui ajoute 200-500 ms de latence.
+      const speakPromise = new Promise((resolve) => {
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        this.synth.speak(utterance);
+      });
+
+      // ✅ Jouer la notification en parallèle (elle démarre quasi instantanément
+      //    car le buffer est préchargé)
+      await this.playNotification();
+
+      // ✅ Attendre la fin de l'annonce vocale
+      await speakPromise;
     } catch (error) {
       console.error('Erreur d\'annonce vocale:', error);
     }
   }
 
-  // ✅ Version alternative avec annonce unique
+  // ✅ Version simple : bip puis voix (sans chevauchement)
   async announceTicketSimple(ticketNumber, employeeNumber) {
     try {
       await this.initialize();
-      
-      await this.playNotification();
-      
-      if (this.synth) {
-        this.synth.cancel();
-        
-        const message = `Le ticket numéro ${ticketNumber} est appelé à la place numéro ${employeeNumber}. Merci de vous présenter à la place ${employeeNumber}`;
-        
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'fr-FR';
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        
-        const frenchVoices = this.voices.filter(voice => 
-          voice.lang.startsWith('fr') || 
-          voice.name.toLowerCase().includes('french') ||
-          voice.name.toLowerCase().includes('fr')
-        );
-        
-        const preferredVoice = frenchVoices.find(voice => 
-          voice.name.includes('Google') || 
-          voice.name.includes('Natural') ||
-          voice.name.includes('Samantha')
-        ) || frenchVoices[0];
-        
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
-        
-        return new Promise((resolve) => {
-          utterance.onend = () => resolve();
-          utterance.onerror = () => resolve();
-          this.synth.speak(utterance);
-        });
+      if (!this.synth) return;
+
+      if (!this.notificationBuffer) {
+        await this.preloadNotification();
       }
+
+      // 1. Notification et attendre sa fin
+      await this.playNotification();
+
+      // 2. Annonce vocale
+      const message = `Le ticket numéro ${ticketNumber} est appelé à la place numéro ${employeeNumber}. Merci de vous présenter à la place ${employeeNumber}`;
+      const utterance = this.buildUtterance(message);
+
+      // ⚠️ Pas de cancel() ici → évite la latence de reset du moteur
+      return new Promise((resolve) => {
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        this.synth.speak(utterance);
+      });
     } catch (error) {
       console.error('Erreur d\'annonce vocale:', error);
     }
