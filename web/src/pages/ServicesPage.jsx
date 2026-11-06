@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from '@/lib/api.js';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTenant } from '@/contexts/ActiveTenantContext';
 import { usePlatformConfig } from '@/contexts/PlatformConfigContext';
@@ -346,38 +347,16 @@ export default function ServicesPage() {
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select(`
-          id, 
-          name, 
-          slug, 
-          description, 
-          address, 
-          phone, 
-          email, 
-          logo_url, 
-          cover_image, 
-          primary_color, 
-          secondary_color, 
-          subscription_plan, 
-          subscription_status, 
-          created_at,
-          show_on_home,
-          rating,
-          city
-        `)
-        .eq('subscription_status', 'active')
-        .eq('show_on_home', true)
-        .order('name');
+      // Source unique de vérité : seuls les salons dont l'abonnement est
+      // réellement actif sont exposés publiquement (même filtre que l'accueil).
+      const { data } = await apiFetch('/api/public/tenants');
+      const tenants = Array.isArray(data) ? data : [];
 
-      if (error) throw error;
-
-      setAllTenants(data || []);
+      setAllTenants(tenants);
       
       // Sélectionner le premier salon par défaut
-      if (data && data.length > 0) {
-        const firstTenant = data[0];
+      if (tenants.length > 0) {
+        const firstTenant = tenants[0];
         setSelectedTenant(firstTenant);
         await fetchServicesForTenant(firstTenant.id);
         await fetchTenantInfo(firstTenant.id);

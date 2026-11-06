@@ -323,8 +323,11 @@ export default function HomePage() {
 
   const getStats = () => {
     if (!shouldShowStats()) return [];
+    // Le nombre de salons partenaires doit refléter les salons réellement
+    // visibles (abonnement actif), pas une valeur statique de communication.
+    const partnerCount = tenantsLoading ? '…' : String(tenants.length);
     return [
-      { number: homeSettings?.stat_1_number || '500+', label: homeSettings?.stat_1_label || 'Salons partenaires' },
+      { number: partnerCount, label: homeSettings?.stat_1_label || 'Salons partenaires' },
       { number: homeSettings?.stat_2_number || '10k+', label: homeSettings?.stat_2_label || 'Clients satisfaits' },
       { number: homeSettings?.stat_3_number || '50k+', label: homeSettings?.stat_3_label || 'Rendez-vous réservés' }
     ];

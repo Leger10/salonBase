@@ -19,7 +19,7 @@ import { prisma } from './prisma.js';
 import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
 import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
-import { assertSubscriptionActive, getSubscriptionEntitlement } from './subscription-entitlement.js';
+import { assertSubscriptionActive, getSubscriptionEntitlement, isTenantPubliclyVisible } from './subscription-entitlement.js';
 import { getEmployeeClientStats } from './employee-stats.js';
 import { mountStorage, storageRoot } from './storage.js';
 import { mountPush } from './push/routes.js';
@@ -152,6 +152,7 @@ app.get(
     });
     const eligible = [];
     const entitlements = new Map();
+    const byId = new Map(tenants.map((tenant) => [tenant.id, tenant]));
     for (const tenant of tenants) {
       const rootId = tenant.parentTenantId ?? tenant.id;
       let entitlement = entitlements.get(rootId);
@@ -159,7 +160,8 @@ app.get(
         entitlement = await getSubscriptionEntitlement(tenant.id);
         entitlements.set(rootId, entitlement);
       }
-      if (entitlement.isActive) eligible.push(tenantDto(tenant));
+      const owner = byId.get(rootId) ?? tenant;
+      if (isTenantPubliclyVisible(owner, entitlement)) eligible.push(tenantDto(tenant));
     }
     res.json({ data: eligible });
   })
@@ -174,7 +176,13 @@ app.get(
     if (!tenant) throw new HttpError(404, 'TENANT_NOT_FOUND', 'Salon non trouvé.');
 
     const entitlement = await getSubscriptionEntitlement(tenant.id);
-    if (!entitlement.isActive) {
+    const owner = tenant.parentTenantId
+      ? await prisma.tenant.findUnique({
+          where: { id: tenant.parentTenantId },
+          select: { subscriptionStatus: true },
+        })
+      : tenant;
+    if (!isTenantPubliclyVisible(owner, entitlement)) {
       throw new HttpError(404, 'TENANT_NOT_FOUND', 'Salon non trouvé.');
     }
     res.json({ tenant: tenantDto(tenant) });

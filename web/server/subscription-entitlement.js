@@ -194,6 +194,16 @@ export async function getSubscriptionEntitlement(tenantId) {
   };
 }
 
+// Visibilite publique : un etablissement est partenaire des que son
+// abonnement est marque actif (statut administre par le super admin) ou
+// qu'un abonnement en cours / mode externe valide le rend actif. Le statut
+// "active" reste prioritaire pour ne pas masquer un salon dont le super admin
+// a explicitement active l'abonnement, meme si les dates importees sont
+// incompletes.
+export function isTenantPubliclyVisible(tenant, entitlement) {
+  return Boolean(tenant?.subscriptionStatus === 'active' || entitlement?.isActive);
+}
+
 export async function assertSubscriptionActive(ctx) {
   if (ctx.role !== 'admin' || !ctx.tenantId) return null;
   const entitlement = await getSubscriptionEntitlement(ctx.tenantId);
