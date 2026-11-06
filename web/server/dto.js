@@ -17,6 +17,7 @@ export function tenantDto(t) {
     email: t.email ?? null,
     address: t.address ?? null,
     city: t.city ?? null,
+    description: t.description ?? null,
     subscription_plan: t.subscriptionPlan ?? null,
     subscription_status: t.subscriptionStatus ?? null,
     subscription_start: t.subscriptionStart ?? null,

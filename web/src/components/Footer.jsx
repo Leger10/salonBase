@@ -335,6 +335,22 @@ export default function Footer() {
     { key: "sunday", label: "Dimanche" },
   ];
 
+  // En mode vitrine, les liens du pied de page doivent rester dans
+  // l'univers du salon affiche (salon + succursales), jamais retomber sur
+  // l'annuaire global des partenaires.
+  const showcaseSlug =
+    isShowcase && activeTenant?.slug ? activeTenant.slug : null;
+  const getFooterLink = (path) => {
+    if (!showcaseSlug) return path;
+    if (path === "/services" || path === "/pricing") {
+      return `/showcase/${showcaseSlug}/services`;
+    }
+    if (path === "/booking") {
+      return `/showcase/${showcaseSlug}/booking`;
+    }
+    return `/showcase/${showcaseSlug}${path}`;
+  };
+
   // Filtrer les heures valides
   const hasValidHours = days.some(
     (day) => hours[day.key] && hours[day.key].trim() !== "",
@@ -377,7 +393,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  to="/services"
+                  to={getFooterLink("/services")}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Services
@@ -385,7 +401,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  to="/pricing"
+                  to={getFooterLink("/pricing")}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Tarifs
@@ -393,7 +409,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  to="/team"
+                  to={getFooterLink("/team")}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Notre Équipe
@@ -401,7 +417,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  to="/gallery"
+                  to={getFooterLink("/gallery")}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Galerie
@@ -409,7 +425,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  to="/booking"
+                  to={getFooterLink("/booking")}
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Réserver
