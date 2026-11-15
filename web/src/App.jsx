@@ -74,6 +74,10 @@ import SuperAdminProductsPage from "@/pages/SuperAdminProductsPage.jsx";
 import SuperAdminPaymentsPage from "@/pages/SuperAdminPaymentsPage.jsx";
 import SuperAdminPromotionsPage from "@/pages/SuperAdminPromotionsPage.jsx";
 import SuperAdminMarketingPage from "@/pages/SuperAdminMarketingPage.jsx";
+import SuperAdminPartnershipPage from "@/pages/SuperAdminPartnershipPage.jsx";
+import SuperAdminInfluencersPage from "@/pages/SuperAdminInfluencersPage.jsx";
+import PartnershipContractPage from "@/pages/PartnershipContractPage.jsx";
+import InfluencerPortalPage from "@/pages/InfluencerPortalPage.jsx";
 
 // ========== DETAIL/FORM PAGES ==========
 import SuperAdminTenantDetailPage from "@/pages/SuperAdminTenantDetailPage.jsx";
@@ -217,6 +221,7 @@ const DashboardRedirect = () => {
     return <Navigate to="/super-admin/dashboard" replace />;
   if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
   if (role === "employee") return <Navigate to="/employee/dashboard" replace />;
+  if (role === "influencer") return <Navigate to="/influencer" replace />;
   return <Navigate to="/client/dashboard" replace />;
 };
 
@@ -344,6 +349,22 @@ function App() {
                     <Route path="/dashboard" element={<DashboardRedirect />} />
 
                     {/* ============================================================
+                    ESPACE INFLUENCEUR (hors layout salon)
+                    ============================================================ */}
+                    <Route
+                      path="/influencer"
+                      element={
+                        <ProtectedRoute requiredRole="influencer">
+                          <InfluencerPortalPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/influencer/portal"
+                      element={<Navigate to="/influencer" replace />}
+                    />
+
+                    {/* ============================================================
                     ROUTES PROTÉGÉES AVEC LAYOUT UNIFIÉ
                     ============================================================ */}
 
@@ -430,6 +451,18 @@ function App() {
                       <Route
                         path="marketing"
                         element={<SuperAdminMarketingPage />}
+                      />
+                      <Route
+                        path="partnership"
+                        element={<SuperAdminPartnershipPage />}
+                      />
+                      <Route
+                        path="partnership/contract"
+                        element={<PartnershipContractPage />}
+                      />
+                      <Route
+                        path="influencers"
+                        element={<SuperAdminInfluencersPage />}
                       />
                       <Route
                         path="products"

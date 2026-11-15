@@ -211,6 +211,7 @@ const COLUMNS = {
   },
   tenants: {
     parent_tenant_id: 'CHAR(36) NULL',
+    referred_by_influencer_id: 'CHAR(36) NULL',
   },
   session: {
     // Colonnes ajoutees a une table existante : nullables pour que l'ALTER
@@ -254,7 +255,10 @@ const INDEXES = {
   ],
   account: [{ name: 'account_user_id_idx', columns: '`user_id`', unique: false }],
   verification: [{ name: 'verification_identifier_idx', columns: '`identifier`', unique: false }],
-  tenants: [{ name: 'idx_tenants_parent_tenant_id', columns: '`parent_tenant_id`', unique: false }],
+  tenants: [
+    { name: 'idx_tenants_parent_tenant_id', columns: '`parent_tenant_id`', unique: false },
+    { name: 'idx_tenants_referred_by_influencer', columns: '`referred_by_influencer_id`', unique: false },
+  ],
 };
 
 const firstValue = (row) => (row ? Object.values(row)[0] : undefined);

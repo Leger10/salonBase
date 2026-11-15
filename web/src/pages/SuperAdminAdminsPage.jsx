@@ -314,7 +314,10 @@ export default function SuperAdminAdmins() {
   };
 
   const handleToggleAdminStatus = async (profileId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    // `profiles.is_active` est un booleen en base : envoyer "active" /
+    // "inactive" faisait echouer la mise a jour.
+    const isActive = currentStatus === true || currentStatus === 'active';
+    const newStatus = !isActive;
     try {
       const { error } = await supabase
         .from('profiles')
@@ -326,7 +329,7 @@ export default function SuperAdminAdmins() {
 
       if (error) throw error;
       
-      toast.success(`Administrateur ${newStatus === 'active' ? 'activé' : 'désactivé'} avec succès`);
+      toast.success(`Administrateur ${newStatus ? 'activé' : 'désactivé'} avec succès`);
       fetchAdmins();
     } catch (error) {
       toast.error('Erreur lors du changement de statut');

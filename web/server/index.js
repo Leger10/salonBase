@@ -21,6 +21,21 @@ import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
 import { assertSubscriptionActive, getSubscriptionEntitlement, isTenantPubliclyVisible } from './subscription-entitlement.js';
 import { getEmployeeClientStats } from './employee-stats.js';
+import { getPartnershipReport } from './partnership.js';
+import {
+  createInfluencer,
+  createWithdrawal,
+  deleteInfluencer,
+  getInfluencerById,
+  getInfluencerByUserId,
+  getInfluencerReport,
+  listInfluencersWithStats,
+  listTenantReferrals,
+  listWithdrawals,
+  processWithdrawal,
+  assignTenantReferral,
+  updateInfluencer,
+} from './influencers.js';
 import { mountStorage, storageRoot } from './storage.js';
 import { mountPush } from './push/routes.js';
 
@@ -1028,6 +1043,144 @@ app.post(
   })
 );
 
+// --- Partenariat : chiffre d'affaires et partage mensuel -------------------
+// Transparence totale : revenus des abonnements valides, charges de survie de
+// l'application (20 %), puis partage 50/50 du reste entre les deux associes.
+app.get(
+  '/api/super-admin/partnership',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    res.json(await getPartnershipReport({ year: req.query.year }));
+  })
+);
+
+// --- Influenceurs : espace personnel --------------------------------------
+// Un influenceur voit les salons qu'il a inscrits, leurs abonnements, les
+// commissions acquises (20 % par defaut) et son solde retirable.
+async function resolveInfluencer(req, ctx) {
+  const requestedId = req.query.influencerId ?? req.body?.influencerId ?? null;
+  if (ctx.role === 'super_admin' && requestedId) {
+    const influencer = await getInfluencerById(String(requestedId));
+    if (!influencer) {
+      throw new HttpError(404, 'INFLUENCER_NOT_FOUND', 'Influenceur introuvable.');
+    }
+    return influencer;
+  }
+  if (ctx.role !== 'influencer' && ctx.role !== 'super_admin') {
+    throw new HttpError(403, 'FORBIDDEN', "Cet espace est reserve aux influenceurs.");
+  }
+  const influencer = await getInfluencerByUserId(ctx.user.id);
+  if (!influencer) {
+    throw new HttpError(
+      404,
+      'INFLUENCER_PROFILE_MISSING',
+      "Aucune fiche influenceur n'est liee a ce compte."
+    );
+  }
+  return influencer;
+}
+
+app.get(
+  '/api/influencers/me',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    const influencer = await resolveInfluencer(req, ctx);
+    res.json(await getInfluencerReport(influencer.id, { year: req.query.year }));
+  })
+);
+
+app.post(
+  '/api/influencers/me/withdrawals',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    const influencer = await resolveInfluencer(req, ctx);
+    const withdrawal = await createWithdrawal(influencer.id, req.body ?? {});
+    res.status(201).json({ withdrawal });
+  })
+);
+
+// --- Influenceurs : administration (super_admin) --------------------------
+app.get(
+  '/api/super-admin/influencers',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const [influencers, tenants] = await Promise.all([
+      listInfluencersWithStats(),
+      listTenantReferrals(),
+    ]);
+    res.json({ influencers, tenants });
+  })
+);
+
+app.post(
+  '/api/super-admin/influencers',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const influencer = await createInfluencer(req.body ?? {});
+    res.status(201).json({ influencer });
+  })
+);
+
+app.get(
+  '/api/super-admin/influencers/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    res.json(await getInfluencerReport(req.params.id, { year: req.query.year }));
+  })
+);
+
+app.patch(
+  '/api/super-admin/influencers/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const influencer = await updateInfluencer(req.params.id, req.body ?? {});
+    res.json({ influencer });
+  })
+);
+
+app.delete(
+  '/api/super-admin/influencers/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    res.json(await deleteInfluencer(req.params.id));
+  })
+);
+
+app.get(
+  '/api/super-admin/withdrawals',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    res.json({ withdrawals: await listWithdrawals({ status: req.query.status }) });
+  })
+);
+
+app.patch(
+  '/api/super-admin/withdrawals/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const withdrawal = await processWithdrawal(req.params.id, req.body ?? {}, ctx.user.id);
+    res.json({ withdrawal });
+  })
+);
+
+app.patch(
+  '/api/super-admin/tenants/:id/referral',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const influencerId = req.body?.influencer_id ?? req.body?.influencerId ?? null;
+    res.json({ tenant: await assignTenantReferral(req.params.id, influencerId) });
+  })
+);
+
 
 // --- Front statique (production : meme domaine que l'API) ------------------
 // En dev, Vite sert le front sur :3000 et proxifie /api vers :4000. En prod sur
@@ -1086,7 +1239,18 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Erreur interne.' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[api] http://localhost:${PORT}  (auth: /api/auth/*)`);
   console.log(`[api] origines autorisees: ${authOrigins.join(', ')}`);
+});
+
+server.on('error', (error) => {
+  if (error?.code === 'EADDRINUSE') {
+    console.error(
+      `[api] le port ${PORT} est deja utilise. Arretez l'autre instance (npm start / ancien npm run dev) avant de relancer.`
+    );
+  } else {
+    console.error('[api] demarrage impossible :', error);
+  }
+  process.exit(1);
 });

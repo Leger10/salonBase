@@ -13,8 +13,15 @@ import { HttpError } from './middleware/auth.js';
 import { afterDelete, afterInsert, afterUpdate, WATCHED } from './push/hooks.js';
 import { assertSubscriptionActive } from './subscription-entitlement.js';
 
-// Tables Better Auth : accessibles uniquement via /api/auth/*.
-const FORBIDDEN_TABLES = new Set(['account', 'session', 'verification']);
+// Tables Better Auth et tables gerees uniquement par des endpoints dedies
+// (jamais par la couche de donnees generique du navigateur).
+const FORBIDDEN_TABLES = new Set([
+  'account',
+  'session',
+  'verification',
+  'influencers',
+  'influencer_withdrawals',
+]);
 
 // Colonnes qu'un client generic n'a pas le droit d'ecrire. Le role, le tenant et
 // le statut d'un profil se changent par PATCH /api/profiles/:id, qui verifie les

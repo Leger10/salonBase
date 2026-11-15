@@ -61,7 +61,9 @@ export default function LoginPage({ defaultTab = "login" }) {
         ? "/admin/dashboard"
         : role === "employee"
           ? "/employee/dashboard"
-          : "/client/dashboard";
+          : role === "influencer"
+            ? "/influencer"
+            : "/client/dashboard";
     return <Navigate to={dashboardPath} replace />;
   }
 

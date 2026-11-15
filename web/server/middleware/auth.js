@@ -10,6 +10,7 @@ export const ROLES = {
   super_admin: 4,
   admin: 3,
   employee: 2,
+  influencer: 1,
   client: 1,
 };
 
