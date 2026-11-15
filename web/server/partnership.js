@@ -2,9 +2,11 @@
 // deduction des charges de survie de l'application puis partage a parts egales.
 //
 // Regles metier (contrat de partenariat) :
-//   - le chiffre d'affaires d'un mois = montant des abonnements VALIDES ce mois ;
-//   - 20 % sont retenus pour la survie de l'application (hebergement, support,
-//     maintenance, marketing) ;
+//   - le chiffre d'affaires brut d'un mois = montant des abonnements VALIDES ce mois ;
+//   - les commissions des influenceurs sont deduites de ce chiffre d'affaires
+//     (article 12 du contrat) : elles ne sont supportees par aucune des Parties ;
+//   - 20 % du chiffre d'affaires net sont retenus pour la survie de l'application
+//     (hebergement, support, maintenance, marketing) ;
 //   - le reste (80 %) est partage 50/50 entre les deux associes.
 //
 // Le calcul est volontairement fait en JS (et non en SQL) pour rester lisible
@@ -48,6 +50,8 @@ function emptyMonth(month) {
   return {
     month,
     label: MONTH_LABELS[month - 1],
+    grossRevenue: 0,
+    commissions: 0,
     revenue: 0,
     appShare: 0,
     distributable: 0,
@@ -59,15 +63,29 @@ function emptyMonth(month) {
 }
 
 function emptyTotals() {
-  return { revenue: 0, appShare: 0, distributable: 0, partnerA: 0, partnerB: 0, salonsCount: 0 };
+  return {
+    grossRevenue: 0,
+    commissions: 0,
+    revenue: 0,
+    appShare: 0,
+    distributable: 0,
+    partnerA: 0,
+    partnerB: 0,
+    salonsCount: 0,
+  };
 }
 
-function addToMonth(target, revenue) {
-  target.revenue += revenue;
+// `revenue` designe toujours le chiffre d'affaires NET (commissions deduites),
+// c'est-a-dire la base reellement partagee entre les Parties.
+function addToMonth(target, grossRevenue, commission) {
+  target.grossRevenue += grossRevenue;
+  target.commissions += commission;
 }
 
 function finalizeMonth(month) {
-  const revenue = money(month.revenue);
+  const grossRevenue = money(month.grossRevenue);
+  const commissions = money(month.commissions);
+  const revenue = money(grossRevenue - commissions);
   const appShare = money(revenue * APP_SHARE_RATE);
   const distributable = money(revenue - appShare);
   const partnerA = money(distributable * PARTNER_SPLIT);
@@ -76,6 +94,8 @@ function finalizeMonth(month) {
   const partnerB = money(distributable - partnerA);
   return {
     ...month,
+    grossRevenue,
+    commissions,
     revenue,
     appShare,
     distributable,
@@ -86,12 +106,14 @@ function finalizeMonth(month) {
 }
 
 function finalizeTotals(totals) {
-  const revenue = money(totals.revenue);
+  const grossRevenue = money(totals.grossRevenue);
+  const commissions = money(totals.commissions);
+  const revenue = money(grossRevenue - commissions);
   const appShare = money(revenue * APP_SHARE_RATE);
   const distributable = money(revenue - appShare);
   const partnerA = money(distributable * PARTNER_SPLIT);
   const partnerB = money(distributable - partnerA);
-  return { ...totals, revenue, appShare, distributable, partnerA, partnerB };
+  return { ...totals, grossRevenue, commissions, revenue, appShare, distributable, partnerA, partnerB };
 }
 
 /**
@@ -106,7 +128,7 @@ export async function getPartnershipReport({ year } = {}) {
     ? Number(year)
     : now.getUTCFullYear();
 
-  const [subscriptions, tenants] = await Promise.all([
+  const [subscriptions, tenants, influencers, referrals] = await Promise.all([
     prisma.subscription.findMany({
       orderBy: [{ createdAt: 'desc' }],
       select: {
@@ -136,7 +158,28 @@ export async function getPartnershipReport({ year } = {}) {
       },
       orderBy: [{ name: 'asc' }],
     }),
+    // Lecture SQL directe : les tables/colonnes influenceur sont creees par la
+    // migration et ne dependent pas de la generation du client Prisma.
+    prisma
+      .$queryRawUnsafe('SELECT id, commission_rate, status FROM influencers')
+      .catch(() => []),
+    prisma
+      .$queryRawUnsafe(
+        'SELECT id, referred_by_influencer_id FROM tenants WHERE referred_by_influencer_id IS NOT NULL'
+      )
+      .catch(() => []),
   ]);
+
+  // Taux de commission par influenceur, pour deduire du chiffre d'affaires les
+  // commissions des salons rattaches (article 12 du contrat de partenariat).
+  const commissionRates = new Map(
+    influencers
+      .filter((influencer) => String(influencer.status ?? 'active') !== 'inactive')
+      .map((influencer) => [influencer.id, Number(influencer.commission_rate) || 0])
+  );
+  const referralByTenant = new Map(
+    referrals.map((row) => [row.id, row.referred_by_influencer_id])
+  );
 
   const activeSubscriptions = subscriptions.filter((row) => row.status === 'active');
   const pendingSubscriptions = subscriptions.filter((row) => row.status === 'pending');
@@ -156,6 +199,9 @@ export async function getPartnershipReport({ year } = {}) {
     const key = dateKey(recognizedAt(subscription));
     if (!key) continue;
     const amount = money(subscription.amount);
+    const referralId = referralByTenant.get(subscription.tenantId) ?? null;
+    const influencerRate = referralId ? (commissionRates.get(referralId) ?? 0) : 0;
+    const commission = money(amount * influencerRate / 100);
     const salon = {
       subscriptionId: subscription.id,
       tenantId: subscription.tenantId,
@@ -164,20 +210,22 @@ export async function getPartnershipReport({ year } = {}) {
       plan: subscription.plan,
       duration: subscription.duration,
       amount,
+      commission,
+      influencerRate,
       date: recognizedAt(subscription),
       startDate: subscription.startDate,
       endDate: subscription.endDate,
     };
 
     // Cumul global (toutes annees confondues).
-    addToMonth(allTime, amount);
+    addToMonth(allTime, amount, commission);
     allTimeSalonIds.add(subscription.tenantId);
 
     if (key.year !== requestedYear) continue;
     const month = months[key.month - 1];
-    addToMonth(month, amount);
+    addToMonth(month, amount, commission);
     month.salons.push(salon);
-    addToMonth(totals, amount);
+    addToMonth(totals, amount, commission);
   }
 
   const finalizedMonths = months.map(finalizeMonth);

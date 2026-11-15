@@ -115,7 +115,8 @@ export default function SuperAdminPartnershipPage() {
     () =>
       (report?.months ?? []).map((item) => ({
         name: item.label.slice(0, 4),
-        "Chiffre d'affaires": item.revenue,
+        "CA brut": item.grossRevenue,
+        "Commissions influenceurs": item.commissions,
         "Part associe A": item.partnerA,
         "Part associe B": item.partnerB,
         "Charges application": item.appShare,
@@ -163,9 +164,10 @@ export default function SuperAdminPartnershipPage() {
             <h1 className="text-2xl font-bold tracking-tight">Partenariat &amp; revenus</h1>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Chiffre d'affaires des abonnements, charges de survie de l'application (20 %)
-            et partage a parts egales (50/50) entre les deux associes. Chaque montant
-            affiche ici est calcule a partir d'un abonnement valide enregistre.
+            Chiffre d'affaires des abonnements, commissions des influenceurs deduites,
+            charges de survie de l'application (20 %) et partage a parts egales (50/50)
+            entre les deux associes. Chaque montant affiche ici est calcule a partir
+            d'un abonnement valide enregistre.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -192,17 +194,45 @@ export default function SuperAdminPartnershipPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4 text-primary" /> CA annuel {report.year}
+              <TrendingUp className="h-4 w-4 text-primary" /> CA brut {report.year}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{money(report.totals.grossRevenue)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {report.totals.salonsCount} salon(s) abonne(s) sur l'annee
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Users className="h-4 w-4" /> Commissions influenceurs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-rose-600">-{money(report.totals.commissions)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deduites du CA avant charges (article 12 du contrat)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Calculator className="h-4 w-4" /> CA net partageable
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{money(report.totals.revenue)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {report.totals.salonsCount} salon(s) abonne(s) sur l'annee
+              Base de calcul des charges, apres commissions
             </p>
           </CardContent>
         </Card>
@@ -255,13 +285,14 @@ export default function SuperAdminPartnershipPage() {
           <div className="flex items-start gap-2">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Methode : CA = abonnements <strong>valides</strong> du mois (montant encaisse).
-              Charges = 20 % du CA. Reste a partager = 80 %. Chaque associe recoit
-              50 % du reste. Aucun revenu n'est estime : seuls les abonnements reels sont comptes.
+              Methode : CA brut = abonnements <strong>valides</strong> du mois (montant encaisse).
+              Les commissions des influenceurs sont deduites de ce CA, puis les charges
+              application representent 20 % du CA net. Le reste (80 %) est partage 50/50.
+              Aucun revenu n'est estime : seuls les abonnements reels sont comptes.
             </p>
           </div>
           <Badge variant="outline" className="w-fit border-amber-300 bg-white">
-            20 % application · 80 % partage 50/50
+            Commissions deduites · 20 % application · 80 % partage 50/50
           </Badge>
         </CardContent>
       </Card>
@@ -280,7 +311,8 @@ export default function SuperAdminPartnershipPage() {
                   <YAxis tickFormatter={shortMoney} tick={{ fontSize: 12 }} width={56} />
                   <Tooltip formatter={(value) => money(value)} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Chiffre d'affaires" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="CA brut" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Commissions influenceurs" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Part associe A" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Part associe B" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Charges application" fill="#f59e0b" radius={[4, 4, 0, 0]} />
@@ -313,7 +345,15 @@ export default function SuperAdminPartnershipPage() {
 
             <div className="space-y-2 rounded-lg border p-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Chiffre d'affaires</span>
+                <span className="text-muted-foreground">CA brut</span>
+                <span className="font-semibold">{money(month?.grossRevenue)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Commissions influenceurs</span>
+                <span className="font-semibold text-rose-600">-{money(month?.commissions)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-2">
+                <span className="text-muted-foreground">CA net</span>
                 <span className="font-semibold">{money(month?.revenue)}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -350,6 +390,11 @@ export default function SuperAdminPartnershipPage() {
                         <span className="text-xs text-muted-foreground">
                           {salon.plan} · {formatDate(salon.date)}
                         </span>
+                        {salon.commission > 0 && (
+                          <span className="block text-xs text-rose-600">
+                            commission {money(salon.commission)}
+                          </span>
+                        )}
                       </span>
                       <span className="shrink-0 text-xs font-semibold">{money(salon.amount)}</span>
                     </li>
@@ -375,7 +420,9 @@ export default function SuperAdminPartnershipPage() {
               <TableRow>
                 <TableHead>Mois</TableHead>
                 <TableHead>Salons abonnes</TableHead>
-                <TableHead className="text-right">Chiffre d'affaires</TableHead>
+                <TableHead className="text-right">CA brut</TableHead>
+                <TableHead className="text-right">Commissions</TableHead>
+                <TableHead className="text-right">CA net</TableHead>
                 <TableHead className="text-right">Charges 20 %</TableHead>
                 <TableHead className="text-right">Reste a partager</TableHead>
                 <TableHead className="text-right">Associe A</TableHead>
@@ -408,6 +455,8 @@ export default function SuperAdminPartnershipPage() {
                       </span>
                     </TableCell>
                     <TableCell>{item.salonsCount}</TableCell>
+                    <TableCell className="text-right font-semibold">{money(item.grossRevenue)}</TableCell>
+                    <TableCell className="text-right text-rose-600">-{money(item.commissions)}</TableCell>
                     <TableCell className="text-right font-semibold">{money(item.revenue)}</TableCell>
                     <TableCell className="text-right text-amber-600">{money(item.appShare)}</TableCell>
                     <TableCell className="text-right">{money(item.distributable)}</TableCell>
@@ -419,6 +468,8 @@ export default function SuperAdminPartnershipPage() {
               <TableRow className="bg-muted/50 font-semibold">
                 <TableCell>Total {report.year}</TableCell>
                 <TableCell>{report.totals.salonsCount}</TableCell>
+                <TableCell className="text-right">{money(report.totals.grossRevenue)}</TableCell>
+                <TableCell className="text-right text-rose-600">-{money(report.totals.commissions)}</TableCell>
                 <TableCell className="text-right">{money(report.totals.revenue)}</TableCell>
                 <TableCell className="text-right">{money(report.totals.appShare)}</TableCell>
                 <TableCell className="text-right">{money(report.totals.distributable)}</TableCell>
@@ -440,6 +491,10 @@ export default function SuperAdminPartnershipPage() {
           <CardContent>
             <p className="text-xl font-bold">{money(report.allTime.revenue)}</p>
             <p className="text-xs text-muted-foreground">
+              CA net · brut {money(report.allTime.grossRevenue)} · commissions{" "}
+              {money(report.allTime.commissions)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
               {money(report.allTime.partnerA)} par associe apres charges
             </p>
           </CardContent>
