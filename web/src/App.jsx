@@ -123,6 +123,8 @@ import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage.jsx";
 // ========== EMPLOYEE PAGES ==========
 import EmployeeTicketQueuePage from "@/pages/EmployeeTicketQueuePage.jsx";
 import EmployeeSchedulePage from "@/pages/EmployeeSchedulePage.jsx";
+import EmployeeClientsPage from "@/pages/EmployeeClientsPage.jsx";
+import EmployeeProfilePage from "@/pages/EmployeeProfilePage.jsx";
 
 // ========== CLIENT PAGES ==========
 import ClientBookingsPage from "@/pages/ClientBookingsPage.jsx";
@@ -665,7 +667,7 @@ function App() {
                       />
                       <Route
                         path="clients"
-                        element={<PlaceholderPage title="Mes Clients" />}
+                        element={<EmployeeClientsPage />}
                       />
                       <Route
                         path="availability"
@@ -681,7 +683,7 @@ function App() {
                       />
                       <Route
                         path="profile"
-                        element={<PlaceholderPage title="Mon Profil" />}
+                        element={<EmployeeProfilePage />}
                       />
                     </Route>
 

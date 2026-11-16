@@ -163,6 +163,59 @@ app.get(
   })
 );
 
+// --- Profil de l'utilisateur connecte -------------------------------------
+// Chacun peut mettre a jour ses propres coordonnees. Les colonnes sensibles
+// (role, tenant, statut du compte, email de connexion) restent hors de portee.
+// L'employe peut aussi basculer sa disponibilite depuis son espace.
+app.patch(
+  '/api/me/profile',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    const body = req.body ?? {};
+    const allowed = new Set(['full_name', 'phone', 'avatar', 'is_available']);
+    const keys = Object.keys(body);
+    if (!keys.length || keys.some((key) => !allowed.has(key))) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Champs de profil invalides.');
+    }
+    if (
+      'full_name' in body &&
+      (typeof body.full_name !== 'string' || !body.full_name.trim())
+    ) {
+      throw new HttpError(400, 'INVALID_INPUT', 'Le nom est obligatoire.');
+    }
+    if ('phone' in body && body.phone !== null && typeof body.phone !== 'string') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Telephone invalide.');
+    }
+    if ('avatar' in body && body.avatar !== null && typeof body.avatar !== 'string') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Photo de profil invalide.');
+    }
+    if ('is_available' in body && typeof body.is_available !== 'boolean') {
+      throw new HttpError(400, 'INVALID_INPUT', 'Disponibilite invalide.');
+    }
+
+    const profileData = {};
+    if ('full_name' in body) profileData.name = body.full_name.trim();
+    if ('phone' in body) profileData.phone = body.phone?.trim() || null;
+    if ('avatar' in body) profileData.image = body.avatar?.trim() || null;
+
+    const employeeData = {};
+    if ('is_available' in body) employeeData.isAvailable = body.is_available;
+
+    const updatedProfile = Object.keys(profileData).length
+      ? await prisma.profile.update({ where: { id: ctx.user.id }, data: profileData })
+      : await prisma.profile.findUnique({ where: { id: ctx.user.id } });
+
+    if (Object.keys(employeeData).length) {
+      await prisma.employee.updateMany({
+        where: { profileId: ctx.user.id },
+        data: employeeData,
+      });
+    }
+
+    res.json({ success: true, profile: profileDto(updatedProfile) });
+  })
+);
+
 // --- Mot de passe oublie / changement force -------------------------------
 // Aucun email n'est envoye : la demande part dans la file du super
 // administrateur, qui remet le mot de passe a "00000000". L'utilisateur se

@@ -25,7 +25,7 @@ import {
   Crown, MessageCircle, ThumbsUp, Award
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns';
+import { format, subMonths, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -459,11 +459,25 @@ export default function EmployeeDashboard() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (employeeData?.id) {
-      fetchStatistics();
-      fetchEmployeeReviews();
-    }
-  }, [employeeData, statsPeriod, dateRange]);
+    if (!employeeData?.id) return;
+
+    const tenantId = currentUser?.profile?.tenant_id;
+    let cancelled = false;
+
+    (async () => {
+      const periodAppointments = await fetchAppointments(tenantId, employeeData.id);
+      if (cancelled) return;
+      const periodTickets = await fetchTickets(tenantId, employeeData.id);
+      if (cancelled) return;
+      await fetchStatistics(periodAppointments, periodTickets);
+      await fetchEmployeeReviews();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeData?.id, statsPeriod, dateRange]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -507,12 +521,6 @@ export default function EmployeeDashboard() {
       
       // Récupérer les données de caisse
       await fetchCashierData(tenantId, employee?.id);
-      
-      // Récupérer les statistiques
-      await fetchStatistics();
-      
-      // Récupérer les avis
-      await fetchEmployeeReviews();
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -556,7 +564,7 @@ export default function EmployeeDashboard() {
         const today = new Date().toISOString().split('T')[0];
         query = query.eq('appointment_date', today);
       } else if (statsPeriod === 'week') {
-        const weekAgo = subMonths(new Date(), 1);
+        const weekAgo = subDays(new Date(), 7);
         query = query.gte('appointment_date', weekAgo.toISOString().split('T')[0]);
       } else if (statsPeriod === 'month') {
         const monthStart = startOfMonth(new Date());
@@ -585,9 +593,11 @@ export default function EmployeeDashboard() {
       
       setAppointments(formattedData || []);
       setFilteredAppointments(formattedData || []);
+      return formattedData || [];
 
     } catch (error) {
       console.error('Error fetching appointments:', error);
+      return [];
     }
   };
 
@@ -599,14 +609,13 @@ export default function EmployeeDashboard() {
         .from('tickets')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('date', today)
         .neq('status', 'archived')
         .order('ticket_number', { ascending: true });
 
       if (statsPeriod === 'today') {
         query = query.eq('date', today);
       } else if (statsPeriod === 'week') {
-        const weekAgo = subMonths(new Date(), 1);
+        const weekAgo = subDays(new Date(), 7);
         query = query.gte('date', weekAgo.toISOString().split('T')[0]);
       } else if (statsPeriod === 'month') {
         const monthStart = startOfMonth(new Date());
@@ -625,7 +634,7 @@ export default function EmployeeDashboard() {
       
       const visibleTickets = data?.filter(t => 
         t.assigned_employee_id === employeeId || 
-        (t.assigned_employee_id === null && t.status === 'waiting')
+        (t.assigned_employee_id === null && t.status === 'waiting' && t.date === today)
       ) || [];
 
       setTickets(visibleTickets);
@@ -636,23 +645,28 @@ export default function EmployeeDashboard() {
         ['called', 'in_progress'].includes(t.status)
       );
       setMyTicket(currentTicket || null);
+      return visibleTickets;
 
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      return [];
     }
   };
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = async (appointmentsOverride, ticketsOverride) => {
     try {
       const tenantId = currentUser?.profile?.tenant_id;
       const employeeId = employeeData?.id;
 
       if (!tenantId || !employeeId) return;
 
-      const completedAppointments = appointments.filter(a => a.status === 'completed');
-      const cancelledAppointments = appointments.filter(a => a.status === 'cancelled');
+      const scopedAppointments = appointmentsOverride ?? appointments;
+      const scopedTickets = ticketsOverride ?? tickets;
+
+      const completedAppointments = scopedAppointments.filter(a => a.status === 'completed');
+      const cancelledAppointments = scopedAppointments.filter(a => a.status === 'cancelled');
       
-      const completedTickets = tickets.filter(t => t.status === 'served' || t.status === 'completed');
+      const completedTickets = scopedTickets.filter(t => t.status === 'served' || t.status === 'completed');
       
       const appointmentRevenue = completedAppointments.reduce((sum, a) => sum + (a.service_price || a.total_price || 0), 0);
       const ticketRevenue = completedTickets.reduce((sum, t) => sum + (t.service_price || 0), 0);
@@ -661,7 +675,7 @@ export default function EmployeeDashboard() {
       const commissionRate = employeeData?.commission_rate || 0;
       const totalCommission = totalRevenue * (commissionRate / 100);
 
-      const ratings = appointments.filter(a => a.rating).map(a => a.rating);
+      const ratings = scopedAppointments.filter(a => a.rating).map(a => a.rating);
       const averageRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
 
       const monthlyRevenue = {};
@@ -720,10 +734,10 @@ export default function EmployeeDashboard() {
       const servicesDone = Object.values(serviceMap).sort((a, b) => b.count - a.count);
 
       setDetailedStats({
-        totalAppointments: appointments.length,
+        totalAppointments: scopedAppointments.length,
         completedAppointments: completedAppointments.length,
         cancelledAppointments: cancelledAppointments.length,
-        totalTickets: tickets.length,
+        totalTickets: scopedTickets.length,
         completedTickets: completedTickets.length,
         totalRevenue: totalRevenue,
         totalCommission: totalCommission,
@@ -1603,7 +1617,7 @@ export default function EmployeeDashboard() {
               />
               <StatCard 
                 title="Note moyenne" 
-                value={`${detailedStats.averageRating.toFixed(1)}/5`} 
+                value={`${(detailedStats.averageRating || reviewStats.average || 0).toFixed(1)}/5`} 
                 icon={Star} 
                 color="text-yellow-600" 
               />

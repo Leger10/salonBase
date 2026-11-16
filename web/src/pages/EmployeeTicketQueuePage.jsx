@@ -14,8 +14,6 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 
 export default function EmployeeTicketQueuePage() {
   const { currentUser } = useAuth();
@@ -26,6 +24,7 @@ export default function EmployeeTicketQueuePage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [scope, setScope] = useState('today');
 
   useEffect(() => {
     fetchData();
@@ -42,7 +41,8 @@ export default function EmployeeTicketQueuePage() {
       .subscribe();
 
     return () => subscription.unsubscribe();
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, scope]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -81,8 +81,10 @@ export default function EmployeeTicketQueuePage() {
 
       const today = new Date().toISOString().split('T')[0];
 
-      // ✅ Récupérer TOUS les tickets du jour (non archivés) avec les infos de service
-      const { data: allTickets, error: ticketsError } = await supabase
+      // Vue "Aujourd'hui" : file d'attente du salon (tickets libres + les miens).
+      // Vue "Tous mes tickets" : historique complet des tickets qui m'ont ete
+      // assignes, toutes dates confondues.
+      let ticketsQuery = supabase
         .from('tickets')
         .select(`
           *,
@@ -94,22 +96,35 @@ export default function EmployeeTicketQueuePage() {
           )
         `)
         .eq('tenant_id', tenantId)
-        .eq('date', today)
-        .neq('status', 'archived')
-        .order('ticket_number', { ascending: true });
+        .neq('status', 'archived');
+
+      if (scope === 'today') {
+        ticketsQuery = ticketsQuery
+          .eq('date', today)
+          .order('ticket_number', { ascending: true });
+      } else {
+        ticketsQuery = ticketsQuery
+          .eq('assigned_employee_id', empData.id)
+          .order('date', { ascending: false })
+          .order('ticket_number', { ascending: false });
+      }
+
+      const { data: allTickets, error: ticketsError } = await ticketsQuery;
 
       if (ticketsError) {
         console.error('❌ Erreur tickets:', ticketsError);
         throw ticketsError;
       }
 
-      console.log('📋 Tickets du jour:', allTickets?.length || 0);
+      console.log('📋 Tickets récupérés:', allTickets?.length || 0);
       
       // ✅ Filtrer les tickets VISIBLES pour l'employé
-      const visibleTickets = allTickets?.filter(t => 
-        t.assigned_employee_id === empData.id || 
-        (t.assigned_employee_id === null && t.status === 'waiting')
-      ) || [];
+      const visibleTickets = scope === 'today'
+        ? (allTickets?.filter(t => 
+            t.assigned_employee_id === empData.id || 
+            (t.assigned_employee_id === null && t.status === 'waiting')
+          ) || [])
+        : (allTickets || []);
 
       // ✅ Formater les tickets avec les infos de service
       const formattedTickets = visibleTickets.map(ticket => ({
@@ -302,43 +317,33 @@ export default function EmployeeTicketQueuePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
+      <div className="flex min-h-[50vh] items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="space-y-5 p-3 pb-20 sm:p-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <Button variant="ghost" size="sm" asChild className="p-0">
-                <Link to="/employee/dashboard">
-                  <ArrowLeft className="h-5 w-5 mr-1" />
-                </Link>
-              </Button>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 <Ticket className="h-7 w-7 text-primary" />
                 Mes tickets
               </h1>
             </div>
             <p className="text-muted-foreground text-sm">
-              Gérez votre file d'attente - {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}
+              {scope === 'today'
+                ? `File d'attente du jour — ${format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}`
+                : 'Historique de tous les tickets qui vous ont été assignés'}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <Badge className="bg-primary/10 text-primary px-3 py-1.5">
               <Users className="h-4 w-4 mr-1.5" />
-              {waitingTickets.length} en attente
+              {scope === 'today' ? `${waitingTickets.length} en attente` : `${tickets.length} tickets`}
             </Badge>
             {employee && (
               <Badge className={employee.is_available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
@@ -349,6 +354,28 @@ export default function EmployeeTicketQueuePage() {
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+
+        {/* Portee */}
+        <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+          <button
+            type="button"
+            onClick={() => setScope('today')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              scope === 'today' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            Aujourd'hui
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope('mine')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              scope === 'mine' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            Tous mes tickets
+          </button>
         </div>
 
         {/* Mon ticket en cours */}
@@ -435,12 +462,12 @@ export default function EmployeeTicketQueuePage() {
           </select>
         </div>
 
-        {/* Clients en attente */}
+        {/* Tickets */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              Clients en attente
+              {scope === 'today' ? "File d'attente" : 'Mes tickets assignés'}
               {waitingTickets.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {waitingTickets.length}
@@ -540,7 +567,11 @@ export default function EmployeeTicketQueuePage() {
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            🕐 {ticket.created_at ? format(new Date(ticket.created_at), 'HH:mm') : '-'}
+                            🕐 {ticket.created_at
+                              ? scope === 'today'
+                                ? format(new Date(ticket.created_at), 'HH:mm')
+                                : format(new Date(ticket.date || ticket.created_at), 'dd MMM yyyy', { locale: fr })
+                              : '-'}
                           </p>
                         </div>
                       </div>
@@ -605,9 +636,6 @@ export default function EmployeeTicketQueuePage() {
             </Link>
           </Button>
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }
