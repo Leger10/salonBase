@@ -295,7 +295,9 @@ export default function CashierPage() {
         .from('tickets')
         .select('*')
         .eq('tenant_id', tenantId)
-        .in('status', ['completed', 'archived'])
+        // `served` : certains employés terminent encore la prestation avec ce
+        // statut (ancien tableau de bord). Le client est passé et doit payer.
+        .in('status', ['served', 'completed', 'archived'])
         .not('completed_at', 'is', null)
         .is('transaction_id', null)
         .order('completed_at', { ascending: true })

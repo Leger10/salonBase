@@ -156,14 +156,15 @@ export function AuthProvider({ children }) {
     [promote]
   );
 
-  // Necessite un service d'email configure cote serveur (non actif en dev).
-  const forgotPassword = useCallback(async (email) => {
+  // Aucun email n'est envoye : la demande est deposee dans la file du super
+  // administrateur, qui remet le mot de passe a "00000000".
+  const forgotPassword = useCallback(async (email, note) => {
     try {
-      await authApi.requestPasswordReset(email, `${window.location.origin}/auth/reset-password`);
-      toast.success("Email de réinitialisation envoyé");
-      return { message: "Email sent" };
+      const result = await authApi.requestPasswordReset(email, note);
+      toast.success("Demande transmise au super administrateur");
+      return result;
     } catch (error) {
-      toast.error(error.message || "La réinitialisation par email n'est pas disponible.");
+      toast.error(error.message || "Impossible d'envoyer la demande de réinitialisation.");
       throw error;
     }
   }, []);

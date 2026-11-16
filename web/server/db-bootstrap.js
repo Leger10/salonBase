@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { Prisma } from '@prisma/client';
 import { hashPassword } from 'better-auth/crypto';
 import { prisma } from './prisma.js';
+import { seedSubscriptionPlans } from './subscription-plans.js';
 
 const DEFAULT_PASSWORD = process.env.AUTH_DEFAULT_PASSWORD ?? '00000000';
 const AUTO_PROVISION = process.env.AUTH_AUTO_PROVISION !== 'false';
@@ -784,6 +785,7 @@ async function run() {
     provisionedAccounts: 0,
     repairedPasswords: 0,
     normalizedAccountIds: 0,
+    seededPlans: 0,
   };
 
   await ensureTables(report);
@@ -796,6 +798,18 @@ async function run() {
   await repairPasswordHashes(report);
   await provisionAccounts(report);
 
+  // Catalogue partage des packs d'abonnement : cree une seule fois si la table
+  // est vide (base de production importee sans plans).
+  try {
+    const plans = await seedSubscriptionPlans();
+    report.seededPlans = plans.seeded;
+    if (plans.seeded > 0) {
+      console.log(`[db] ${plans.seeded} packs d'abonnement crees`);
+    }
+  } catch (error) {
+    console.error('[db] impossible de creer les packs d\'abonnement :', error.message);
+  }
+
   const changed =
     report.createdTables.length +
     report.addedColumns.length +
@@ -803,7 +817,8 @@ async function run() {
     report.addedConstraints.length +
     report.provisionedAccounts +
     report.repairedPasswords +
-    report.normalizedAccountIds;
+    report.normalizedAccountIds +
+    report.seededPlans;
 
   if (changed === 0) {
     console.log('[db] schema deja a jour');

@@ -32,6 +32,13 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
+  // Mot de passe temporaire (reinitialise par le super administrateur) : on
+  // force le changement avant tout acces au reste de l'application.
+  const isChangePasswordRoute = location.pathname === '/auth/change-password';
+  if (currentUser?.mustChangePassword === true && !isChangePasswordRoute) {
+    return <Navigate to="/auth/change-password" replace />;
+  }
+
   // ✅ Récupération du rôle depuis le profil (structure Supabase)
   const userRole = currentUser?.profile?.role || currentUser?.role;
   

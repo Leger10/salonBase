@@ -19,6 +19,96 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Métadonnées purement visuelles dérivées du nom / de la durée. La base ne
+// stocke que les colonnes métier (prix, durée, quotas, actif) : les packs créés
+// ou modifiés par le super administrateur restent donc affichables ici.
+const PLAN_TIER_META = {
+  starter: {
+    icon: '💈',
+    badge: '⭐ Nouveau',
+    popularity: 70,
+    description: '💈 Parfait pour les salons individuels',
+  },
+  growth: {
+    icon: '✂️',
+    badge: '🔥 Populaire',
+    popularity: 85,
+    description: '✂️ Pour les salons avec 2-5 employés',
+  },
+  premium: {
+    icon: '💇‍♂️',
+    badge: '💎 Premium',
+    popularity: 92,
+    description: '💇‍♂️ Pour les grands salons et centres de beauté',
+  },
+  enterprise: {
+    icon: '👑',
+    badge: '👑 Elite',
+    popularity: 88,
+    description: '👑 Pour les grands groupes et enseignes',
+  },
+};
+
+const DISCOUNT_BY_DURATION = { 3: 10, 6: 20, 12: 30 };
+
+function planCategoryFromName(name) {
+  const value = String(name ?? '').toLowerCase();
+  if (value.includes('plus')) return 'enterprise';
+  if (value.includes('grand')) return 'premium';
+  if (value.includes('moyen')) return 'growth';
+  if (value.includes('petit')) return 'starter';
+  return 'growth';
+}
+
+function planDurationMonths(plan) {
+  const named = String(plan?.name ?? '').match(/\b(\d+)\s*(?:mois|months?)\b/i);
+  if (/\b1\s*an\b/i.test(String(plan?.name ?? ''))) return 12;
+  return Math.max(
+    1,
+    Number(named?.[1] ?? plan?.duration_months ?? plan?.durationMonths) || 1
+  );
+}
+
+function normalizePlan(raw) {
+  const category = raw.category || planCategoryFromName(raw.name);
+  const meta = PLAN_TIER_META[category] || PLAN_TIER_META.growth;
+  const duration = planDurationMonths(raw);
+  const discount = Number(
+    raw.discount ?? DISCOUNT_BY_DURATION[duration] ?? 0
+  ) || 0;
+  const popularityBoost = duration === 12 ? 5 : duration === 6 ? 2 : 0;
+  const features = Array.isArray(raw.features)
+    ? raw.features
+    : raw.features && typeof raw.features === 'object'
+      ? Object.values(raw.features).filter((item) => typeof item === 'string')
+      : [];
+
+  return {
+    ...raw,
+    price: Number(raw.price) || 0,
+    duration_months: duration,
+    max_employees: Number(raw.max_employees ?? raw.maxEmployees ?? 5) || 5,
+    max_services: Number(raw.max_services ?? raw.maxServices ?? 20) || 20,
+    max_products: Number(raw.max_products ?? raw.maxProducts ?? 50) || 50,
+    features,
+    category,
+    icon: raw.icon || meta.icon,
+    badge:
+      raw.badge ||
+      (duration === 12
+        ? '🏆 Meilleure offre'
+        : duration === 6
+          ? '📅 6 mois'
+          : duration === 3
+            ? '📅 3 mois'
+            : meta.badge),
+    popularity: Math.min(100, Number(raw.popularity) || meta.popularity + popularityBoost),
+    discount,
+    is_active: raw.is_active !== false,
+    description: raw.description?.trim() || meta.description,
+  };
+}
+
 export default function AdminSubscription() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -467,9 +557,11 @@ export default function AdminSubscription() {
 
       if (plansError || !plansData || plansData.length === 0) {
         // Utiliser les plans par défaut optimisés
-        setPlans(defaultPlans);
+        setPlans(defaultPlans.map(normalizePlan));
       } else {
-        setPlans(plansData);
+        // Les packs gérés par le super administrateur sont la source unique :
+        // on ne masque que les packs désactivés (déjà filtrés par la requête).
+        setPlans(plansData.map(normalizePlan));
       }
 
       // 4. Récupérer les statistiques d'utilisation
@@ -478,7 +570,7 @@ export default function AdminSubscription() {
     } catch (error) {
       console.error('Error fetching subscription data:', error);
       toast.error('Erreur lors du chargement des données');
-      setPlans(defaultPlans);
+      setPlans(defaultPlans.map(normalizePlan));
     } finally {
       setLoading(false);
     }
@@ -555,23 +647,26 @@ export default function AdminSubscription() {
 
       const startDate = new Date();
       const endDate = new Date();
-      
-      // Appliquer la réduction annuelle
-      let finalPrice = plan.price;
-      let discount = plan.discount || 0;
-      
-      if (duration === 12) {
-        discount = Math.max(discount, 30);
-        finalPrice = finalPrice * (1 - discount / 100);
-      } else if (duration === 6) {
-        discount = Math.max(discount, 20);
-        finalPrice = finalPrice * (1 - discount / 100);
-      } else if (duration === 3) {
-        discount = Math.max(discount, 10);
-        finalPrice = finalPrice * (1 - discount / 100);
+
+      // Le prix d'un pack (3, 6 ou 12 mois) est déjà le montant total remisé.
+      // On ne recalcule une remise que lorsque l'admin choisit explicitement
+      // une autre durée (ex. « offre annuelle » depuis un pack mensuel).
+      const planMonths = Math.max(1, Number(plan.duration_months) || 1);
+      const durationMonths = Math.max(1, Number(duration) || planMonths);
+      const baseMonthlyPrice = (Number(plan.price) || 0) / planMonths;
+      const standardDiscount = DISCOUNT_BY_DURATION[durationMonths] ?? 0;
+
+      let finalPrice;
+      let discount;
+      if (durationMonths === planMonths) {
+        finalPrice = Number(plan.price) || 0;
+        discount = Number(plan.discount) || 0;
+      } else {
+        discount = Math.max(Number(plan.discount) || 0, standardDiscount);
+        finalPrice = baseMonthlyPrice * durationMonths * (1 - discount / 100);
       }
-      
-      endDate.setMonth(endDate.getMonth() + duration);
+
+      endDate.setMonth(endDate.getMonth() + durationMonths);
 
       // Créer l'abonnement
       const { data, error } = await supabase
@@ -579,7 +674,7 @@ export default function AdminSubscription() {
         .insert({
           tenant_id: tenantId,
           plan: `${plan.name}`,
-          duration: `${duration} mois`,
+          duration: `${durationMonths} mois`,
           amount: Math.round(finalPrice),
           payment_method: 'online',
           start_date: startDate.toISOString().split('T')[0],
@@ -647,6 +742,17 @@ export default function AdminSubscription() {
   const popularPlan = plans.length > 0 ? plans.reduce((a, b) => 
     (a.popularity || 0) > (b.popularity || 0) ? a : b
   ) : null;
+
+  // Renouvellement : alerte 7 jours avant l'échéance, réabonnement si expiré.
+  const renewalSoon = Boolean(
+    branchEntitlement?.isActive && daysRemaining > 0 && daysRemaining <= 7
+  );
+  const subscriptionExpired = Boolean(branchEntitlement && !branchEntitlement.isActive);
+
+  const focusPlans = () => {
+    const element = document.getElementById('plans-section');
+    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   if (loading) {
     return (
@@ -721,24 +827,43 @@ export default function AdminSubscription() {
         </div>
       )}
 
-      {branchEntitlement?.daysRemaining > 0 && branchEntitlement.daysRemaining <= 7 && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">
-              Votre abonnement expire dans {branchEntitlement.daysRemaining} jour{branchEntitlement.daysRemaining > 1 ? "s" : ""}.
-            </p>
-            <p className="text-sm">
-              Renouvelez-le à temps pour conserver l’accès à tous vos salons et leurs données.
-            </p>
-            <Link
-              to="/admin/support"
-              className="mt-2 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4"
-            >
-              <Headphones className="h-4 w-4" />
-              Contacter le support
-            </Link>
+      {renewalSoon && (
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">
+                Votre abonnement expire dans {daysRemaining} jour{daysRemaining > 1 ? "s" : ""}.
+              </p>
+              <p className="text-sm">
+                Renouvelez-le à temps pour conserver l’accès à tous vos salons et leurs données.
+              </p>
+            </div>
           </div>
+          <Button onClick={focusPlans} className="gap-2 shrink-0">
+            <RefreshCw className="h-4 w-4" />
+            Renouveler maintenant
+          </Button>
+        </div>
+      )}
+
+      {subscriptionExpired && (
+        <div className="flex flex-col gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-red-950 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Votre abonnement est expiré.</p>
+              <p className="text-sm">
+                Réabonnez votre salon pour réactiver la caisse, les rendez-vous et la
+                vitrine publique. Choisissez un pack ci-dessous : la demande sera
+                validée par le super administrateur.
+              </p>
+            </div>
+          </div>
+          <Button onClick={focusPlans} className="gap-2 shrink-0 bg-red-600 hover:bg-red-700">
+            <RefreshCw className="h-4 w-4" />
+            Se réabonner
+          </Button>
         </div>
       )}
 
@@ -831,7 +956,7 @@ export default function AdminSubscription() {
       )}
 
       {/* Plans disponibles */}
-      <div>
+      <div id="plans-section">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold">
@@ -984,7 +1109,11 @@ export default function AdminSubscription() {
                     <div className="mt-4">
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold">{plan.price.toLocaleString()} FCFA</span>
-                        <span className="text-sm text-muted-foreground">/ mois</span>
+                        <span className="text-sm text-muted-foreground">
+                          {plan.duration_months === 1
+                            ? "/ mois"
+                            : `/ ${plan.duration_months} mois`}
+                        </span>
                       </div>
                       {plan.discount > 0 && (
                         <div className="text-sm text-green-600 mt-1">

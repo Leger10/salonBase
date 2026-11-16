@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import { toast } from "sonner";
-import { Scissors, Loader2, ArrowLeft, MailCheck, Mail } from "lucide-react";
+import { Scissors, Loader2, ArrowLeft, MailCheck, Mail, ShieldCheck } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { forgotPassword, isAuthenticated, isLoading } = useAuth();
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email) {
       toast.error("Veuillez entrer votre adresse email");
       return;
@@ -34,11 +35,8 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      await forgotPassword(email);
+      await forgotPassword(email, note);
       setSubmitted(true);
-      toast.success(
-        "Un email de réinitialisation a été envoyé à votre adresse email",
-      );
     } catch (error) {
       toast.error(
         error.message || "Une erreur est survenue. Veuillez réessayer.",
@@ -61,7 +59,7 @@ export default function ForgotPasswordPage() {
         </Link>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-[480px]">
+      <div className="sm:mx-auto sm:w-full sm:max-w-[520px]">
         <div className="bento-card bg-card px-6 py-10 sm:px-12 shadow-xl border-border/50 animate-in fade-in zoom-in-95 duration-300">
           {submitted ? (
             <div className="text-center space-y-6">
@@ -69,14 +67,25 @@ export default function ForgotPasswordPage() {
                 <MailCheck className="h-8 w-8 text-primary" />
               </div>
               <h2 className="text-2xl font-bold tracking-tight">
-                Vérifiez votre boîte mail
+                Demande envoyée au super administrateur
               </h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Si un compte est associé à{" "}
-                <span className="font-semibold text-foreground">{email}</span>,
-                vous recevrez un lien pour réinitialiser votre mot de passe.
+                Votre demande de réinitialisation pour{" "}
+                <span className="font-semibold text-foreground">{email}</span>{" "}
+                a bien été enregistrée. Le super administrateur va réinitialiser
+                votre mot de passe.
               </p>
-              <div className="pt-4">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-left text-sm text-muted-foreground">
+                <p className="flex items-start gap-2">
+                  <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                  <span>
+                    Une fois la demande traitée, connectez-vous avec le mot de
+                    passe temporaire <strong>00000000</strong>. Vous serez
+                    ensuite invité à définir votre nouveau mot de passe.
+                  </span>
+                </p>
+              </div>
+              <div className="pt-2">
                 <Button asChild className="w-full h-11">
                   <Link to="/auth/login">Retour à la connexion</Link>
                 </Button>
@@ -92,12 +101,14 @@ export default function ForgotPasswordPage() {
                   Mot de passe oublié ?
                 </h2>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                  Entrez votre adresse email ci-dessous. Nous vous enverrons un
-                  lien pour créer un nouveau mot de passe.
+                  Indiquez l'email de votre compte. Votre demande sera transmise
+                  au super administrateur, qui réinitialisera votre mot de passe.
+                  Vous vous connecterez ensuite avec le mot de passe temporaire{" "}
+                  <strong>00000000</strong>, puis vous en définirez un nouveau.
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email">Adresse email</Label>
                   <Input
@@ -110,8 +121,20 @@ export default function ForgotPasswordPage() {
                     autoFocus
                   />
                   <p className="text-xs text-muted-foreground">
-                    Nous vous enverrons un lien de réinitialisation sécurisé.
+                    Utilisez l'email du compte à réinitialiser.
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="note">Message pour l'administrateur (optionnel)</Label>
+                  <Input
+                    id="note"
+                    type="text"
+                    placeholder="Ex : je n'ai plus accès à mon ancien mot de passe"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="bg-background h-11"
+                  />
                 </div>
 
                 <Button
@@ -122,7 +145,7 @@ export default function ForgotPasswordPage() {
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : null}
-                  Envoyer le lien de réinitialisation
+                  Envoyer la demande au super administrateur
                 </Button>
               </form>
 

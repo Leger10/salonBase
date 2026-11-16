@@ -923,8 +923,11 @@ export default function EmployeeDashboard() {
       const { error } = await supabase
         .from('tickets')
         .update({
-          status: 'served',
-          completed_at: new Date().toISOString()
+          // `completed` + paiement en attente : le ticket part directement a la
+          // caisse au lieu de rester bloque en `served`.
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          payment_status: 'pending'
         })
         .eq('id', ticketId);
 

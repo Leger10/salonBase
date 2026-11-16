@@ -159,14 +159,18 @@ export const authApi = {
 
   signOut: () => apiFetch('/api/auth/sign-out', { method: 'POST' }),
 
+  // Enregistre un nouveau mot de passe en verifiant l'ancien. Route hors du
+  // catch-all Better Auth : elle met aussi must_change_password a 0.
   changePassword: (currentPassword, newPassword) =>
-    apiFetch('/api/auth/change-password', {
+    apiFetch('/api/account/change-password', {
       method: 'POST',
-      body: { currentPassword, newPassword, revokeOtherSessions: true },
+      body: { currentPassword, newPassword },
     }),
 
-  requestPasswordReset: (email, redirectTo) =>
-    apiFetch('/api/auth/request-password-reset', { method: 'POST', body: { email, redirectTo } }),
+  // Demande de reinitialisation traitee par le super administrateur (pas
+  // d'email configure sur l'hebergement).
+  requestPasswordReset: (email, note) =>
+    apiFetch('/api/password-reset-request', { method: 'POST', body: { email, note } }),
 
   resetPassword: (token, newPassword) =>
     apiFetch(`/api/auth/reset-password/${encodeURIComponent(token)}`, {
@@ -187,6 +191,7 @@ export function toCurrentUser(me) {
   return {
     id: me.id,
     email: me.email,
+    mustChangePassword: me.mustChangePassword === true,
     profile: me.profile ?? null,
   };
 }

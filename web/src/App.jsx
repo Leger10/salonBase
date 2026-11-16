@@ -49,6 +49,7 @@ import LoginPage from "@/pages/LoginPage.jsx";
 import SignupPage from "@/pages/SignupPage.jsx";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "@/pages/ResetPasswordPage.jsx";
+import ChangePasswordPage from "@/pages/ChangePasswordPage.jsx";
 
 // ========== DASHBOARDS ==========
 import SuperAdminDashboard from "@/pages/SuperAdminDashboard.jsx";
@@ -76,6 +77,7 @@ import SuperAdminPromotionsPage from "@/pages/SuperAdminPromotionsPage.jsx";
 import SuperAdminMarketingPage from "@/pages/SuperAdminMarketingPage.jsx";
 import SuperAdminPartnershipPage from "@/pages/SuperAdminPartnershipPage.jsx";
 import SuperAdminInfluencersPage from "@/pages/SuperAdminInfluencersPage.jsx";
+import SuperAdminPasswordResetsPage from "@/pages/SuperAdminPasswordResetsPage.jsx";
 import PartnershipContractPage from "@/pages/PartnershipContractPage.jsx";
 import InfluencerPortalPage from "@/pages/InfluencerPortalPage.jsx";
 
@@ -318,6 +320,14 @@ function App() {
                       element={<ResetPasswordPage />}
                     />
                     <Route
+                      path="/auth/change-password"
+                      element={
+                        <ProtectedRoute>
+                          <ChangePasswordPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/login"
                       element={<Navigate to="/auth/login" replace />}
                     />
@@ -463,6 +473,10 @@ function App() {
                       <Route
                         path="influencers"
                         element={<SuperAdminInfluencersPage />}
+                      />
+                      <Route
+                        path="password-resets"
+                        element={<SuperAdminPasswordResetsPage />}
                       />
                       <Route
                         path="products"

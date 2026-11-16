@@ -12,16 +12,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
-import { hashPassword } from 'better-auth/crypto';
+import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import { auth, authOrigins } from './auth.js';
 import { ensureSchemaReady, schemaStatus } from './db-bootstrap.js';
 import { prisma } from './prisma.js';
-import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, ROLES } from './middleware/auth.js';
+import { HttpError, requireAuth, requireRole, resolveTenant, tenantWhere, getSession, ROLES } from './middleware/auth.js';
 import { profileDto, tenantDto } from './dto.js';
 import { runQuery } from './data.js';
 import { assertSubscriptionActive, getSubscriptionEntitlement, isTenantPubliclyVisible } from './subscription-entitlement.js';
 import { getEmployeeClientStats } from './employee-stats.js';
 import { getPartnershipReport } from './partnership.js';
+import {
+  DEFAULT_RESET_PASSWORD,
+  createPasswordResetRequest,
+  listPasswordResetRequests,
+  processPasswordResetRequest,
+} from './password-resets.js';
 import {
   createInfluencer,
   createWithdrawal,
@@ -154,6 +160,104 @@ app.get(
       emailVerified: ctx.user.emailVerified === true,
       profile: dto,
     });
+  })
+);
+
+// --- Mot de passe oublie / changement force -------------------------------
+// Aucun email n'est envoye : la demande part dans la file du super
+// administrateur, qui remet le mot de passe a "00000000". L'utilisateur se
+// connecte avec ce mot de passe temporaire puis doit en definir un nouveau.
+app.post(
+  '/api/password-reset-request',
+  wrap(async (req, res) => {
+    const result = await createPasswordResetRequest(req.body ?? {});
+    res.status(201).json({
+      success: true,
+      message:
+        "Votre demande a bien été transmise au super administrateur. Il réinitialisera votre mot de passe ; vous pourrez ensuite vous connecter avec le mot de passe temporaire 00000000 et en choisir un nouveau.",
+      request: { status: result.status, created: result.created },
+    });
+  })
+);
+
+app.post(
+  '/api/account/change-password',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    const body = req.body ?? {};
+    const currentPassword = String(body.currentPassword ?? body.current_password ?? '');
+    const newPassword = String(body.newPassword ?? body.new_password ?? '');
+
+    if (!currentPassword || !newPassword) {
+      throw new HttpError(400, 'MISSING_PASSWORD', 'Mot de passe actuel et nouveau mot de passe requis.');
+    }
+    if (newPassword.length < 8) {
+      throw new HttpError(400, 'PASSWORD_TOO_SHORT', 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+    }
+    if (newPassword === DEFAULT_RESET_PASSWORD) {
+      throw new HttpError(
+        400,
+        'PASSWORD_NOT_CHANGED',
+        'Le nouveau mot de passe doit être différent du mot de passe temporaire.'
+      );
+    }
+
+    const account = await prisma.account.findFirst({
+      where: { userId: ctx.user.id, providerId: 'credential' },
+      select: { id: true, password: true },
+    });
+    if (!account?.password) {
+      throw new HttpError(400, 'NO_CREDENTIAL_ACCOUNT', 'Aucun mot de passe local n\'est configuré pour ce compte.');
+    }
+
+    const valid = await verifyPassword({ hash: account.password, password: currentPassword });
+    if (!valid) {
+      throw new HttpError(400, 'INVALID_CURRENT_PASSWORD', 'Mot de passe actuel incorrect.');
+    }
+
+    const hashed = await hashPassword(newPassword);
+    const session = await getSession(req);
+    const currentToken = session?.session?.token ?? null;
+
+    await prisma.$transaction([
+      prisma.account.update({
+        where: { id: account.id },
+        data: { password: hashed, updatedAt: new Date() },
+      }),
+      prisma.profile.update({
+        where: { id: ctx.user.id },
+        data: { mustChangePassword: false },
+      }),
+      // Les autres sessions sont revoquees ; la session courante est conservee
+      // pour ne pas deconnecter l'utilisateur qui vient de changer son mot de passe.
+      prisma.session.deleteMany({
+        where: {
+          userId: ctx.user.id,
+          ...(currentToken ? { token: { not: currentToken } } : {}),
+        },
+      }),
+    ]);
+
+    res.json({ success: true, mustChangePassword: false });
+  })
+);
+
+app.get(
+  '/api/super-admin/password-reset-requests',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    res.json(await listPasswordResetRequests({ status: req.query.status }));
+  })
+);
+
+app.post(
+  '/api/super-admin/password-reset-requests/:id',
+  wrap(async (req, res) => {
+    const ctx = await requireAuth(req);
+    requireRole(ctx, 'super_admin');
+    const result = await processPasswordResetRequest(req.params.id, req.body ?? {}, ctx.user.id);
+    res.json(result);
   })
 );
 

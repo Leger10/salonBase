@@ -239,6 +239,33 @@ export default function SuperAdminSubscriptionPlans() {
     }
   };
 
+  // Activation / desactivation directe : les admins de salon ne voient que les
+  // packs actifs sur /admin/subscription.
+  const handleTogglePlan = async (plan) => {
+    setFormLoading(true);
+    try {
+      const { error } = await supabase
+        .from('subscription_plans')
+        .update({
+          is_active: !plan.is_active,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', plan.id);
+
+      if (error) throw error;
+
+      toast.success(
+        `Plan "${plan.name}" ${plan.is_active ? "désactivé (masqué aux admins)" : "activé (visible aux admins)"}`
+      );
+      fetchPlans();
+    } catch (error) {
+      console.error('Error toggling plan:', error);
+      toast.error(error.message || "Erreur lors du changement de statut du plan");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   const handleDeletePlan = async (plan) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le plan "${plan.name}" ? Cette action est irréversible.`)) return;
 
@@ -308,7 +335,8 @@ export default function SuperAdminSubscriptionPlans() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Plans d'abonnement</h1>
           <p className="text-muted-foreground mt-1">
-            {plans.length} plans disponibles
+            {plans.length} packs — les modifications et activations s'appliquent
+            automatiquement à la page Abonnement des admins.
           </p>
         </div>
         <div className="flex gap-2">
@@ -388,6 +416,19 @@ export default function SuperAdminSubscriptionPlans() {
                   <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => openEditModal(plan)}>
                     <Edit className="h-4 w-4" />
                     Modifier
+                  </Button>
+                  <Button
+                    variant={plan.is_active ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => handleTogglePlan(plan)}
+                    disabled={formLoading}
+                    title={plan.is_active ? "Désactiver ce pack" : "Activer ce pack"}
+                  >
+                    {plan.is_active ? (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDeletePlan(plan)}>
                     <Trash2 className="h-4 w-4" />
