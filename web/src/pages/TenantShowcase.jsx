@@ -2853,8 +2853,11 @@ export default function TenantShowcase() {
             `Découvrez ${tenant?.name || "ce salon"}, votre salon de beauté.`
           }
         />
-        {tenant?.cover_image && (
-          <meta property="og:image" content={tenant.cover_image} />
+        {(settings?.hero_background_image || tenant?.cover_image) && (
+          <meta
+            property="og:image"
+            content={settings?.hero_background_image || tenant.cover_image}
+          />
         )}
         {tenant?.logo_url && (
           <meta property="og:image" content={tenant.logo_url} />
