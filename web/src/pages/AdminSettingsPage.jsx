@@ -1,6 +1,7 @@
 // /src/pages/AdminSettingsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useTenant } from '@/contexts/TenantContext.jsx';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -28,6 +29,7 @@ import { SiTiktok } from 'react-icons/si';
 
 export default function AdminSettingsPage() {
   const { currentUser } = useAuth();
+  const { refreshTenant } = useTenant();
   const [settings, setSettings] = useState(null);
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -296,10 +298,13 @@ export default function AdminSettingsPage() {
 
     setSaving(true);
     try {
-      // Mettre à jour tenant_home_settings
+      // Mettre à jour tenant_home_settings. `upsert` (au lieu de `update`)
+      // crée aussi la ligne pour les salons qui n'en ont pas encore.
       const { error: settingsError } = await supabase
         .from('tenant_home_settings')
-        .update({
+        .upsert({
+          id: settings?.id || window.crypto?.randomUUID?.() || tenantId,
+          tenant_id: tenantId,
           hero_title: settings.hero_title,
           hero_subtitle: settings.hero_subtitle,
           hero_cta_text: settings.hero_cta_text,
@@ -369,16 +374,19 @@ export default function AdminSettingsPage() {
           seo_description: settings.seo_description,
           seo_keywords: settings.seo_keywords,
           updated_at: new Date().toISOString()
-        })
-        .eq('tenant_id', tenantId);
+        });
 
       if (settingsError) throw settingsError;
 
-      // Mettre à jour la table tenants (logo, etc.)
+      // Mettre à jour la table tenants (logo, etc.). La couverture du salon
+      // suit l'image Hero pour que tous les consommateurs (lien public, PWA,
+      // cartes de la page d'accueil) affichent la même image.
+      const newCoverImage = settings.hero_background_image || tenant.cover_image || null;
       const { error: tenantError } = await supabase
         .from('tenants')
         .update({
           logo_url: tenant.logo_url || null,
+          cover_image: newCoverImage,
           name: tenant.name,
           description: tenant.description,
           address: tenant.address,
@@ -391,6 +399,11 @@ export default function AdminSettingsPage() {
         .eq('id', tenantId);
 
       if (tenantError) throw tenantError;
+
+      setTenant((prev) => (prev ? { ...prev, cover_image: newCoverImage } : prev));
+      // Recharger le contexte du salon pour que l'accueil admin reflète
+      // immédiatement les nouvelles images et couleurs.
+      await refreshTenant();
 
       toast.success('Paramètres sauvegardés avec succès');
     } catch (error) {

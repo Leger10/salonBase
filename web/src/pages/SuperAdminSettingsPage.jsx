@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext.jsx";
+import { usePlatformConfig } from "@/contexts/PlatformConfigContext.jsx";
 import {
   Card,
   CardContent,
@@ -72,6 +73,7 @@ import {
 
 export default function SuperAdminSettingsPage() {
   const { currentUser } = useAuth();
+  const { refresh: refreshPlatformConfig } = usePlatformConfig();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,6 +111,20 @@ export default function SuperAdminSettingsPage() {
     primary_color: "#ec4899",
     secondary_color: "#06b6d4",
     accent_color: "#8b5cf6",
+  });
+
+  // Hero / CTA de l'accueil public. L'upload d'images de branding alimente
+  // ces champs : c'est eux que HomePage lit pour afficher le fond d'écran.
+  const [heroSettings, setHeroSettings] = useState({
+    background_type: "gradient",
+    background_image: "",
+    background_color: "#ec4899",
+    overlay_opacity: 70,
+  });
+  const [ctaSettings, setCtaSettings] = useState({
+    background_type: "gradient",
+    background_image: "",
+    background_color: "#ec4899",
   });
 
   // Paramètres de sécurité
@@ -287,6 +303,36 @@ export default function SuperAdminSettingsPage() {
           setPreviewHero(data.branding.hero_image || null);
           setPreviewFavicon(data.branding.favicon_url || null);
         }
+        if (data.hero) {
+          setHeroSettings((prev) => ({
+            ...prev,
+            ...data.hero,
+            // Les anciennes configurations n'avaient pas d'image dans `hero` :
+            // on reprend celle du branding pour garder l'accueil coherent.
+            background_image:
+              data.hero.background_image || data.branding?.hero_image || "",
+          }));
+        } else if (data.branding?.hero_image) {
+          setHeroSettings((prev) => ({
+            ...prev,
+            background_image: data.branding.hero_image,
+            background_type: "image",
+          }));
+        }
+        if (data.cta) {
+          setCtaSettings((prev) => ({
+            ...prev,
+            ...data.cta,
+            background_image:
+              data.cta.background_image || data.branding?.cover_image || "",
+          }));
+        } else if (data.branding?.cover_image) {
+          setCtaSettings((prev) => ({
+            ...prev,
+            background_image: data.branding.cover_image,
+            background_type: "image",
+          }));
+        }
         if (data.security) {
           setSecuritySettings((prev) => ({ ...prev, ...data.security }));
         }
@@ -332,6 +378,8 @@ export default function SuperAdminSettingsPage() {
         id: 1,
         general: generalSettings,
         branding: brandingSettings,
+        hero: heroSettings,
+        cta: ctaSettings,
         security: securitySettings,
         notifications: notificationSettings,
         payments: paymentSettings,
@@ -407,9 +455,22 @@ export default function SuperAdminSettingsPage() {
       } else if (type === "cover") {
         newBranding.cover_image = publicUrl;
         setPreviewCover(publicUrl);
+        // La couverture est aussi le fond de la section CTA de l'accueil.
+        setCtaSettings((prev) => ({
+          ...prev,
+          background_image: publicUrl,
+          background_type: "image",
+        }));
       } else if (type === "hero") {
         newBranding.hero_image = publicUrl;
         setPreviewHero(publicUrl);
+        // HomePage lit `hero.background_image` : le synchroniser ici rend
+        // l'upload immédiatement visible sur salonafrique.net.
+        setHeroSettings((prev) => ({
+          ...prev,
+          background_image: publicUrl,
+          background_type: "image",
+        }));
       } else if (type === "favicon") {
         newBranding.favicon_url = publicUrl;
         setPreviewFavicon(publicUrl);
@@ -440,9 +501,11 @@ export default function SuperAdminSettingsPage() {
     } else if (type === "cover") {
       newBranding.cover_image = "";
       setPreviewCover(null);
+      setCtaSettings((prev) => ({ ...prev, background_image: "", background_type: "gradient" }));
     } else if (type === "hero") {
       newBranding.hero_image = "";
       setPreviewHero(null);
+      setHeroSettings((prev) => ({ ...prev, background_image: "", background_type: "gradient" }));
     } else if (type === "favicon") {
       newBranding.favicon_url = "";
       setPreviewFavicon(null);
@@ -458,6 +521,8 @@ export default function SuperAdminSettingsPage() {
         id: 1,
         general: generalSettings,
         branding: brandingSettings,
+        hero: heroSettings,
+        cta: ctaSettings,
         security: securitySettings,
         notifications: notificationSettings,
         payments: paymentSettings,
@@ -475,6 +540,9 @@ export default function SuperAdminSettingsPage() {
 
       if (error) throw error;
 
+      // L'accueil public lit PlatformConfigContext : on le recharge pour que
+      // le logo / la couverture / le hero soient visibles sans F5.
+      await refreshPlatformConfig();
       toast.success("✅ Paramètres sauvegardés avec succès");
     } catch (error) {
       console.error("❌ Error saving settings:", error);

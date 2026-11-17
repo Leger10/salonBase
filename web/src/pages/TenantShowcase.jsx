@@ -2866,23 +2866,42 @@ export default function TenantShowcase() {
 
         {/* Hero Section */}
         <div className="relative h-64 md:h-80 bg-gradient-to-r from-primary/20 to-accent/20 overflow-hidden">
-          {tenant.cover_image ? (
-            <div className="absolute inset-0 overflow-hidden">
-              <div
-                className="absolute inset-0 bg-cover bg-no-repeat animate-cover-slide"
-                style={{
-                  backgroundImage: `url(${tenant.cover_image})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-            </div>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
-              <Building2 className="h-24 w-24 text-primary/40" />
-            </div>
-          )}
+          {(() => {
+            // L'admin téléverse son image "Hero" dans tenant_home_settings :
+            // elle doit remplacer la couverture du salon sur sa vitrine.
+            const heroImage = settings?.hero_background_image || tenant.cover_image;
+            // Les anciens réglages ont pu garder "gradient" alors qu'une image
+            // était déjà renseignée : l'image doit rester visible sur la vitrine.
+            const heroType = settings?.hero_background_type === "color"
+              ? "color"
+              : heroImage
+                ? "image"
+                : "gradient";
+            const heroColor = settings?.hero_background_color || tenant.primary_color;
+            if (heroType === "color" && heroColor) {
+              return <div className="absolute inset-0" style={{ backgroundColor: heroColor }} />;
+            }
+            if (heroType === "image" && heroImage) {
+              return (
+                <div className="absolute inset-0 overflow-hidden">
+                  <div
+                    className="absolute inset-0 bg-cover bg-no-repeat animate-cover-slide"
+                    style={{
+                      backgroundImage: `url(${heroImage})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+                </div>
+              );
+            }
+            return (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
+                <Building2 className="h-24 w-24 text-primary/40" />
+              </div>
+            );
+          })()}
 
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-10">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-end gap-4">

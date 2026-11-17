@@ -1,5 +1,5 @@
 // /src/contexts/PlatformConfigContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,42 +11,40 @@ export function PlatformConfigProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        setLoading(true);
-        
-        // Vérifier si l'utilisateur est super admin
-        const role = currentUser?.profile?.role || currentUser?.role;
-        setIsSuperAdmin(role === 'super_admin');
+  const fetchConfig = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        // Récupérer la configuration de la plateforme
-        const { data, error } = await supabase
-          .from('platform_settings')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle();
+      // Vérifier si l'utilisateur est super admin
+      const role = currentUser?.profile?.role || currentUser?.role;
+      setIsSuperAdmin(role === 'super_admin');
 
-        if (error) {
-          console.error('❌ Erreur chargement config:', error);
-          // Utiliser les valeurs par défaut
-          setConfig(getDefaultConfig());
-        } else if (data) {
-          setConfig(data);
-        } else {
-          // Pas de config, utiliser les valeurs par défaut
-          setConfig(getDefaultConfig());
-        }
-      } catch (error) {
-        console.error('❌ Erreur:', error);
+      // Récupérer la configuration de la plateforme
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Erreur chargement config:', error);
         setConfig(getDefaultConfig());
-      } finally {
-        setLoading(false);
+      } else if (data) {
+        setConfig(data);
+      } else {
+        setConfig(getDefaultConfig());
       }
-    };
-
-    fetchConfig();
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      setConfig(getDefaultConfig());
+    } finally {
+      setLoading(false);
+    }
   }, [currentUser]);
+
+  useEffect(() => {
+    fetchConfig();
+  }, [fetchConfig]);
 
   const getDefaultConfig = () => ({
     general: {
@@ -86,6 +84,9 @@ export function PlatformConfigProvider({ children }) {
     config,
     loading,
     isSuperAdmin,
+    // Permet aux pages de configuration de rafraîchir l'accueil immédiatement
+    // après une sauvegarde, sans attendre un rechargement complet.
+    refresh: fetchConfig,
     // Helper pour accéder facilement aux propriétés
     get: (path, defaultValue) => {
       if (!config) return defaultValue;

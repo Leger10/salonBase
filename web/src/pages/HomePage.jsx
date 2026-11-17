@@ -39,7 +39,11 @@ const PRIMARY_PINK = "#ec4899";
 
 export default function HomePage() {
   const { isAuthenticated, currentUser, isLoading } = useAuth();
-  const { tenantSettings, homeSettings, refreshTenant } = useTenant();
+  const {
+    tenantSettings: contextTenantSettings,
+    homeSettings: contextHomeSettings,
+    refreshTenant,
+  } = useTenant();
   const { isDark } = useTheme();
   const { activeTenant, isShowcase } = useActiveTenant();
   const platformConfig = usePlatformConfig();
@@ -47,6 +51,35 @@ export default function HomePage() {
   const [tenantsLoading, setTenantsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userTenant, setUserTenant] = useState(null);
+  const [showcaseHomeSettings, setShowcaseHomeSettings] = useState(null);
+
+  // En mode vitrine, les réglages d'accueil du salon doivent venir du salon
+  // ouvert via le lien, pas du salon de l'utilisateur connecté.
+  useEffect(() => {
+    if (!isShowcase || !activeTenant?.id) {
+      setShowcaseHomeSettings(null);
+      return undefined;
+    }
+    let cancelled = false;
+    supabase
+      .from('tenant_home_settings')
+      .select('*')
+      .eq('tenant_id', activeTenant.id)
+      .maybeSingle()
+      .then(({ data, error: homeError }) => {
+        if (cancelled) return;
+        if (homeError && homeError.code !== 'PGRST116') {
+          console.error('Erreur chargement réglages vitrine:', homeError);
+        }
+        setShowcaseHomeSettings(data || {});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isShowcase, activeTenant?.id]);
+
+  const tenantSettings = isShowcase && activeTenant ? activeTenant : contextTenantSettings;
+  const homeSettings = isShowcase && showcaseHomeSettings ? showcaseHomeSettings : contextHomeSettings;
 
   const getDashboardPath = (role) => {
     if (role === "super_admin") return "/super-admin/dashboard";
@@ -202,6 +235,9 @@ export default function HomePage() {
     if (userTenant?.primary_color) {
       return userTenant.primary_color;
     }
+    if (!isAuthenticated && platformConfig.primaryColor) {
+      return platformConfig.primaryColor;
+    }
     return PRIMARY_PINK;
   };
 
@@ -255,7 +291,9 @@ export default function HomePage() {
       return homeSettings?.hero_title?.replace('{tenant_name}', '') || 
         `Bonjour, ${currentUser?.profile?.full_name || 'Client'}`;
     }
-    return platformConfig.platformName || "Prenez soin de vous avec BeautyFlow";
+    return platformConfig.get?.('hero.title') ||
+      platformConfig.platformName ||
+      "Prenez soin de vous avec BeautyFlow";
   };
 
   const getHeroSubtitle = () => {
@@ -274,7 +312,8 @@ export default function HomePage() {
       return homeSettings?.hero_subtitle || 
         "Retrouvez vos salons favoris et gérez vos rendez-vous";
     }
-    return platformConfig.platformDescription || 
+    return platformConfig.get?.('hero.subtitle') ||
+      platformConfig.platformDescription ||
       "La plateforme complète pour réserver vos soins beauté, gérer vos rendez-vous et découvrir de nouveaux talents près de chez vous.";
   };
 
@@ -457,10 +496,41 @@ export default function HomePage() {
 
   // ✅ Rendu du Hero
   const renderHero = () => {
-    const bgType = isShowcase ? 'gradient' : (isSuperAdmin ? platformConfig.get?.('hero.background_type') : homeSettings?.hero_background_type || 'gradient');
-    
-    let bgImage = isShowcase ? activeTenant?.cover_image : (isSuperAdmin ? platformConfig.get?.('hero.background_image') : homeSettings?.hero_background_image || tenantSettings?.cover_image || userTenant?.cover_image);
-    
+    // Image de la plateforme : les uploads du super admin alimentent à la fois
+    // `branding` et `hero` pour rester compatibles avec les anciennes configs.
+    const platformHeroImage =
+      platformConfig.get?.('hero.background_image') ||
+      platformConfig.get?.('branding.hero_image') ||
+      platformConfig.get?.('branding.cover_image');
+
+    let bgImage;
+    if (isShowcase) {
+      bgImage = homeSettings?.hero_background_image || activeTenant?.cover_image;
+    } else if (isSuperAdmin || !isAuthenticated) {
+      bgImage = platformHeroImage;
+    } else {
+      bgImage = homeSettings?.hero_background_image ||
+        tenantSettings?.cover_image ||
+        userTenant?.cover_image;
+    }
+
+    const configuredHeroType = isShowcase
+      ? homeSettings?.hero_background_type
+      : isSuperAdmin
+        ? platformConfig.get?.('hero.background_type')
+        : homeSettings?.hero_background_type;
+
+    // Anciennes configs : l'image vit dans `branding` alors que `background_type`
+    // est resté "gradient". Si aucune image n'a été choisie explicitement dans
+    // `hero`, on affiche quand même l'image de branding.
+    const hasExplicitHeroImage = isSuperAdmin
+      ? Boolean(platformConfig.get?.('hero.background_image'))
+      : Boolean(homeSettings?.hero_background_image || activeTenant?.cover_image);
+    const bgType = configuredHeroType === 'gradient' && bgImage &&
+      (isShowcase || !hasExplicitHeroImage)
+      ? 'image'
+      : configuredHeroType || (bgImage ? 'image' : 'gradient');
+
     const bgColor = isShowcase ? activeTenant?.primary_color : (isSuperAdmin ? platformConfig.get?.('hero.background_color') : homeSettings?.hero_background_color || primaryColor);
     const overlayOpacity = isSuperAdmin ? platformConfig.get?.('hero.overlay_opacity') : homeSettings?.hero_overlay_opacity || 70;
 
@@ -686,9 +756,37 @@ export default function HomePage() {
   const renderCTA = () => {
     if (!shouldShowCTA()) return null;
 
-    const bgType = isSuperAdmin ? platformConfig.get?.('cta.background_type') : homeSettings?.cta_background_type || 'gradient';
-    let bgImage = isSuperAdmin ? platformConfig.get?.('cta.background_image') : homeSettings?.cta_background_image || tenantSettings?.cover_image || userTenant?.cover_image;
-    
+    const platformCtaImage =
+      platformConfig.get?.('cta.background_image') ||
+      platformConfig.get?.('branding.cover_image') ||
+      platformConfig.get?.('branding.hero_image');
+
+    let bgImage;
+    if (isShowcase) {
+      bgImage = homeSettings?.cta_background_image || activeTenant?.cover_image;
+    } else if (isSuperAdmin || !isAuthenticated) {
+      bgImage = platformCtaImage;
+    } else {
+      bgImage = homeSettings?.cta_background_image ||
+        tenantSettings?.cover_image ||
+        userTenant?.cover_image ||
+        platformCtaImage;
+    }
+
+    const configuredCtaType = isShowcase
+      ? homeSettings?.cta_background_type
+      : isSuperAdmin
+        ? platformConfig.get?.('cta.background_type')
+        : homeSettings?.cta_background_type;
+
+    const hasExplicitCtaImage = isSuperAdmin
+      ? Boolean(platformConfig.get?.('cta.background_image'))
+      : Boolean(homeSettings?.cta_background_image || activeTenant?.cover_image);
+    const bgType = configuredCtaType === 'gradient' && bgImage &&
+      (isShowcase || !hasExplicitCtaImage)
+      ? 'image'
+      : configuredCtaType || (bgImage ? 'image' : 'gradient');
+
     const bgColor = isSuperAdmin ? platformConfig.get?.('cta.background_color') : homeSettings?.cta_background_color || primaryColor;
 
     let bgStyle = {};
@@ -800,9 +898,12 @@ export default function HomePage() {
     return {
       title: "BeautyFlow - Plateforme de gestion de salons de beauté",
       description: "La plateforme complète pour gérer votre salon de beauté, réserver des rendez-vous et fidéliser vos clients.",
-      image: "/og-image.jpg",
+      image:
+        platformConfig.get?.('branding.cover_image') ||
+        platformConfig.get?.('branding.hero_image') ||
+        "/og-image.jpg",
       url: "/",
-      siteName: "BeautyFlow",
+      siteName: platformConfig.platformName || "BeautyFlow",
     };
   };
 
