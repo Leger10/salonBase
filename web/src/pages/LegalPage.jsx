@@ -59,52 +59,126 @@ const CONTENT = {
   },
   terms: {
     icon: FileText,
-    title: "Conditions Générales",
-    subtitle: "Les règles d'utilisation de la plateforme et des services.",
+    title: "Conditions de service et d'utilisation",
+    subtitle:
+      "Les règles qui encadrent l'utilisation de la plateforme par les clients, les salons et leurs équipes.",
     description:
-      "Conditions générales d'utilisation de la plateforme : compte, réservations, paiements et responsabilités.",
-    updatedAt: "Janvier 2026",
+      "Conditions générales de service et d'utilisation de la plateforme : compte, réservations, paiements, abonnements, responsabilités et contact.",
+    updatedAt: "Novembre 2026",
     sections: [
       {
-        title: "1. Objet",
+        title: "1. Objet et acceptation",
         body: [
-          "Les présentes conditions régissent l'accès et l'utilisation de la plateforme de gestion et de réservation de salons de beauté, ainsi que des services associés.",
+          "Les présentes conditions de service et d'utilisation régissent l'accès à la plateforme BeautyFlow, à ses pages publiques, à ses espaces administrateurs et à l'ensemble des services associés (réservation, gestion des salons, fidélité, paiements et support).",
+          "En créant un compte, en réservant une prestation ou en utilisant la plateforme, vous déclarez avoir lu, compris et accepté ces conditions ainsi que la politique de confidentialité. Si vous agissez pour le compte d'un salon, vous confirmez disposer de l'autorité nécessaire pour l'engager.",
         ],
       },
       {
-        title: "2. Compte utilisateur",
+        title: "2. Définitions",
         body: [
-          "Vous êtes responsable de l'exactitude des informations fournies lors de la création de votre compte et de la confidentialité de vos identifiants.",
+          "« Plateforme » désigne BeautyFlow, ses sites, applications, pages vitrines et services en ligne.",
+          "« Salon » désigne l'établissement professionnel référencé sur la plateforme. « Client » désigne toute personne qui consulte une vitrine ou réserve une prestation. « Utilisateur » désigne toute personne qui accède à la plateforme, quel que soit son rôle.",
         ],
       },
       {
-        title: "3. Réservations et annulations",
+        title: "3. Accès au service et compte utilisateur",
         body: [
-          "Les réservations sont soumises aux disponibilités des salons. Les conditions d'annulation peuvent varier selon l'établissement ; nous vous invitons à les consulter avant toute réservation.",
+          "L'accès à certaines fonctionnalités nécessite un compte. Vous vous engagez à fournir des informations exactes, à jour et complètes, et à maintenir la confidentialité de vos identifiants.",
+          "Vous êtes responsable de toute activité réalisée depuis votre compte. En cas d'utilisation non autorisée, vous devez nous prévenir sans délai. Nous pouvons suspendre un compte en cas de suspicion raisonnable de fraude ou d'atteinte à la sécurité.",
         ],
       },
       {
-        title: "4. Paiements",
+        title: "4. Réservations et prestations",
         body: [
-          "Les paiements sont effectués selon les moyens proposés par le salon. Les montants, réductions et éventuels remboursements sont gérés par le salon concerné.",
+          "Les réservations sont proposées sous réserve des disponibilités communiquées par le salon. La confirmation définitive est celle qui apparaît dans votre espace personnel ou dans le message envoyé par la plateforme.",
+          "Les prestations sont réalisées par le salon concerné. BeautyFlow facilite la mise en relation et la prise de rendez-vous mais n'exécute pas directement les soins. Les informations relatives aux horaires, tarifs et prestations sont publiées sous la responsabilité du salon.",
         ],
       },
       {
-        title: "5. Responsabilités",
+        title: "5. Annulation, report et absence",
         body: [
-          "La plateforme met en relation les clients et les salons. Chaque salon reste responsable des prestations qu'il fournit et des informations qu'il publie.",
+          "Les conditions d'annulation et de report peuvent varier selon le salon et la prestation. Elles doivent être consultées avant toute réservation. En cas d'absence non justifiée, le salon peut appliquer ses règles habituelles.",
+          "Lorsqu'une prestation est annulée par le salon, celui-ci doit proposer un report ou un remboursement selon les règles qu'il a publiées et la réglementation applicable.",
         ],
       },
       {
-        title: "6. Comportement",
+        title: "6. Tarifs, paiements et remboursements",
         body: [
-          "Tout usage abusif, frauduleux ou contraire à la loi peut entraîner la suspension ou la suppression du compte.",
+          "Les prix affichés sont ceux communiqués par les salons. Des frais ou options complémentaires peuvent être présentés avant la validation de la réservation ou de l'achat.",
+          "Les paiements sont traités par les moyens proposés sur la plateforme. Les remboursements, lorsqu'ils sont dus, sont effectués selon le mode de paiement initial et dans les délais annoncés. BeautyFlow peut conserver une trace des transactions à des fins de preuve, de comptabilité et de lutte contre la fraude.",
         ],
       },
       {
-        title: "7. Modification des conditions",
+        title: "7. Abonnements des salons",
         body: [
-          "Nous pouvons modifier ces conditions à tout moment. La version en vigueur est celle publiée sur cette page.",
+          "Les salons qui souscrivent à un abonnement bénéficient des fonctionnalités prévues dans leur formule pendant la durée de validité de celle-ci. Le renouvellement, la résiliation et les conditions de facturation sont ceux décrits dans l'espace de gestion de l'abonnement.",
+          "L'absence de règlement ou l'expiration d'un abonnement peut entraîner la suspension de certaines fonctionnalités, sans suppression immédiate des données du salon.",
+        ],
+      },
+      {
+        title: "8. Programme de fidélité et cartes cadeaux",
+        body: [
+          "Les points de fidélité, avantages et cartes cadeaux sont gérés selon les règles définies par chaque salon. Ils sont personnels, non transmissibles et ne peuvent pas être échangés contre de l'espèce sauf mention contraire.",
+          "Le salon reste responsable de la valeur, de la validité et de l'utilisation de ses avantages et cartes cadeaux.",
+        ],
+      },
+      {
+        title: "9. Obligations des salons et des utilisateurs",
+        body: [
+          "Les salons s'engagent à publier des informations véridiques, à respecter les réglementations applicables à leur activité et à traiter les données de leurs clients de manière conforme.",
+          "Les utilisateurs s'engagent à ne pas perturber le fonctionnement de la plateforme, à ne pas tenter d'accéder à des comptes ou données qui ne leur appartiennent pas et à ne pas publier de contenu illicite, diffamatoire ou trompeur.",
+        ],
+      },
+      {
+        title: "10. Données personnelles",
+        body: [
+          "Le traitement des données personnelles est décrit dans la politique de confidentialité accessible depuis le pied de page. En utilisant la plateforme, vous acceptez ce traitement dans les limites qui y sont précisées.",
+        ],
+      },
+      {
+        title: "11. Propriété intellectuelle",
+        body: [
+          "La plateforme, sa structure, ses textes, ses éléments graphiques et ses marques sont protégés. Toute reproduction ou utilisation non autorisée est interdite.",
+          "Les contenus publiés par les salons (photos, descriptions, logos) restent leur propriété. En les publiant, ils autorisent BeautyFlow à les afficher dans le cadre du service.",
+        ],
+      },
+      {
+        title: "12. Responsabilité",
+        body: [
+          "BeautyFlow met en relation les utilisateurs et les salons et fournit des outils de gestion. Elle n'est pas partie aux contrats de prestation conclus directement entre un client et un salon.",
+          "BeautyFlow ne peut être tenue responsable des dommages résultant d'une prestation réalisée par un salon, d'informations erronées publiées par un salon ou d'une utilisation non conforme de la plateforme, sous réserve des dispositions légales impératives.",
+        ],
+      },
+      {
+        title: "13. Suspension et résiliation",
+        body: [
+          "Nous pouvons suspendre ou fermer un compte en cas de violation des présentes conditions, de comportement frauduleux ou sur demande de l'utilisateur. Les données restent conservées pendant la durée nécessaire au traitement des réservations et aux obligations légales.",
+          "Vous pouvez demander la fermeture de votre compte depuis votre espace personnel ou en nous contactant.",
+        ],
+      },
+      {
+        title: "14. Force majeure",
+        body: [
+          "BeautyFlow ne saurait être tenue responsable d'un manquement à ses obligations résultant d'un événement de force majeure ou d'une cause indépendante de sa volonté (panne d'infrastructure, cyberattaque, catastrophe naturelle, décision administrative, etc.).",
+        ],
+      },
+      {
+        title: "15. Modification des conditions",
+        body: [
+          "Nous pouvons modifier ces conditions pour tenir compte de l'évolution du service ou des exigences légales. La version en vigueur est celle publiée sur cette page, avec indication de la date de dernière mise à jour.",
+          "Pour les modifications substantielles, un avis peut être affiché sur la plateforme avant leur entrée en vigueur.",
+        ],
+      },
+      {
+        title: "16. Droit applicable et litiges",
+        body: [
+          "Les présentes conditions sont soumises au droit applicable, sans préjudice des dispositions impératives protectrices des consommateurs. En cas de litige, les parties s'engagent à rechercher d'abord une solution amiable via la page Contact.",
+        ],
+      },
+      {
+        title: "17. Contact",
+        body: [
+          "Pour toute question relative à ces conditions, utilisez la page Contact de la plateforme ou l'adresse e-mail indiquée dans le pied de page. Nous nous efforçons de répondre dans les plus brefs délais.",
         ],
       },
     ],

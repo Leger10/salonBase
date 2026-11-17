@@ -390,9 +390,9 @@ export default function LoginPage({ defaultTab = "login" }) {
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
           En continuant, vous acceptez nos{" "}
-          <a href="#" className="font-medium text-foreground hover:underline">
+          <Link to="/terms" className="font-medium text-foreground hover:underline">
             Conditions de service
-          </a>
+          </Link>
           .
         </p>
       </div>

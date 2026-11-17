@@ -256,6 +256,10 @@ function App() {
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/privacy" element={<LegalPage page="privacy" />} />
                     <Route path="/terms" element={<LegalPage page="terms" />} />
+                    <Route
+                      path="/conditions-utilisation"
+                      element={<LegalPage page="terms" />}
+                    />
                     <Route path="/cookies" element={<LegalPage page="cookies" />} />
 <Route path="/promotions" element={<PromotionsPage />} />
 <Route path="/showcase/:slug/promotions" element={<PromotionsPage />} />

@@ -421,7 +421,7 @@ export default function PublicFooter() {
               Politique de Confidentialité
             </Link>
             <Link to="/terms" className="hover:text-primary transition-colors">
-              Conditions Générales
+              Conditions d'utilisation
             </Link>
             <Link
               to="/cookies"

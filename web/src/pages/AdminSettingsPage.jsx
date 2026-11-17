@@ -27,6 +27,66 @@ import {
 // Import TikTok icon (ou utilisez un SVG personnalisé)
 import { SiTiktok } from 'react-icons/si';
 
+/** Champ de galerie de couvertures, réutilisé dans Hero et Branding. */
+function CoverGalleryField({
+  gallery = [],
+  primaryColor = '#2563eb',
+  uploading = false,
+  inputId,
+  onUpload,
+  onRemove,
+}) {
+  const images = Array.isArray(gallery) ? gallery : [];
+  return (
+    <div className="space-y-3">
+      <Label className="text-base font-semibold">Galerie de couvertures</Label>
+      <p className="text-sm text-muted-foreground">
+        Jusqu'à 6 images affichées en cube rotatif sur l'accueil de votre salon.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {images.map((url, index) => (
+          <div key={`${url}-${index}`} className="relative w-24 h-24">
+            <img
+              src={url}
+              alt={`Couverture ${index + 1}`}
+              className="w-24 h-24 rounded-xl object-cover border-2"
+              style={{ borderColor: primaryColor }}
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(index)}
+              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+              aria-label={`Supprimer la couverture ${index + 1}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        {images.length < 6 && (
+          <div
+            className="w-24 h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-muted/30 transition-colors"
+            style={{ borderColor: primaryColor }}
+            onClick={() => document.getElementById(inputId)?.click()}
+          >
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground text-center">Ajouter</span>
+          </div>
+        )}
+        <input
+          id={inputId}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          disabled={uploading}
+          onChange={onUpload}
+        />
+      </div>
+      <UploadHint kind="image" />
+    </div>
+  );
+}
+
 export default function AdminSettingsPage() {
   const { currentUser } = useAuth();
   const { refreshTenant } = useTenant();
@@ -854,6 +914,18 @@ export default function AdminSettingsPage() {
 
                   <Separator />
 
+                  {/* Galerie de couvertures visible dès l'ouverture des réglages */}
+                  <CoverGalleryField
+                    inputId="cover-gallery-upload-hero"
+                    gallery={settings?.cover_gallery}
+                    primaryColor={tenant?.primary_color}
+                    uploading={uploading}
+                    onUpload={handleGalleryUpload}
+                    onRemove={handleRemoveGalleryImage}
+                  />
+
+                  <Separator />
+
                   {/* Badge */}
                   <div className="space-y-2">
                     <Label>Badge (petit texte au-dessus du titre)</Label>
@@ -1651,50 +1723,14 @@ export default function AdminSettingsPage() {
                   <Separator />
 
                   {/* Galerie de couvertures (cube 3D) */}
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Galerie de couvertures</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Jusqu'à 6 images affichées en cube rotatif sur l'accueil de votre salon.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      {(settings?.cover_gallery || []).map((url, index) => (
-                        <div key={`${url}-${index}`} className="relative w-24 h-24">
-                          <img
-                            src={url}
-                            alt={`Couverture ${index + 1}`}
-                            className="w-24 h-24 rounded-xl object-cover border-2"
-                            style={{ borderColor: tenant.primary_color || '#2563eb' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveGalleryImage(index)}
-                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {(settings?.cover_gallery || []).length < 6 && (
-                        <div
-                          className="w-24 h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-muted/30 transition-colors"
-                          style={{ borderColor: tenant.primary_color || '#2563eb' }}
-                          onClick={() => document.getElementById('cover-gallery-upload').click()}
-                        >
-                          <Upload className="h-6 w-6 text-muted-foreground" />
-                          <span className="text-[10px] text-muted-foreground text-center">Ajouter</span>
-                        </div>
-                      )}
-                      <input
-                        id="cover-gallery-upload"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={handleGalleryUpload}
-                      />
-                    </div>
-                    <UploadHint kind="image" />
-                  </div>
+                  <CoverGalleryField
+                    inputId="cover-gallery-upload"
+                    gallery={settings?.cover_gallery}
+                    primaryColor={tenant?.primary_color}
+                    uploading={uploading}
+                    onUpload={handleGalleryUpload}
+                    onRemove={handleRemoveGalleryImage}
+                  />
 
                   <Separator />
 

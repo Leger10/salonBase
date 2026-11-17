@@ -218,6 +218,17 @@ export default function SignupPage() {
                 J'accepte les conditions générales d'utilisation et la politique de confidentialité.
               </Label>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Consulter les{" "}
+              <Link to="/terms" className="font-medium text-foreground hover:underline">
+                conditions de service
+              </Link>{" "}
+              et la{" "}
+              <Link to="/privacy" className="font-medium text-foreground hover:underline">
+                politique de confidentialité
+              </Link>
+              .
+            </p>
 
             {/* Bouton d'inscription */}
             <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
