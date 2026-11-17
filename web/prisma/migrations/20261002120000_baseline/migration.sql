@@ -781,6 +781,7 @@ CREATE TABLE `tenant_home_settings` (
     `hero_show_stats` BOOLEAN NULL DEFAULT true,
     `hero_background_type` TEXT NULL DEFAULT 'gradient',
     `hero_background_image` TEXT NULL,
+    `cover_gallery` JSON NULL,
     `hero_background_color` TEXT NULL DEFAULT '#2563eb',
     `hero_overlay_opacity` INTEGER NULL DEFAULT 70,
     `stats_title` TEXT NULL DEFAULT 'Nos chiffres',

@@ -76,6 +76,7 @@ import {
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import CoverCube from "@/components/CoverCube.jsx";
 import TicketQueue from "@/components/client/TicketQueue";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -2377,6 +2378,25 @@ export default function TenantShowcase() {
   const { currentUser, isAuthenticated } = useAuth();
   const [tenant, setTenant] = useState(null);
   const [settings, setSettings] = useState(null); // ✅ Ajout des settings
+
+  // Images de la galerie couverture, avec repli sur l'image Hero/couverture.
+  const coverGallery = (() => {
+    const raw = settings?.cover_gallery;
+    let images = [];
+    if (Array.isArray(raw)) images = raw;
+    else if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) images = parsed;
+      } catch {
+        images = [];
+      }
+    }
+    images = images.filter((url) => typeof url === "string" && url.trim());
+    if (images.length) return images;
+    const fallback = settings?.hero_background_image || tenant?.cover_image;
+    return fallback ? [fallback] : [];
+  })();
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -2972,6 +2992,13 @@ export default function TenantShowcase() {
             </div>
           </div>
         </div>
+
+        {/* Couvertures en cube : section dédiée, sans texte sur les images */}
+        <CoverCube
+          images={coverGallery}
+          title={`Les couvertures de ${tenant.name}`}
+          subtitle="Découvrez les images de ce salon"
+        />
 
         {/* Contenu principal */}
         <div className="max-w-7xl mx-auto px-4 py-8">

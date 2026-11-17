@@ -63,6 +63,7 @@ import {
   MessageCircle,
   Link,
   Image,
+  Images,
   Upload,
   X,
   Palette,
@@ -107,6 +108,7 @@ export default function SuperAdminSettingsPage() {
     logo_url: "",
     favicon_url: "",
     cover_image: "",
+    cover_gallery: [],
     hero_image: "",
     primary_color: "#ec4899",
     secondary_color: "#06b6d4",
@@ -297,7 +299,22 @@ export default function SuperAdminSettingsPage() {
           setGeneralSettings((prev) => ({ ...prev, ...data.general }));
         }
         if (data.branding) {
-          setBrandingSettings((prev) => ({ ...prev, ...data.branding }));
+          let gallery = [];
+          if (Array.isArray(data.branding.cover_gallery)) {
+            gallery = data.branding.cover_gallery;
+          } else if (typeof data.branding.cover_gallery === "string") {
+            try {
+              const parsed = JSON.parse(data.branding.cover_gallery);
+              if (Array.isArray(parsed)) gallery = parsed;
+            } catch {
+              gallery = [];
+            }
+          }
+          setBrandingSettings((prev) => ({
+            ...prev,
+            ...data.branding,
+            cover_gallery: gallery,
+          }));
           setPreviewLogo(data.branding.logo_url || null);
           setPreviewCover(data.branding.cover_image || null);
           setPreviewHero(data.branding.hero_image || null);
@@ -491,6 +508,62 @@ export default function SuperAdminSettingsPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleGalleryUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const existing = Array.isArray(brandingSettings.cover_gallery)
+      ? brandingSettings.cover_gallery
+      : [];
+    const remaining = 6 - existing.length;
+    if (remaining <= 0) {
+      toast.error("Maximum 6 images dans la galerie");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const urls = [];
+      for (const [index, file] of files.slice(0, remaining).entries()) {
+        const check = validateFile(file, "image");
+        if (!check.ok) {
+          toast.error(check.message);
+          continue;
+        }
+        const ext = file.name.split(".").pop();
+        const filePath = `platform/branding/gallery_${Date.now()}_${index}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("tenant-assets")
+          .upload(filePath, file, { cacheControl: "3600", upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from("tenant-assets")
+          .getPublicUrl(filePath);
+        if (urlData?.publicUrl) urls.push(urlData.publicUrl);
+      }
+      if (urls.length) {
+        setBrandingSettings((prev) => ({
+          ...prev,
+          cover_gallery: [...(prev.cover_gallery || []), ...urls],
+        }));
+        toast.success(`${urls.length} image(s) ajoutée(s) à la galerie`);
+      }
+    } catch (error) {
+      console.error("Error uploading gallery:", error);
+      toast.error("Erreur lors du téléchargement des images");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveGalleryImage = (index) => {
+    setBrandingSettings((prev) => ({
+      ...prev,
+      cover_gallery: (prev.cover_gallery || []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleRemoveImage = (type) => {
@@ -1073,6 +1146,62 @@ export default function SuperAdminSettingsPage() {
                     />
                     <UploadHint kind="image" className="text-center" />
                   </div>
+                </div>
+
+                <Separator />
+
+                {/* Galerie de couvertures (cube 3D) */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Galerie de couvertures</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Jusqu'à 6 images affichées en cube rotatif sur l'accueil public.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {(brandingSettings.cover_gallery || []).map((url, index) => (
+                      <div key={`${url}-${index}`} className="relative w-24 h-24">
+                        <img
+                          src={url}
+                          alt={`Couverture ${index + 1}`}
+                          className="w-24 h-24 rounded-xl object-cover border-2"
+                          style={{
+                            borderColor: brandingSettings.primary_color || "#ec4899",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGalleryImage(index)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(brandingSettings.cover_gallery || []).length < 6 && (
+                      <div
+                        className="w-24 h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-muted/30 transition-colors"
+                        style={{
+                          borderColor: brandingSettings.primary_color || "#ec4899",
+                        }}
+                        onClick={() =>
+                          document.getElementById("cover-gallery-upload").click()
+                        }
+                      >
+                        <Images className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground text-center">
+                          Ajouter
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      id="cover-gallery-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleGalleryUpload}
+                    />
+                  </div>
+                  <UploadHint kind="image" />
                 </div>
 
                 <Separator />

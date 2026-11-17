@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api.js";
 import PublicHeader from "@/components/PublicHeader.jsx";
 import PublicFooter from "@/components/PublicFooter.jsx";
+import CoverCube from "@/components/CoverCube.jsx";
 import ProductsList from "@/components/ProductsList.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
@@ -96,6 +97,36 @@ export default function HomePage() {
   const isAdmin = isAuthenticated && getUserRole() === 'admin';
   const isEmployee = isAuthenticated && getUserRole() === 'employee';
   const isClient = isAuthenticated && getUserRole() === 'client';
+
+  // Galerie de couvertures : le super admin alimente `branding.cover_gallery`,
+  // les admins de salon alimentent `tenant_home_settings.cover_gallery`.
+  const parseGallery = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const isSalonContext = isShowcase || isAdmin || isEmployee || isClient;
+  const gallerySetting = isSalonContext
+    ? homeSettings?.cover_gallery
+    : platformConfig.get?.('branding.cover_gallery');
+  const galleryImages = parseGallery(gallerySetting);
+  const fallbackCover = isSalonContext
+    ? homeSettings?.hero_background_image || tenantSettings?.cover_image || activeTenant?.cover_image
+    : platformConfig.get?.('branding.cover_image') ||
+      platformConfig.get?.('branding.hero_image');
+  const coverImages = galleryImages.length
+    ? galleryImages
+    : fallbackCover
+      ? [fallbackCover]
+      : [];
 
   const currentTenant = isShowcase ? activeTenant : userTenant;
 
@@ -954,6 +985,17 @@ export default function HomePage() {
 
         <main className="flex-1">
           {renderHero()}
+
+          {/* Couvertures en cube : images seules, sans texte superposé */}
+          <CoverCube
+            images={coverImages}
+            title={isSalonContext
+              ? `Les couvertures de ${getSalonName()}`
+              : "Nos couvertures"}
+            subtitle={isSalonContext
+              ? "Découvrez les images de ce salon"
+              : "Un aperçu de notre univers"}
+          />
 
           {/* Salons partenaires */}
           {!isSuperAdmin && !isShowcase && (

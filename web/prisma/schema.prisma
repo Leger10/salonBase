@@ -901,6 +901,7 @@ model TenantHomeSetting {
   heroShowStats         Boolean?  @default(true) @map("hero_show_stats")
   heroBackgroundType    String?   @default("gradient") @map("hero_background_type") @db.Text
   heroBackgroundImage   String?   @map("hero_background_image") @db.Text
+  coverGallery          Json?     @map("cover_gallery")
   heroBackgroundColor   String?   @default("#2563eb") @map("hero_background_color") @db.Text
   heroOverlayOpacity    Int?      @default(70) @map("hero_overlay_opacity")
   statsTitle            String?   @default("Nos chiffres") @map("stats_title") @db.Text
